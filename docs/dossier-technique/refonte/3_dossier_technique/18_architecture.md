@@ -12,7 +12,7 @@
 <!-- partie: Architecture et exploitation -->
 # Architecture technique
 
-<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> de quoi Matrix est fait, comment le code est organisé, comment une page ou une requête d'API traverse l'application, ce que fait le noyau commun, comment les paquets dépendent les uns des autres, et ce qui tourne en arrière-plan. Un lecteur non développeur peut s'en tenir aux §18.1 et §18.2</div>
+<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> de quoi Matrix est fait, comment le code est organisé, comment une page ou une requête d'API traverse l'application, ce que fait le noyau commun, comment les paquets dépendent les uns des autres, et ce qui tourne en arrière-plan. Un lecteur non développeur peut s'en tenir aux sections « L'essentiel en un schéma » et la section « La pile technique »</div>
 
 ## L'essentiel en un schéma
 
@@ -47,7 +47,7 @@ Le courrier électronique est configurable (`EMAIL_*`) ; par défaut, les messag
 Matrix/
 ├── manage.py, requirements.txt, docker-compose.yml, README.md, CLAUDE.md
 ├── matrix/                    # projet : réglages, URL racine, Celery, gabarits et statiques communs
-│   ├── core/                  # noyau commun (voir §18.5)
+│   ├── core/                  # noyau commun (voir la section « Le noyau commun matrix.core »)
 │   ├── templates/, static/    # gabarits de base, composants, CSS, JS, bibliothèques embarquées
 │   ├── settings.py, urls.py, views.py (Réglages), celery.py
 ├── accounts/, org/            # personnes et organisation

@@ -158,10 +158,15 @@ def capture_html(args, code, captures_dir, manifeste):
         sys.exit("@capture sans vignette c1=…")
     dispo = float(d.get("dispo", 132))                    # hauteur disponible en mm pour les vignettes
     maxw = float(d.get("largeur", 256))
-    somme = sum((v[4] - v[2]) / (v[3] - v[1]) for v in vignettes)
-    ecarts = 3.0 * (len(vignettes) - 1) + 4.2 * sum(1 for v in vignettes if v[5])
-    W = min(maxw, (dispo - ecarts) / somme)
-    blocs = []
+    mobiles = all(v[0].get("mobile") for v in vignettes)  # vues de téléphone : côte à côte, pas empilées
+    if mobiles:
+        ratio = max((v[4] - v[2]) / (v[3] - v[1]) for v in vignettes)
+        W = min((maxw - 8.0 * (len(vignettes) - 1)) / len(vignettes), (dispo - 4.2) / ratio)
+    else:
+        somme = sum((v[4] - v[2]) / (v[3] - v[1]) for v in vignettes)
+        ecarts = 3.0 * (len(vignettes) - 1) + 4.2 * sum(1 for v in vignettes if v[5])
+        W = min(maxw, (dispo - ecarts) / somme)
+    blocs, legende_rep = [], ""
     for m, x0, y0, x1, y1, leg in vignettes:
         cw, ch = x1 - x0, y1 - y0
         h = W * ch / cw
@@ -171,22 +176,21 @@ def capture_html(args, code, captures_dir, manifeste):
                 rx, ry = r["x"] * 1366 - x0, r["y"] * 768 - y0
                 if 0 <= rx <= cw and 0 <= ry <= ch:
                     reperes += f'<div class="rep" style="left:{rx / cw * 100:.2f}%;top:{ry / ch * 100:.2f}%">{r["n"]}</div>'
+                    legende_rep += f' <b>{r["n"]}</b> {html.escape(r["texte"])}'
         fichier = (captures_dir / m["fichier"]).resolve()
         echelle = W / cw
-        img = (f'<img src="{fichier.as_uri()}" style="position:absolute;width:{(390 if m.get('mobile') else 1366) * echelle:.2f}mm;left:{-x0 * echelle:.2f}mm;top:{-y0 * echelle:.2f}mm;max-width:none">')
-        blocs.append(f'<div class="cap-cadre" style="width:{W:.1f}mm;height:{h:.1f}mm;overflow:hidden">{img}{reperes}</div>'
-                     + (f'<div class="cap-vignette">{html.escape(leg)}</div>' if leg else ""))
-    legende_rep = ""
-    if len(vignettes) == 1:
-        legende_rep = " ".join(f'<b>{r["n"]}</b> {html.escape(r["texte"])}' for r in vignettes[0][0].get("reperes") or [])
+        img = (f'<img src="{fichier.as_uri()}" style="position:absolute;width:{(390 if m.get("mobile") else 1366) * echelle:.2f}mm;left:{-x0 * echelle:.2f}mm;top:{-y0 * echelle:.2f}mm;max-width:none">')
+        bloc = (f'<div class="cap-cadre" style="width:{W:.1f}mm;height:{h:.1f}mm;overflow:hidden">{img}{reperes}</div>'
+                + (f'<div class="cap-vignette">{html.escape(leg)}</div>' if leg else ""))
+        blocs.append(f'<div class="cap-col">{bloc}</div>' if mobiles else bloc)
     prov = '<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span>' if d.get("provisoire") else ""
     renvoi = f" · {html.escape(d['renvoi'])}" if d.get("renvoi") else ""
     nav = f" · Navigation : {html.escape(d['nav'])}" if d.get("nav") else ""
     entete = (f'<h2>{html.escape(d["h2"])}</h2>' if d.get("h2") else f'<div class="cap-sec">{html.escape(d.get("section", ""))}</div>')
     profils = sorted({v[0]["profil"] for v in vignettes})
     return (f'<section class="paysage capture">{entete}<div class="cap-titre">{html.escape(d["titre"])}</div>'
-            f'<p class="cap-texte">{html.escape(d.get("texte", ""))}</p><div class="cap-bloc">{"".join(blocs)}</div>'
-            f'<p class="cap-legende"><b>Écran réel 🟢 · profil de démonstration : {html.escape(", ".join(profils))}</b>{nav}{renvoi}'
+            f'<p class="cap-texte">{html.escape(d.get("texte", ""))}</p><div class="cap-bloc{" ligne" if mobiles else ""}">{"".join(blocs)}</div>'
+            f'<p class="cap-legende"><b>{"Émulation d'un écran de téléphone ⚪ (aucun appareil réel)" if mobiles else "Écran réel 🟢"} · profil de démonstration : {html.escape(", ".join(profils))}</b>{nav}{renvoi}'
             f'{(" · Repères : " + legende_rep) if legende_rep else ""}{prov}</p></section>')
 
 

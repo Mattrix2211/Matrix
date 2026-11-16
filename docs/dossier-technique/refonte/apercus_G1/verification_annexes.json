@@ -1,0 +1,25 @@
+{
+ "requetes_reseau": [],
+ "tests": [
+  {
+   "viewport": "1366x768",
+   "tables": 22,
+   "lignes_C1": 185,
+   "lignes_apres_filtre": 14,
+   "tri_actif": true,
+   "totaux_identiques": 6,
+   "totaux_en_ecart": 0,
+   "defilement_horizontal_page": false
+  },
+  {
+   "viewport": "1024x768",
+   "tables": 22,
+   "lignes_C1": 185,
+   "lignes_apres_filtre": 14,
+   "tri_actif": true,
+   "totaux_identiques": 6,
+   "totaux_en_ecart": 0,
+   "defilement_horizontal_page": false
+  }
+ ]
+}

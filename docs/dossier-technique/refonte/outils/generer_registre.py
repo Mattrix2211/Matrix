@@ -134,6 +134,7 @@ for i in range(1, 27):
     e["titre"] = TITRES.get(e["id"]) or e["titre"]
     for k in ("regle", "constat", "consequences", "sources"):
         e[k] = deplier_plages(e.get(k, ""))
+    e["sources"] = re.sub(r"`docs/dossier-technique-v12/([^`]+?)(?:\.md)?`", r"dossier V1.2 (\1)", e["sources"])      # document d'une autre branche : pas une référence de code
     liste_a.append(e)
 
 PROFILS_B = {"B1": "COMAEQ ; commandants", "B2": "commandant en second", "B3": "chefs de liste ; COMAEQ", "B4": "COMAEQ ; commandants", "B5": "chefs de liste ; chefs de service",
@@ -386,7 +387,7 @@ M = ["# Lire ce registre", "", "> **Public :** PO, responsables, mainteneurs · 
      f"**Répartition :** {len(liste_a)} écarts, {len(points)} points à confirmer, {len(propositions)} propositions, {len(nouveaux)} nouveaux écarts du logiciel, {len(aud)} anomalies documentaires ({sum(1 for a in aud if a['statut'].startswith('ouverte'))} ouvertes), {len(decisions)} décisions.", ""]
 M += ["# Écarts du logiciel (A1 à A26)", ""]
 for e in liste_a:
-    M += fiche(e, [("regle", "Règle validée"), ("constat", "Constat dans l'état B"), ("consequences", "Conséquences"), ("profils_concernes", "Profils concernés"), ("lot", "Lot de correction prévu"),
+    M += fiche(e, [("regle", "Règle validée"), ("constat", "Constat dans l'état B"), ("consequences", "Conséquences"), ("sources", "Sources et preuves"), ("profils_concernes", "Profils concernés"), ("lot", "Lot de correction prévu"),
                    ("verifications", "Vérifications"), ("niveau_preuve", "Niveau de preuve"), ("revision", "Révision"), ("statut", "Statut")])
 M += [f"# Nouveaux écarts du logiciel (NE-01 à NE-{len(nouveaux):02d})", ""]
 for e in nouveaux:

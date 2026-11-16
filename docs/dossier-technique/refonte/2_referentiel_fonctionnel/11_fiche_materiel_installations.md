@@ -81,7 +81,7 @@ Le **catalogue** est commun à toute la flotte, organisé en **catégories** et 
 1. Le bord **choisit un article** et indique **combien il en possède** ; Matrix crée **autant de fiches de matériel pré-remplies** (type, marque, NNO…), chacune **rattachée à l'article** mais **autonome** : si l'article disparaît du catalogue, la fiche du bord survit.
 2. Le chef **complète les exemplaires en grille**, façon tableur : numéro de série, numéro de bord, emplacement, dates de mise en service, de dernier contrôle et de péremption.
 3. Le matériel reçoit **les plans de maintenance de sa catégorie** ([[RF:12_fiche_maintenance]]) et peut être posé sur le **plan du navire**.
-4. Un article **absent du catalogue** ? Le bord **propose** un article ; la proposition suit un circuit de visas (§11.5) avant d'entrer au catalogue.
+4. Un article **absent du catalogue** ? Le bord **propose** un article ; la proposition suit un circuit de visas (la section « Les fiches de maintenance et leurs circuits de validation ») avant d'entrer au catalogue.
 
 Une **reprise de l'existant** permet de rattacher les anciens dossiers de matériel aux catégories du catalogue : elle est d'abord **proposée** (lecture seule), puis **appliquée** ; **rien n'est supprimé ni déplacé**, le matériel reçoit seulement son lien vers l'article.
 

@@ -15,7 +15,7 @@
 
 ## La carte des modules
 
-Matrix est composé de **22 ensembles de code**, appelés *paquets* : 21 applications fonctionnelles et un noyau commun (`matrix.core`) qui porte les règles partagées (rôles, périmètres, modules, sécurité). Le schéma ci-dessous les regroupe par grande fonction ; le menu de l'application, lui, est organisé en sept groupes de navigation (§2.2).
+Matrix est composé de **22 ensembles de code**, appelés *paquets* : 21 applications fonctionnelles et un noyau commun (`matrix.core`) qui porte les règles partagées (rôles, périmètres, modules, sécurité). Le schéma ci-dessous les regroupe par grande fonction ; le menu de l'application, lui, est organisé en sept groupes de navigation (la section « Ce que voit le marin : le menu »).
 
 **Carte des modules** (remplacé par un tableau)
 

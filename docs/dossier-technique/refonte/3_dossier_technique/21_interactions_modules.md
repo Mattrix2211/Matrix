@@ -10,7 +10,7 @@
 <!-- partie: Architecture et exploitation -->
 # Interactions entre modules
 
-<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> comment les modules se parlent — signaux, services partagés, notifications, tâches planifiées —, les enchaînements métier (anomalie → ticket, maintenance → ticket, RETEX → document et tâche…) et les couplages à connaître avant de modifier un module. La matrice des dépendances par paquet est au chapitre 18 (§18.6) ; les circuits métier détaillés sont aux chapitres 6 à 16</div>
+<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> comment les modules se parlent — signaux, services partagés, notifications, tâches planifiées —, les enchaînements métier (anomalie → ticket, maintenance → ticket, RETEX → document et tâche…) et les couplages à connaître avant de modifier un module. La matrice des dépendances par paquet est au chapitre 18 (la section « Les dépendances entre paquets » ([[DT:18_architecture]])) ; les circuits métier détaillés sont aux chapitres 6 à 16</div>
 
 ## Quatre mécanismes d'interaction
 
@@ -19,7 +19,7 @@
 | **Services partagés** | Un module appelle une fonction d'un autre | Droits et périmètres (`matrix/core`), stock (`logistics/stock.py`), notifications (`notifications/services.py`) |
 | **Signaux Django** | Un événement de base déclenche une réaction | Ticket créé quand une exécution est non conforme ; Web Push quand une notification critique est créée |
 | **Relations génériques** | Un objet se rattache à n'importe quel autre | Discussions (`threads`), notifications, points d'appareillage, liens de documents |
-| **Tâches planifiées (Celery beat)** | Un calcul périodique crée des alertes ou des échéances | 20 tâches (§21.4) |
+| **Tâches planifiées (Celery beat)** | Un calcul périodique crée des alertes ou des échéances | 20 tâches (la section « Tâches planifiées (annexe E : détail) ») |
 
 ## Les signaux (15, état B)
 

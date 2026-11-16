@@ -53,7 +53,7 @@ La feuille de service **n'affiche pas** tous les quarts à la mer : cela la surc
 |---|---|
 | **Chef de liste** (marin désigné pour un périmètre et un type de liste : « quarts à la mer » ou « services à quai ») | Crée la liste de son périmètre, ajoute les créneaux, affecte les marins, **propose** la liste à la publication. Pour une liste à quai : **active** la liste publiée à titre prévisionnel, la reporte ou la retire. Il ne publie pas, sauf s'il relève du commandement ou atteint par ailleurs le seuil de publication de son périmètre. |
 | **Remplaçant temporaire d'un chef de liste** | Désigné de façon **explicite, bornée dans le temps (72 h au plus par défaut, sans renouvellement automatique) et tracée** : il peut seulement activer, reporter ou retirer une prévision, pour un périmètre, un équipage et un type de liste précis. |
-| **Personne habilitée à publier** | Publie la liste (voir §8.7). |
+| **Personne habilitée à publier** | Publie la liste (voir la section « Échanges et publication — fonctionnement CIBLE 🔵 et écarts »). |
 | **BSC (rédacteur de la feuille de service)** | Prépare la feuille de service de son équipage : en-tête, fonctions de service, personnel du jour. Désigné nominativement par le COMAEQ. |
 | **COMAEQ** | Vise la feuille de service ; désigne les rédacteurs ; déclare l'accostage et l'appareillage du bâtiment. |
 | **Commandant** | Déclare les mouvements du bâtiment ; gère les listes de son bâtiment au titre de la supervision ; secours du visa de la feuille quand le poste de COMAEQ est vacant. |
@@ -89,7 +89,7 @@ Une liste à quai a, en plus, une **application** distincte de sa validation : *
 
 ## Les échanges de tours — fonctionnement ACTUEL 🟢
 
-> Cette section décrit ce que fait le code de l'état B. **Ce n'est pas la règle métier validée** sur le point de la décision finale (voir §8.7).
+> Cette section décrit ce que fait le code de l'état B. **Ce n'est pas la règle métier validée** sur le point de la décision finale (voir la section « Échanges et publication — fonctionnement CIBLE 🔵 et écarts »).
 
 ![Échange de tours, fonctionnement actuel](../schemas/svg/S16_echange_reel.svg)
 
@@ -188,7 +188,7 @@ Un compteur **en lecture seule** par marin sur les services de garde **publiés*
 
 ## Limites et éléments non vérifiés
 
-- 🟢 Les circuits décrits sont couverts par des tests de l'état B (`quarts/tests/`, 609 fonctions de test dans le paquet) ; ⚪ PostgreSQL, Windows et navigateur n'ont pas été rejoués ; les parcours du §8.2 sont reconstitués d'après le code.
+- 🟢 Les circuits décrits sont couverts par des tests de l'état B (`quarts/tests/`, 609 fonctions de test dans le paquet) ; ⚪ PostgreSQL, Windows et navigateur n'ont pas été rejoués ; les parcours de la section « Ce que voit et fait le marin » sont reconstitués d'après le code.
 - 🟢 Le rendu imprimable d'une **liste** existe ; la **feuille de service** s'imprime aussi par le navigateur (bouton « Imprimer » de son écran). 🔵 La mise en page A4 dédiée à l'affichage, l'alerte de réimpression et la réimpression versionnée sont des cibles non développées (écart A12, `DEC-FDS-04`, `DEC-FDS-06`, lot L27).
 - ⚪ L'autorité de déclaration d'un accostage ou d'un appareillage (COMAEQ ou commandant de l'équipage à bord) est décrite par les propositions `mer_quai_*` validées par le PO ; elle ne figure pas dans le registre des {{fait:n_decisions_v12}} décisions (B4 du registre des écarts).
 - 🟢 L'écran d'entrée (vues par jour et par marin) et la feuille de service ont été rejoués sur l'instance de démonstration le 16/11/2026 ; ⚪ leur description détaillée vient du code pour le reste.

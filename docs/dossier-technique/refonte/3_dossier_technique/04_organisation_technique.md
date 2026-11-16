@@ -15,7 +15,7 @@
 
 ## Les modèles de l'organisation
 
-Le paquet `org` porte 15 modèles (inventaire généré, `couverture/etat_B/MODELES.md`). Les quatre niveaux de la hiérarchie sont reliés par des clés étrangères **en cascade vers le bas** : supprimer un parent supprime les enfants. C'est précisément pourquoi la suppression d'une unité est encadrée (§4T.4).
+Le paquet `org` porte 15 modèles (inventaire généré, `couverture/etat_B/MODELES.md`). Les quatre niveaux de la hiérarchie sont reliés par des clés étrangères **en cascade vers le bas** : supprimer un parent supprime les enfants. C'est précisément pourquoi la suppression d'une unité est encadrée (la section « Archivage et suppression des unités »).
 
 | Modèle | Rôle | Relations notables | Contraintes |
 |---|---|---|---|

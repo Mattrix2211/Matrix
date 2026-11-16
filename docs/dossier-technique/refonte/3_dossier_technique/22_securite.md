@@ -89,7 +89,7 @@ Familles d'actions tracées (extraits) : comptes (`create_user`, `edit_user`, `d
 Le principe 7 ([[RF:02_vision]]) se retrouve dans le code sous trois formes :
 1. **Versions** : une modification d'une liste, d'une feuille, d'une annonce ou d'un document crée une version ; la publiée reste active jusqu'à validation.
 2. **Circuits à deux acteurs** : la relève d'équipage (un commandant propose, l'autre équipage valide), les échanges de tours, les fiches et articles du catalogue.
-3. **Confirmation explicite** pour les validations critiques (§22.5).
+3. **Confirmation explicite** pour les validations critiques (la section « Le journal d'audit »).
 
 Aucune modification d'un objet validé n'écrase silencieusement l'ancien état.
 

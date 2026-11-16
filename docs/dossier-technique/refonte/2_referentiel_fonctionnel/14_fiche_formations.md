@@ -31,7 +31,7 @@
 1. **Mes qualifications** : valides, **bientôt expirées**, **expirées**, avec l'échéance. Des alertes sont envoyées avant expiration (échéances en jours réglées côté système), et l'accueil les place dans « À faire ».
 2. **Catalogue et arbre de compétences** : formations par catégorie, prérequis, ce qu'une validation « débloque » ; chaque formation est **validé / disponible / verrouillée** pour lui.
 3. **Réserver une place** dans une session : Matrix contrôle les **prérequis** et la **capacité**. Si la session est pleine, il entre en **liste d'attente** (premier arrivé, premier servi) et est **notifié** quand une place se libère.
-4. **Candidater** à une formation qui passe par un organisme (§14.5).
+4. **Candidater** à une formation qui passe par un organisme (la section « Circuit B — La candidature individuelle »).
 5. Ses sessions apparaissent dans **son calendrier** (stagiaire, réservataire ou formateur).
 
 Une qualification **n'est pas un grade** (`DEC-ORG-04`).
@@ -44,7 +44,7 @@ Une qualification **n'est pas un grade** (`DEC-ORG-04`).
 | **Référent formation du navire** (transversal) | Idem pour toutes les formations du bord ; désigné au niveau de supervision globale |
 | **Commandement du bâtiment** | Supervision de toutes les formations de son seul bâtiment |
 | **Chef de section et plus** | Affecte des marins de son périmètre à une session ; formule une demande de places |
-| **Chef de service et plus** | Valide une formation proposée par le bord (§14.6) |
+| **Chef de service et plus** | Valide une formation proposée par le bord (la section « Circuit C — Une formation proposée par le bord ») |
 | **Personnel BRH** (désigné par navire) | Traite les candidatures (étape BRH) |
 | **Administrateur général** | Seul quand un marin n'a aucun navire résolvable |
 
@@ -88,7 +88,7 @@ Les formations de l'organisme (non gérées par le bord) restent toujours active
 3. La validation exige que les **prérequis soient valides à la date d'obtention** : sinon elle est **refusée** avec la liste des formations manquantes.
 4. La qualification apparaît chez le marin, dans l'arbre, dans l'accueil, dans les vues de spécialité et dans la passation.
 
-⚪ Aujourd'hui, la transition automatique « session effectuée → validation → qualification » n'existe pas : **c'est le référent qui enregistre la validation** (cible Notion, §14.10).
+⚪ Aujourd'hui, la transition automatique « session effectuée → validation → qualification » n'existe pas : **c'est le référent qui enregistre la validation** (cible Notion, la section « Fonctionnement cible »).
 
 ## Qualifications et tâches : l'information ne bloque pas
 

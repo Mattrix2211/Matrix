@@ -103,7 +103,7 @@ Pour une vue web, les étapes 3 et 4 sont réalisées dans la vue (ou son `servi
 
 ## Limites et éléments non vérifiés
 
-- ⚪ Les deux familles de comparaison (§5T.2) ne sont pas harmonisées : le comportement du commandant en second varie selon la vue. Le détail par vue est établi chapitre par chapitre.
+- ⚪ Les deux familles de comparaison (la section « Deux familles de comparaison de seuils ») ne sont pas harmonisées : le comportement du commandant en second varie selon la vue. Le détail par vue est établi chapitre par chapitre.
 - ⚪ `BasicAuthentication` est acceptée par l'API en plus de la session : utile pour des scripts, à considérer pour l'exploitation ([[DT:23_configuration_deploiement_exploitation]]).
 - ⚪ Aucune limitation du nombre de tentatives de connexion n'a été trouvée dans le code ; « absent » signifie « non trouvé par recherche », pas preuve d'absence.
 - ⚪ PostgreSQL, Windows, navigateur : non rejoués.

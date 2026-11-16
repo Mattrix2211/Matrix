@@ -94,6 +94,20 @@ cap('09_limites', 'en_validation_execution_marin', 'equipier_a', "Occurrence « 
 cap('10_mobile', 'mobile_accueil', 'equipier_a', 'Accueil sur écran de téléphone (émulation)', '/', { mobile: true });
 cap('10_mobile', 'mobile_maintenance', 'equipier_a', 'Maintenance sur écran de téléphone (émulation)', '/maintenance/gestion/occurrences/', { mobile: true });
 
+
+// Repères numérotés : posés dans le PDF (jamais dans l'image), positions mesurées dans la page réelle au moment de la capture.
+const REPERES = {
+  accueil_marin: [['text=À FAIRE', 'Actions à faire, urgentes en tête'], ['text=MA JOURNÉE', 'Journée : quarts, services, maintenances'], ['text=MES TOURS DE SERVICE', 'Prochains tours de service'], ['.bi-bell >> nth=0', 'Cloche des notifications']],
+  occurrences: [['tr:has(button:has-text("M\'assigner")) a:has-text("Exécuter") >> nth=0', 'NE-01 : « Exécuter » affiché pour une échéance non assignée à ce marin'], ['button:has-text("M\'assigner") >> nth=0', '« M\'assigner » : prendre l\'échéance']],
+  execution_fiche: [['text=Points à contrôler', 'Contrôles : Conforme, Non conforme ou Sans objet'], ["text=Sécurité de l'intervention", 'Consignes de sécurité de la fiche'], ['text=opérations réalisées', 'Progression et enregistrement']],
+  en_validation_execution: [['button:has-text("Enregistrer la correction")', 'A20 : bouton réservé au chef de secteur ou plus']],
+  plan_navire: [['text=Légende', 'Légende des couleurs'], ['text=Matériel positionné', 'Matériels épinglés sur le pont']],
+  vue_secteur: [['text=Maintenances en retard', 'Indicateurs du secteur'], ['text=Tickets correctifs ouverts par statut', 'Répartition des tickets par statut']],
+  tache_detail: [['text=Rendre compte', 'Compte rendu de la tâche'], ['text=Un problème sur cette tâche', "Signalement d'un blocage"]],
+  feuille_service: [['text=En-tête', "En-tête de la journée"], ['text=CIRCUIT DE VALIDATION', 'Circuit de validation : rédaction, visas, publication']],
+};
+for (const c of C) if (REPERES[c.id]) c.reperes = REPERES[c.id];
+
 const MOTIFS_LOCALE = [/mm\/dd\/yyyy/i, /Choose File/i, /No file chosen/i, /\b\d{1,2}:\d{2}\s?(AM|PM)\b/];
 const MOTIFS_SENSIBLES = [/[\w.+-]+@[\w-]+\.[\w.]+/, /password|mot de passe\s*:/i, /Bearer [\w-]{16,}/, /\/home\/|\/tmp\//];
 
@@ -144,6 +158,11 @@ const MOTIFS_SENSIBLES = [/[\w.+-]+@[\w-]+\.[\w.]+/, /password|mot de passe\s*:/
       const statutPage = statut;
       if (c.avant) await c.avant(p);
       const texte = await p.evaluate(() => document.body.innerText + '\n' + [...document.querySelectorAll('input,textarea')].map(e => e.value).join('\n'));
+      const reperes = [];
+      for (const [sel, texte] of c.reperes || []) {
+        const bb = await p.locator(sel).first().boundingBox().catch(() => null);
+        if (bb) reperes.push({ n: reperes.length + 1, x: (bb.width < 160 ? bb.x + bb.width + 34 : bb.x) / 1366, y: (bb.y + bb.height / 2) / 768, texte });
+      }
       const verifs = [];
       for (const a of c.assertions || []) {
         const n = await p.locator(a.sel).count();
@@ -153,7 +172,7 @@ const MOTIFS_SENSIBLES = [/[\w.+-]+@[\w-]+\.[\w.]+/, /password|mot de passe\s*:/
       const sensibles = MOTIFS_SENSIBLES.filter(r => r.test(texte)).map(String);
       const m = {
         id: c.id, dossier: c.dossier, profil: c.profil, titre: c.titre, url: c.url, urlFinale: p.url().replace(B, ''),
-        statutHttp: statutPage, assertions: verifs, localeProblemes: locale, motifsSensibles: sensibles,
+        statutHttp: statutPage, assertions: verifs, reperes, localeProblemes: locale, motifsSensibles: sensibles,
         mobile: !!c.mobile, emulation: !!c.mobile, texteVisible: texte.slice(0, 20000), statut: 'ok',
       };
       if (!c.sansImage) {

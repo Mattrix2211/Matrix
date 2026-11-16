@@ -37,9 +37,9 @@ Entre A et B : **127 commits**, dont **117** pour la V1.1 et **10** pour les qua
 | **01/11/2026** | Correctifs métier et UX  | Ordre de travail « correctifs métier et UX » du 01/11 (la correction des droits de la feuille de service, PO-17, y est cadrée) |
 | **05/11/2026** | **V1.1**  ; audit général de la V1.1 | Base de tous les lots ; source du dossier V1.2 |
 | **10–11/11/2026** | **Dossier V1.2** : {{fait:n_decisions_v12}} décisions du PO, 47 anomalies, plan en 28 lots | Document de décision (ne contient pas de code) |
-| **10/11/2026** | **L01** — verrou des commandes de démonstration | Voir §26.3 |
-| **10/11/2026** | **L05** — configuration de production minimale | Voir §26.3 |
-| **11/11/2026** | **L02** — archivage effectif des unités | Voir §26.3 |
+| **10/11/2026** | **L01** — verrou des commandes de démonstration | Voir la section « Ce que chaque lot a changé » |
+| **10/11/2026** | **L05** — configuration de production minimale | Voir la section « Ce que chaque lot a changé » |
+| **11/11/2026** | **L02** — archivage effectif des unités | Voir la section « Ce que chaque lot a changé » |
 | **11/11/2026** | **L03** — suppression sûre des unités — **état B** | — |
 | **11/11/2026** | **Dossier technique G0** (cette documentation) | Branche documentaire dédiée |
 

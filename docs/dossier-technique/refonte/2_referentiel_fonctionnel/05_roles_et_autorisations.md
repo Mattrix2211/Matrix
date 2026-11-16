@@ -27,7 +27,7 @@ Chaque marin possède un **compte** (identifiant de connexion) auquel est attach
 
 | Donnée | Rôle dans Matrix |
 |---|---|
-| **Rôle** | Profil d'accès (neuf possibles, §5.3) |
+| **Rôle** | Profil d'accès (neuf possibles, la section « Les neuf rôles ») |
 | **Rattachement** | Unité, service, secteur, section : **définit le périmètre** du marin |
 | **Équipage** | « A », « B »… sur un bâtiment à double équipage (obligatoire dans ce cas) |
 | **Grade**, **spécialité**, **fonction de service**, **matricule**, date de naissance | Informations d'identification, choisies dans des listes configurables |
@@ -85,7 +85,7 @@ Deux désignations **ne sont pas des rôles** : le **chef de liste** (désigné 
 ![Décision d'une action](../schemas/svg/S06_calcul_droits.svg)
 
 1. **Mon statut m'autorise-t-il à écrire ?** L'équipage à terre et le soutien à terre sont en lecture seule, sauf quelques actions explicitement prévues ([[RF:04_organisation]]).
-2. **Mon niveau est-il suffisant ?** Chaque action a un **seuil** : le rôle minimal requis. Le seuil dépend du bâtiment (§5.5).
+2. **Mon niveau est-il suffisant ?** Chaque action a un **seuil** : le rôle minimal requis. Le seuil dépend du bâtiment (la section « Les seuils par action : la configuration plutôt que le code »).
 3. **L'objet est-il dans mon périmètre ?** Une action n'est possible que sur des objets rattachés à mon unité, mon service, mon secteur ou ma section.
 
 Pour l'état-major, un contrôle supplémentaire s'applique : il n'écrit que sur les services rattachés à sa fonction de commandant adjoint ; ailleurs, il garde la lecture et les droits d'un équipier.
@@ -121,7 +121,7 @@ Pour comprendre ce que les droits changent concrètement, voici ce que peuvent f
 
 **Le chef de service.** En plus : il supprime un matériel, lance une action groupée, **publie** les listes de quarts et de gardes **de son service** (la liste doit porter exactement son périmètre), vise la feuille de service au palier « service », publie des annonces ciblées dans son périmètre, valide les documents et les retours d'expérience.
 
-**Le COMAEQ (état-major).** Il porte la vie à bord et le service courant. Dans Matrix, il écrit **uniquement** dans les services rattachés à la fonction COMAEQ. **Il vise la feuille de service** : ce visa lui revient en tant que **titulaire de la fonction COMAEQ** de son équipage, et non parce qu'il est « état-major ». Il désigne les rédacteurs (le BSC) de la feuille de son équipage. Il déclare l'accostage et l'appareillage du bâtiment. 🔵 *Règle cible validée par le PO, non appliquée :* il décide des échanges de tours et approuve et publie les listes de quarts et de gardes (voir §5.11).
+**Le COMAEQ (état-major).** Il porte la vie à bord et le service courant. Dans Matrix, il écrit **uniquement** dans les services rattachés à la fonction COMAEQ. **Il vise la feuille de service** : ce visa lui revient en tant que **titulaire de la fonction COMAEQ** de son équipage, et non parce qu'il est « état-major ». Il désigne les rédacteurs (le BSC) de la feuille de son équipage. Il déclare l'accostage et l'appareillage du bâtiment. 🔵 *Règle cible validée par le PO, non appliquée :* il décide des échanges de tours et approuve et publie les listes de quarts et de gardes (voir la section « Fonctionnement cible 🔵 (décisions du PO, non développées) »).
 
 **Le BSC (rédacteur de la feuille de service).** Le BSC est le marin **désigné nominativement par le COMAEQ** de son équipage pour préparer la feuille de service. Son droit de rédiger vient de **cette désignation**, pas de son grade ni de son rôle : un matelot désigné rédige ; un commandant non désigné ne rédige pas. Il **prépare et propose** la feuille ; il **ne la vise pas** et **ne la publie pas** : elle passe par le visa du chef de secteur, du chef de service, puis du COMAEQ. Il n'est pas une autorité parallèle au COMAEQ. S'il change d'équipage ou quitte le bâtiment, sa désignation cesse de donner un droit.
 
@@ -129,7 +129,7 @@ Pour comprendre ce que les droits changent concrètement, voici ce que peuvent f
 
 **Le commandant.** Vision et supervision du bâtiment : il gère les comptes jusqu'au niveau état-major, active ou désactive des modules, propose la relève de l'équipage, valide l'organisation d'alerte, gère les listes de son bâtiment (création, publication) au titre de la supervision. Si le poste de COMAEQ est vacant, **lui seul** (et pas son second) peut viser la feuille de service de son équipage, de façon tracée et signalée ; un COMAEQ simplement absent n'ouvre pas cette exception.
 
-**L'administrateur technique (administrateur d'unité).** Il administre la **plateforme et le bâtiment** : crée les comptes, règle les seuils et les modules, modifie la structure, réinitialise les mots de passe, désigne les titulaires de fonctions (le COMAEQ, par exemple), applique la configuration. 🔵 **Règle validée par le PO : il n'a aucun visa métier** : il désigne les titulaires sans viser à leur place. ⚠️ **Écart d'implémentation** : dans l'état B, son niveau lui fait atteindre les seuils de la plupart des actions métier (colonne de droite du tableau). Seules des règles propres à certains circuits l'en écartent (visa du COMAEQ, rédaction de la feuille de service). Cet écart n'est **pas** la règle souhaitée ; il est traité par le lot L06 (voir §5.11 et le registre des écarts (partie restreinte du dossier)).
+**L'administrateur technique (administrateur d'unité).** Il administre la **plateforme et le bâtiment** : crée les comptes, règle les seuils et les modules, modifie la structure, réinitialise les mots de passe, désigne les titulaires de fonctions (le COMAEQ, par exemple), applique la configuration. 🔵 **Règle validée par le PO : il n'a aucun visa métier** : il désigne les titulaires sans viser à leur place. ⚠️ **Écart d'implémentation** : dans l'état B, son niveau lui fait atteindre les seuils de la plupart des actions métier (colonne de droite du tableau). Seules des règles propres à certains circuits l'en écartent (visa du COMAEQ, rédaction de la feuille de service). Cet écart n'est **pas** la règle souhaitée ; il est traité par le lot L06 (voir la section « Fonctionnement cible 🔵 (décisions du PO, non développées) » et le registre des écarts (partie restreinte du dossier)).
 
 ### Qui prépare, qui valide, qui autorise la publication
 
@@ -182,7 +182,7 @@ Cas particuliers :
 | **État-major** | Écrit uniquement dans les services dont le commandant adjoint est sa fonction. Un service dont le commandant adjoint n'est pas configuré n'est rattaché à aucune fonction : un état-major n'y écrit donc pas. |
 | **Équipage à terre** | Lecture seule du bâtiment, avec sa propre feuille de service. |
 | **Soutien à terre** (responsable de classe ou de spécialité sans bâtiment) | Consulte et commente ; n'écrit que dans les circuits prévus (catalogue flotte, par exemple). **Aucun droit automatique sur le bord, quel que soit le grade.** |
-| **Administrateur d'unité** | Administre le bâtiment : comptes, structure, réglages. Son niveau (8) dépasse tous les seuils métier par défaut. 🔵 Le PO a décidé qu'il ne doit avoir **aucun visa métier** (voir §5.11). |
+| **Administrateur d'unité** | Administre le bâtiment : comptes, structure, réglages. Son niveau (8) dépasse tous les seuils métier par défaut. 🔵 Le PO a décidé qu'il ne doit avoir **aucun visa métier** (voir la section « Fonctionnement cible 🔵 (décisions du PO, non développées) »). |
 | **Administrateur général** | Seul niveau multi-bâtiments ; équivalent du superutilisateur. |
 
 ## Gérer les comptes

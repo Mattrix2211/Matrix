@@ -110,7 +110,7 @@ Une **recherche globale** unique permet de retrouver, par **catégorie** : insta
 
 Décisions du PO et du cahier des charges, **non développées** :
 - **Espaces de groupe** (section, secteur, service, bâtiment, équipe, groupe temporaire) avec messages, réponses, mentions, pièces jointes, messages importants (cahier §18).
-- **Chat contextuel bord–terre** et suivi des demandes : des dossiers avec visas, destinataires et historique, où **le fil ne vaut ni décision ni visa** ; les circuits PÉPIN, CRAT, RAV/c **ne sont pas validés** ([[RF:10_fiche_taches_demandes_programme_postes]], §10.7).
+- **Chat contextuel bord–terre** et suivi des demandes : des dossiers avec visas, destinataires et historique, où **le fil ne vaut ni décision ni visa** ; les circuits PÉPIN, CRAT, RAV/c **ne sont pas validés** ([[RF:10_fiche_taches_demandes_programme_postes]], la section « Fonctionnement cible : demandes bord–terre » ([[RF:10_fiche_taches_demandes_programme_postes]])).
 - **Recherche universelle étendue** : événements, services, discussions (cahier §37) ; **recherche de personnes** étendue aux informations professionnelles pertinentes selon les droits (`DEC-UX-09`) ; la recherche par nom et grade (catégorie « Marins ») existe déjà 🟢.
 - **Notifications lues** retirées de la liste principale tout en restant dans le centre (`DEC-UX-06`) : le panneau actuel le fait déjà ; le détail reste à confirmer en recette.
 - **Épinglage du menu** (`DEC-UX-04`) : [[RF:17_principes_interface]].

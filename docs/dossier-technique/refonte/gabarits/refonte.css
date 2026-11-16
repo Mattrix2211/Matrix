@@ -83,3 +83,7 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 section.paysage h2 { margin: 0 0 1mm 0; font-size: 15pt; }
 section.paysage .cap-titre { font-size: 12.5pt; }
 .nb { white-space: nowrap; }
+
+.cap-bloc.ligne { flex-direction: row; gap: 8mm; align-items: flex-start; }
+.cap-col { display: flex; flex-direction: column; gap: 1mm; }
+.cap-col .cap-vignette { margin-top: 0; }

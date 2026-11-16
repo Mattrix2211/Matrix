@@ -64,7 +64,7 @@ Un **bandeau d'identité navale** (type de bâtiment, silhouette) et un indicate
 
 À partir du niveau **chef de secteur** (seuil réglable), un bloc **« Supervision »** présente, pour son périmètre : les **maintenances en retard** (cinq lignes, avec lien), les **validations en attente**, les **échanges de tours à valider**, les **formations à valider** et les **candidatures à approuver**, et des indicateurs d'indisponibilité (matériels hors service, installations critiques en retard). Chaque ligne indique si le chef peut valider lui-même ou si l'acte revient à un autre niveau.
 
-Un chef peut aussi **générer un bilan** de son périmètre (voir §6.7).
+Un chef peut aussi **générer un bilan** de son périmètre (voir la section « Rapports et exports »).
 
 ## Ce que voit l'acteur à terre
 
@@ -115,7 +115,7 @@ L'accueil et les tableaux de pilotage **ne contiennent aucun moteur propre** : i
 
 ## Fonctionnement cible 🔵
 
-- **Tableaux de bord par niveau** jusqu'au **commandement** et au **SSF** (cahier des charges §24 ; phase 6) : indicateurs consolidés, rapports, vue de situation générale. Ils ne sont pas décrits comme existants : seules les vues du §6.5 le sont.
+- **Tableaux de bord par niveau** jusqu'au **commandement** et au **SSF** (cahier des charges §24 ; phase 6) : indicateurs consolidés, rapports, vue de situation générale. Ils ne sont pas décrits comme existants : seules les vues de la section « Les tableaux de pilotage par niveau » le sont.
 - **Cartes « À faire » et aide progressive**, **épinglage du menu**, **recherche de personnes** (`DEC-UX-01`, `DEC-UX-04`, `DEC-UX-09`) : voir le [[RF:17_principes_interface]].
 - Le libellé « Mes tours de **services** » demandé par `DEC-UX-08` n'est pas appliqué (écart purement visuel, lot UX).
 

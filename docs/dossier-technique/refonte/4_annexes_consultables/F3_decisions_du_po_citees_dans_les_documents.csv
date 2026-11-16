@@ -6,20 +6,20 @@ DEC-ANO-02;non développée;Une anomalie peut nécessiter plusieurs intervention
 DEC-ANO-03;non développée;La clôture d'une intervention ne clôture pas automatiquement l'anomalie.;RF
 DEC-ANO-04;non développée;Le chef de secteur décide de la suite : intervention supplémentaire, demande d'information, ouverture d'anomalie, clôture justifiée.;RF
 DEC-ANO-05;non développée;Préserver les liens tâches ↔ interventions ↔ anomalies ↔ matériels ↔ historique.;RF
-DEC-APP-01;non développée;Chaque départ génère des contrôles à partir des fiches de référence applicables.;RF
-DEC-APP-02;non développée;Circuit : section ou secteur → service → COMANAV.;RF
-DEC-APP-03;non développée;Les modifications des références suivent leur propre circuit d'approbation.;RF
-DEC-APP-04;non développée;Référence approuvée modifiée : les préparations ouvertes sont actualisées.;RF
-DEC-APP-05;non développée;Les réponses toujours valables sont conservées.;RF
-DEC-APP-06;non développée;Les contrôles modifiés ou ajoutés sont rouverts.;RF
-DEC-APP-07;non développée;Les contrôles supprimés sont archivés.;RF
-DEC-APP-08;non développée;Les signatures affectées sont invalidées.;RF
-DEC-APP-09;non développée;Les préparations clôturées conservent leur version historique.;RF
-DEC-APP-10;non développée;Les contrôles obligatoires sont traités avant validation.;RF
-DEC-APP-11;non développée;Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité.;RF
-DEC-APP-12;non développée;Les contrôles critiques non dérogeables ne peuvent pas être contournés.;RF
-DEC-APP-13;réalisée;Matrix ne délivre pas l'autorisation opérationnelle d'appareiller.;RF
-DEC-APP-14;non développée (A17);"Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la proposition à son niveau ; le COMANAV approuve la fiche, notamment les contrôles obligatoires et critiques.";RF
+DEC-APP-01;non développée;Chaque départ génère des contrôles à partir des fiches de référence applicables.;DT, RF
+DEC-APP-02;non développée;Circuit : section ou secteur → service → COMANAV.;DT, RF
+DEC-APP-03;non développée;Les modifications des références suivent leur propre circuit d'approbation.;DT, RF
+DEC-APP-04;non développée;Référence approuvée modifiée : les préparations ouvertes sont actualisées.;DT, RF
+DEC-APP-05;non développée;Les réponses toujours valables sont conservées.;DT, RF
+DEC-APP-06;non développée;Les contrôles modifiés ou ajoutés sont rouverts.;DT, RF
+DEC-APP-07;non développée;Les contrôles supprimés sont archivés.;DT, RF
+DEC-APP-08;non développée;Les signatures affectées sont invalidées.;DT, RF
+DEC-APP-09;non développée;Les préparations clôturées conservent leur version historique.;DT, RF
+DEC-APP-10;non développée;Les contrôles obligatoires sont traités avant validation.;DT, RF
+DEC-APP-11;non développée;Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité.;DT, RF
+DEC-APP-12;non développée;Les contrôles critiques non dérogeables ne peuvent pas être contournés.;DT, RF
+DEC-APP-13;réalisée;Matrix ne délivre pas l'autorisation opérationnelle d'appareiller.;DT, RF
+DEC-APP-14;non développée (A17);"Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la proposition à son niveau ; le COMANAV approuve la fiche, notamment les contrôles obligatoires et critiques.";DT, RF
 DEC-BLQ-01;non développée;Un équipier peut déclarer une tâche « Bloquée » avec motif.;RF
 DEC-BLQ-02;non développée;Le responsable est informé du blocage.;RF
 DEC-BLQ-03;non développée;Le chef peut débloquer et reprogrammer sans obligation de créer une anomalie.;RF
@@ -76,8 +76,8 @@ DEC-MUT-07;non développée;Compte d'un marin quittant le bâtiment ou la Marine
 DEC-ORG-01;à instruire ⚪;Structure : Bâtiment → Service → Secteur → Section facultative → Matériels et installations.;RF
 DEC-ORG-02;non développée;"Un secteur peut n'avoir aucune section ; le secteur reste alors l'échelon responsable.";RF
 DEC-ORG-03;à instruire ⚪;Les matériels sont toujours rattachés à une entité responsable.;RF
-DEC-ORG-04;à instruire ⚪;Distinguer grade, fonction occupée, périmètre de responsabilité, spécialité, brevets/formations/habilitations. Les brevets ne sont pas des grades.;RF
-DEC-ORG-05;à instruire ⚪;Prendre en compte FEM, BE, BAT, BS, BST et les évolutions récentes (BHT, C-CDM).;RF
+DEC-ORG-04;à instruire ⚪;Distinguer grade, fonction occupée, périmètre de responsabilité, spécialité, brevets/formations/habilitations. Les brevets ne sont pas des grades.;DT, RF
+DEC-ORG-05;à instruire ⚪;Prendre en compte FEM, BE, BAT, BS, BST et les évolutions récentes (BHT, C-CDM).;DT, RF
 DEC-ORG-06;à instruire ⚪;Configuration plutôt que code : aucune règle susceptible d'évoluer n'est codée en dur.;RF
 DEC-OUT-01;non développée;Signaler : outil manquant, inutile, inadapté, instruction ambiguë, information manquante.;RF
 DEC-OUT-02;non développée;Remarques conservées et visibles du chef de secteur.;RF
@@ -93,14 +93,14 @@ DEC-PRE-02;réalisée;"Pas de module autonome de passation ; préserver les fonc
 DEC-PRE-03;réalisée;Conserver les exports PDF, Excel et CSV de pilotage, puis en améliorer la qualité.;RF
 DEC-PRE-04;réalisée;QR et inspections mobiles non prioritaires : reportés, sans suppression précipitée de l'existant.;DT
 DEC-PRE-06;partielle (1 lot(s) livré(s) sur 2);Architecture de déploiement, PKI, sauvegarde et sécurité des SI : à soumettre aux experts compétents.;RF
-DEC-QUA-01;non développée;"Les formations et habilitations enregistrées ne bloquent pas automatiquement l'attribution ni l'exécution des tâches ordinaires ; le responsable humain choisit.";RF
-DEC-QUA-02;non développée;Les qualifications connues peuvent être affichées à titre informatif.;RF
-DEC-QUA-03;non développée;Une information manquante ou périmée ne bloque pas l'attribution.;RF
-DEC-QUA-04;non développée;"Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures officielles, dont les exigences réglementaires applicables doivent être respectées.";RF
-DEC-RTX-01;écart (A15);Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service.;RF
-DEC-RTX-02;non développée;Une demande de correction doit être motivée.;RF
-DEC-RTX-03;non développée;La correction entraîne une nouvelle version et les validations nécessaires.;RF
-DEC-RTX-04;non développée;Traçabilité de qui a proposé, modifié, validé ou rejeté.;RF
+DEC-QUA-01;non développée;"Les formations et habilitations enregistrées ne bloquent pas automatiquement l'attribution ni l'exécution des tâches ordinaires ; le responsable humain choisit.";DT, RF
+DEC-QUA-02;non développée;Les qualifications connues peuvent être affichées à titre informatif.;DT, RF
+DEC-QUA-03;non développée;Une information manquante ou périmée ne bloque pas l'attribution.;DT, RF
+DEC-QUA-04;non développée;"Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures officielles, dont les exigences réglementaires applicables doivent être respectées.";DT, RF
+DEC-RTX-01;écart (A15);Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service.;DT, RF
+DEC-RTX-02;non développée;Une demande de correction doit être motivée.;DT, RF
+DEC-RTX-03;non développée;La correction entraîne une nouvelle version et les validations nécessaires.;DT, RF
+DEC-RTX-04;non développée;Traçabilité de qui a proposé, modifié, validé ou rejeté.;DT, RF
 DEC-SUP-01;non développée;La suppléance est explicite, temporaire, limitée à une fonction et un périmètre, activée par une autorité compétente, traçable.;DT, RF
 DEC-SUP-02;non développée;Une seule personne exerce la responsabilité active d'un même périmètre à un instant donné.;RF
 DEC-SUP-03;non développée;Le retour anticipé ou la fin de suppléance suit les règles de validation retenues.;RF

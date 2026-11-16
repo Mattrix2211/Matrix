@@ -57,7 +57,7 @@ Chaque relation dit ce qui doit arriver quand l'élément visé disparaît. Les 
 
 Lecture : par défaut, **rien n'est supprimé en cascade sauf les éléments qui n'ont pas de sens seuls** (une section sans secteur, une ligne de checklist sans sa liste, un message sans sa discussion). Les relations vers les **unités** sont en PROTECT depuis le lot L03 (92 relations, [[DT:04_organisation_technique]]) : un marin, un matériel, une liste ne disparaît pas parce qu'on supprime une unité.
 
-**À connaître.** Une relation **générique** (§19.6) n'est pas vue par la base comme une relation : supprimer l'objet visé ne supprime pas, et ne refuse pas non plus, ce qui le désigne.
+**À connaître.** Une relation **générique** (la section « Les relations génériques ») n'est pas vue par la base comme une relation : supprimer l'objet visé ne supprime pas, et ne refuse pas non plus, ce qui le désigne.
 
 ## Les identifiants
 
@@ -105,4 +105,4 @@ La page Notion « 11 — Modèle de données cible » décrit des objets (Missio
 - ⚪ PostgreSQL : l'état B contient des contraintes d'unicité partielle (relève, période d'équipage) dont la référence de comportement est PostgreSQL ; non exécuté ici.
 - ⚪ La conservation des journaux, des notifications lues et des estimations n'est pas définie (information manquante IM-10 du dossier V1.2).
 
-**Sources (état B).** `couverture/etat_B/MODELES.md` et `INVENTAIRE.md` (générés par `outils/inventaire.py` en chargeant le code de l'état B), `matrix/core/models.py:4`, `org/models.py`, `accounts/models.py`, `assets/models.py:259,496,736,798` (NNO), `org/structure_services.py`. Compte rendu L03 (`Q_LOT_L03_COMPTE_RENDU.md` §2 et §5.3) ; Notion « 11 — Modèle de données cible Matrix : vue système ».
+**Sources (état B).** `couverture/etat_B/MODELES.md` et `INVENTAIRE.md` (générés par `outils/inventaire.py` en chargeant le code de l'état B), `matrix/core/models.py:4`, `org/models.py`, `accounts/models.py`, `assets/models.py:259,496,736,798` (NNO), `org/structure_services.py`. Compte rendu L03 (`Q_LOT_L03_COMPTE_RENDU.md` §2 et la section « Les neuf rôles » ([[RF:05_roles_et_autorisations]])) ; Notion « 11 — Modèle de données cible Matrix : vue système ».

@@ -138,6 +138,6 @@ Ces points ont été **proposés** ou **relevés**, pas décidés ; ils ne sont 
 
 - ⚪ Le plan en 28 lots **est une proposition** ; ni l'ordre ni la taille ne sont engagés. Seules les décisions `DEC-…` citées sont validées par le PO.
 - ⚪ Les décisions et lots ont été relevés dans le dossier V1.2 ({{fait:n_decisions_v12}} décisions) et dans les comptes rendus L01, L05, L02, L03 ; l'état des autres lots est « non lancé ».
-- 🟣 Les propositions du §25.8 ne sont pas des décisions.
+- 🟣 Les propositions de la section « Propositions à valider par le PO » ne sont pas des décisions.
 
 **Sources.** Dossier V1.2 (, comptes rendus L01, L05, L02, L03) ; Notion « Feuille de route », « Cahier des charges », « 03 — Formation », « 07 — SIC », « Cap UX/UI » ; le registre des écarts (partie restreinte du dossier).

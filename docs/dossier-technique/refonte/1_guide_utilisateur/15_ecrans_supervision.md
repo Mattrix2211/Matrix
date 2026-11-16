@@ -18,3 +18,11 @@
 @capture h2="Vues d'ensemble" titre="Vue d'ensemble du secteur" texte="Trois indicateurs (maintenances en retard, tickets ouverts, pièces sous seuil) et deux détails : répartition des tickets par statut et pièces de stock à réapprovisionner." c1="vue_secteur" nav="Supervision › Flotte" renvoi="Profil chef de secteur"
 
 @capture section="Vues d'ensemble" titre="Vue d'ensemble du service" texte="La même vue agrège les secteurs du service : les chiffres sont ceux de toute l'unité visible par le chef de service." c1="vue_unite" nav="Supervision › Flotte" renvoi="Profil chef de service"
+
+@capture h2="Maintenance et anomalies vues du chef" titre="Les maintenances en retard du secteur" texte="Le filtre « Filtrer les retards » limite la liste aux échéances dépassées. Le chef peut s'assigner une échéance (« M'assigner ») ou ouvrir la fiche (« Exécuter »)." c1="occurrences_retard" nav="Maintenance › Maintenance › Filtrer les retards" renvoi="Profil chef de secteur"
+
+@capture section="Maintenance et anomalies vues du chef" titre="Les signalements d'anomalies" texte="Chaque anomalie porte sa gravité de 1 à 5, son statut (« Signalée », « Prise en compte », « Traitée », « Clôturée ») et le lieu concerné. Le tableau de droite compte les anomalies par statut. « Mes signalements » et « Ma section » changent la portée de la liste." c1="anomalies_liste" nav="Maintenance › Anomalies" renvoi="Règles : fiche Maintenance du référentiel"
+
+@capture section="Maintenance et anomalies vues du chef" titre="Le détail d'une anomalie" texte="Le chef lit le signalement, change le statut (« Prise en compte », « Traitée », « Clôturée »), ajoute une note et consulte l'historique. Il peut aussi proposer un RETEX." c1="anomalie_detail" nav="Maintenance › Anomalies › ouvrir une anomalie" renvoi="Profil chef de section et plus"
+
+@capture section="Maintenance et anomalies vues du chef" titre="Les tickets correctifs du secteur" texte="« Mes tickets » ou « Tout le secteur » : chaque ticket affiche son équipement, sa description, sa gravité et son statut, du signalement à la remise en service." c1="tickets_liste" nav="Maintenance › Tickets correctifs" renvoi="Règles : fiche Maintenance du référentiel"
