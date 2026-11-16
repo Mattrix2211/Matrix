@@ -1,0 +1,820 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Guide utilisateur illustré — MTX-G0-R2</title><style>@page { size: A4; margin: 20mm 17mm 19mm 17mm; }
+@page paysage { size: A4 landscape; margin: 19mm 12mm 17mm 12mm; }
+:root { --encre:#14202e; --bleu:#1f3b63; --gris:#5a6b7d; --filet:#b9c3d0; --fond:#f2f5f9; }
+html { font-family: "DejaVu Sans","Noto Sans",Arial,sans-serif; font-size: 10pt; line-height: 1.48; color: var(--encre); }
+body { margin: 0; }
+/* couverture et sommaire */
+.couverture { page-break-after: always; padding-top: 28mm; }
+.couverture .mention { display:inline-block; padding:3mm 6mm; border:2px solid var(--encre); font-weight:700; letter-spacing:.8px; margin-bottom:6mm; }
+.couverture .precaution { font-size: 9pt; color: var(--gris); max-width: 150mm; margin-bottom: 14mm; }
+.couverture .serie { font-size: 11pt; color: var(--bleu); letter-spacing:.5px; text-transform: uppercase; margin: 0 0 3mm 0; }
+.couverture h1 { font-size: 27pt; line-height:1.15; border:none; margin:0 0 5mm 0; page-break-before: avoid; }
+.couverture .public { font-size: 12pt; margin-bottom: 14mm; }
+.couverture table.meta { width:auto; font-size: 9.5pt; border:none; }
+.couverture table.meta td { border:none; border-bottom:1px solid var(--filet); padding:1.6mm 6mm 1.6mm 0; }
+.couverture .legende { margin-top: 12mm; font-size: 9pt; }
+.toc { page-break-after: always; }
+.toc h2 { font-size: 16pt; border:none; margin-top:0; }
+.toc ul { padding:0; margin:0; list-style:none; }
+.toc li { display:flex; align-items:baseline; margin: 1.3mm 0; }
+.toc li .t { flex: 0 1 auto; }
+.toc li .p { flex: 1 1 auto; border-bottom: 1px dotted var(--gris); margin: 0 2mm; min-width: 8mm; transform: translateY(-1.2mm); }
+.toc li .n { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.toc li.niv1 { font-weight:700; margin-top:3mm; }
+.toc li.niv2 { margin-left: 6mm; font-size: 9.5pt; }
+.toc li.niv3 { display:none; }
+.toc a { color: var(--encre); text-decoration:none; }
+/* corps */
+.chapitre { page-break-before: always; }
+.chapitre.suite { page-break-before: auto; }
+h1 { font-size: 19pt; border-bottom: 2px solid var(--encre); padding-bottom: 2mm; margin: 0 0 4mm 0; break-after: avoid; }
+h2 { font-size: 13.5pt; margin: 7mm 0 2.5mm 0; border-bottom: 1px solid var(--filet); padding-bottom: 1mm; break-after: avoid; }
+h3 { font-size: 11pt; margin: 5mm 0 2mm 0; break-after: avoid; }
+h4 { font-size: 10pt; margin: 4mm 0 1.5mm 0; break-after: avoid; }
+p { margin: 0 0 2.6mm 0; orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 3mm 0; padding-left: 6mm; }
+li { margin: 0 0 1mm 0; break-inside: avoid; }
+.ligne-public { font-size: 9pt; color: var(--gris); border-left:3px solid var(--bleu); padding-left:3mm; margin: 0 0 5mm 0; }
+table { border-collapse: collapse; width: 100%; margin: 2.5mm 0 4mm 0; font-size: 8.8pt; line-height:1.38; }
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+th, td { border: 1px solid var(--filet); padding: 1.3mm 2mm; vertical-align: top; overflow-wrap: break-word; }
+td code, th code { overflow-wrap: break-word; }
+th { background: #e8eef6; text-align: left; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: .86em; background: #eef2f7; padding: 0 .8mm; overflow-wrap: anywhere; }
+pre { background:#eef2f7; padding:2mm; white-space:pre-wrap; overflow-wrap:anywhere; font-size:8.6pt; break-inside:avoid; }
+blockquote { margin: 3mm 0; padding: 2mm 4mm; border-left: 3px solid #5a7aa0; background: var(--fond); break-inside: avoid; }
+blockquote p:last-child { margin-bottom: 0; }
+.encadre-limite { border-left-color:#b36b00; background:#fff7e8; }
+figure { margin: 4mm 0; break-inside: avoid; text-align:center; }
+figure img { max-width: 100%; max-height: 195mm; }
+figcaption { font-size: 8.8pt; color: var(--gris); margin-top: 1.5mm; text-align:left; }
+.fin { break-inside: avoid; }
+hr { border:none; border-top:1px solid var(--filet); margin: 5mm 0; }
+.et { font-size: 1em; }
+.marqueur { font-size:1px; color:transparent; position:absolute; }
+/* pages de capture (paysage) */
+section.paysage { page: paysage; page-break-before: always; page-break-after: always; }
+section.paysage.capture { break-inside: avoid; }
+.cap-sec { font-size: 8pt; letter-spacing:.06em; text-transform: uppercase; color: var(--bleu); font-weight:600; }
+.cap-titre { font-size: 14.5pt; font-weight:700; margin: 1mm 0 1.5mm 0; }
+.cap-texte { font-size: 9.6pt; color:#2a3a4d; margin-bottom: 2.5mm; }
+.cap-cadre { position:relative; border: .3mm solid #8d9bb0; }
+.cap-cadre img { display:block; width:100%; }
+.rep { position:absolute; width:5mm; height:5mm; margin:-2.5mm 0 0 -6mm; border-radius:50%; background:#b3261e; color:#fff; font-size:7.5pt; font-weight:700; text-align:center; line-height:5mm; border:.3mm solid #fff; }
+.cap-legende { font-size: 8.6pt; color:#2a3a4d; margin-top: 2mm; }
+.cap-legende .prov { color:#b3261e; }
+/* fiches de module */
+.fiche-module h2 { background: var(--fond); border-left: 4px solid var(--bleu); padding: 1.5mm 3mm; border-bottom: none; }
+section.paysage.tableau { font-size: 8.4pt; }
+
+td:first-child code { white-space: nowrap; }
+.toc li .p { border-bottom: 1px dotted #5a6b7d; }
+.surtitre-partie { font-size: 8.5pt; letter-spacing: .08em; text-transform: uppercase; color: var(--bleu); font-weight: 700; margin: 0 0 2mm 0; }
+/* repères numérotés : discrets, posés dans la marge gauche de l'élément repéré */
+.rep { width: 4.4mm; height: 4.4mm; margin: -2.2mm 0 0 -5.6mm; font-size: 7pt; line-height: 4.4mm; opacity: .92; border: .25mm solid #fff; box-shadow: 0 0 0 .2mm rgba(179,38,30,.35); }
+table.routes { table-layout: fixed; font-size: 8pt; }
+table.routes th:nth-child(1) { width: 41%; } table.routes th:nth-child(2) { width: 20%; } table.routes th:nth-child(3) { width: 39%; }
+table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal; }
+.bloc { break-inside: avoid; }
+.cap-bloc { display: flex; flex-direction: column; align-items: flex-start; gap: 3mm; }
+.cap-cadre { position: relative; margin: 0; }
+.cap-vignette { font-size: 8pt; color: #5a6b7d; margin-top: -2.2mm; }
+section.paysage h2 { margin: 0 0 1mm 0; font-size: 15pt; }
+section.paysage .cap-titre { font-size: 12.5pt; }
+.nb { white-space: nowrap; }
+
+.cap-bloc.ligne { flex-direction: row; gap: 8mm; align-items: flex-start; }
+.cap-col { display: flex; flex-direction: column; gap: 1mm; }
+.cap-col .cap-vignette { margin-top: 0; }
+</style></head><body><section class="couverture"><div class="mention">DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE</div><div class="precaution">Précaution documentaire : cette mention n&#x27;est pas une classification officielle. La classification et les destinataires restent à valider par l&#x27;autorité compétente. Ne pas diffuser.</div><p class="serie">Matrix — G0, révision 2</p><h1>Guide utilisateur illustré</h1><div class="public">Marins et chefs de section, de secteur et de service</div><table class="meta"><tr><td>Référence documentaire</td><td><b>MTX-G0-R2</b></td></tr><tr><td>Série</td><td><b>Matrix — G0, révision 2</b></td></tr><tr><td>Édition</td><td><b>13/11/2026</b></td></tr><tr><td>État documentaire</td><td><b>projet en cours de refonte — maquette pilote V1, non validé</b></td></tr><tr><td>État décrit</td><td><b>EB-2026-11-11</b></td></tr></table><div class="legende"><span class="et v">🟢</span> Fonctionnement actuel vérifié · <span class="et b">🔵</span> Cible validée par le PO, non nécessairement développée · <span class="et p">🟣</span> Proposition non arbitrée · <span class="et n">◯</span> Élément non vérifié</div></section><section class="toc"><h2>Sommaire</h2><ul><li class="niv1"><span class="t"><a href="#gu-1">1 Matrix en une page</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-1-1">1.1 Ce que fait Matrix</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-1-2">1.2 Comment lire ce guide</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-1-3">1.3 Les limites à connaître dès maintenant</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-2">2 Selon votre profil</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-2-1">2.1 Marin (équipier)</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-2-2">2.2 Chef de section</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-2-3">2.3 Chef de secteur</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-2-4">2.4 Chef de service</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-3">3 Parcours 1 — Ma journée</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-3-1">3.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-3-2">3.2 Étape 1 — Je commence ma journée</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-3-3">3.3 Étape 2 — Je consulte mes notifications</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-3-4">3.4 Étape 3 — Je consulte mon calendrier</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-4">4 Parcours 2 — Annonces et recherche</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-4-1">4.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-4-2">4.2 Étape 1 — Je lis les annonces</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-4-3">4.3 Étape 2 — Je retrouve une information</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-5">5 Parcours 3 — Une tâche, de la prise en charge au compte rendu</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-5-1">5.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-5-2">5.2 Étape 1 — Je trouve ma tâche</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-5-3">5.3 Étape 2 — Je rends compte</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-5-4">5.4 Du côté du chef de section</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-6">6 Parcours 4 — Mon tour de service</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-6-1">6.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-6-2">6.2 Étape 1 — Je vois mes tours</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-6-3">6.3 Étape 2 — J&#x27;échange un tour</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-6-4">6.4 Du côté du chef</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-6-5">6.5 Mes absences</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-7">7 Maintenance, anomalies et tickets</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-7-1">7.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-7-2">7.2 Après un contrôle non conforme : ce que Matrix fait, ce que vous pouvez faire</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-7-3">7.3 À savoir avant de commencer</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-7-4">7.4 Parcours 1 — Je réalise une maintenance</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-7-5">7.5 Parcours 2 — Je signale une anomalie et je suis le ticket</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-7-6">7.6 Quand l&#x27;échéance reste « En validation »</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-8">8 Parcours 5 — Préparer l&#x27;appareillage</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-8-1">8.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-8-2">8.2 Étape 1 — Aucune session ouverte</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-9">9 Écrans de référence — Matériel, installations et stock</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-9-1">9.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-9-2">9.2 Matériel mobile</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-9-3">9.3 Installations</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-9-4">9.4 Catalogue et plan</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-9-5">9.5 Stock de pièces</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-10">10 Écrans de référence — Supervision</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-10-1">10.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-10-2">10.2 Accueil du chef</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-10-3">10.3 L&#x27;équipe</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-10-4">10.4 Vues d&#x27;ensemble</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-10-5">10.5 Maintenance et anomalies vues du chef</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-11">11 Écrans de référence — Compétences, documentation, programme</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-11-1">11.1 En bref</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-11-2">11.2 Formations et qualifications</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-11-3">11.3 Postes du bord</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-11-4">11.4 Documentation et RETEX</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-11-5">11.5 Programme et réglages</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-12">12 Vues sur écran de téléphone (émulation)</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-12-1">12.1 Deux écrans sur une largeur de téléphone</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-13">13 Les limites visibles de l&#x27;état B</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-13-1">13.1 Écart NE-01 — Un bouton affiché sans droit</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-13-2">13.2 Écart A20 — Une maintenance « En validation »</a></span><span class="p"></span><span class="n">000</span></li><li class="niv1"><span class="t"><a href="#gu-14">14 Glossaire minimal et index des termes</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-14-1">14.1 Glossaire minimal</a></span><span class="p"></span><span class="n">000</span></li><li class="niv2"><span class="t"><a href="#gu-14-2">14.2 Index des termes</a></span><span class="p"></span><span class="n">000</span></li></ul></section><section class="chapitre"><div class="surtitre-partie">Partie · Prendre en main</div><h1 id="gu-1"><span class="marqueur">⟦gu-1⟧</span>1 Matrix en une page</h1>
+<div class="ligne-public"><b>Public :</b> marins, chefs de section, de secteur et de service · <b>Ce que vous y trouverez :</b> ce que Matrix fait pour vous, comment lire ce guide et où trouver chaque parcours · <b>Règles complètes :</b> <span class="renvoi">RF §3</span></div>
+
+<h2 id="gu-1-1"><span class="marqueur">⟦gu-1-1⟧</span>1.1 Ce que fait Matrix</h2>
+<p>Matrix est la plateforme quotidienne du marin : <strong>vos tâches, vos quarts et services, vos maintenances, vos formations et vos échanges au même endroit</strong>, sur le réseau du bord, <strong>sans Internet</strong>. Il vous dit ce qui vous attend, vous guide pas à pas et garde une trace de ce qui a été fait. Il complète les outils du soutien sans les remplacer.</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Je vais dans…</th>
+<th>Parcours</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voir ma journée</td>
+<td>« Aujourd'hui »</td>
+<td><a href="#gu-3">GU §3</a></td>
+</tr>
+<tr>
+<td>Accuser réception d'une annonce, retrouver une information</td>
+<td>« Annonces », barre de recherche</td>
+<td><a href="#gu-4">GU §4</a></td>
+</tr>
+<tr>
+<td>Faire une tâche et rendre compte</td>
+<td>« Tâches »</td>
+<td><a href="#gu-5">GU §5</a></td>
+</tr>
+<tr>
+<td>Connaître mes quarts et mes services, échanger un tour</td>
+<td>« Quarts et tours de service », « Feuille de service »</td>
+<td><a href="#gu-6">GU §6</a></td>
+</tr>
+<tr>
+<td>Réaliser une maintenance, signaler une anomalie, suivre un ticket</td>
+<td>« Maintenance », « Anomalies », « Tickets correctifs »</td>
+<td><a href="#gu-7">GU §7</a></td>
+</tr>
+<tr>
+<td>Préparer l'appareillage</td>
+<td>« Prêt à appareiller »</td>
+<td><a href="#gu-8">GU §8</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="gu-1-2"><span class="marqueur">⟦gu-1-2⟧</span>1.2 Comment lire ce guide</h2>
+<p>Les pages à fond clair montrent <strong>un écran réel</strong> de Matrix. Chaque légende donne le profil utilisé, le chemin dans le menu et le renvoi vers les règles du référentiel. Les captures ont été prises le <strong>16/11/2026</strong> sur une <strong>instance de démonstration isolée</strong>, avec des <strong>données fictives</strong> (personnages, bâtiment, dates) et un navigateur en français. Les deux vues de téléphone sont des <strong>émulations</strong> : aucun appareil réel n'a été essayé.</p>
+<p>Chaque affirmation du guide porte une étiquette quand elle n'est pas évidente :</p>
+<table>
+<thead>
+<tr>
+<th>Étiquette</th>
+<th>Sens dans ce guide</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="et v">🟢</span></td>
+<td><strong>Existe aujourd'hui</strong> : comportement réellement implémenté et vérifié ; seules ces lignes décrivent ce que Matrix fait</td>
+</tr>
+<tr>
+<td><span class="et b">🔵</span></td>
+<td><strong>Cible validée</strong> par le PO, pas nécessairement développée : jamais présentée comme disponible</td>
+</tr>
+<tr>
+<td><span class="et p">🟣</span></td>
+<td><strong>Proposition non arbitrée</strong> : ce n'est pas une fonctionnalité disponible et pas encore une décision</td>
+</tr>
+<tr>
+<td><span class="et n">◯</span></td>
+<td><strong>Non vérifié</strong> : information issue d'une seule source ou parcours non rejoué</td>
+</tr>
+</tbody>
+</table>
+<p>Les écrans visibles à l'écran ne sont <strong>pas</strong> la règle : un bouton affiché ne vaut pas un droit. C'est toujours le serveur qui décide ; un refus s'affiche alors comme une erreur d'accès (écart NE-01).</p>
+<h2 id="gu-1-3"><span class="marqueur">⟦gu-1-3⟧</span>1.3 Les limites à connaître dès maintenant</h2>
+<ul>
+<li>Une maintenance non conforme sur une <strong>installation</strong> ne crée <strong>pas</strong> de ticket automatique, alors que l'écran de fin le laisse croire (écart NE-07).</li>
+<li>Une maintenance « En validation » ne se débloque que par la correction du compte rendu, réservée au chef de secteur ou plus (écart A20).</li>
+<li>La <strong>synthèse de passation</strong> est lisible par un chef de section pour tout son bâtiment et non pour sa seule section (écart A14) : à garder en tête avant de la diffuser.</li>
+<li><span class="et b">🔵</span> Les périodicités nommées, les remarques d'outillage et la durée indicative actualisée sont des <strong>cibles non développées</strong> (écart A21).</li>
+</ul>
+<p>Toutes les limites sont rassemblées dans <a href="#gu-13">GU §13</a>.</p></section><section class="chapitre"><h1 id="gu-2"><span class="marqueur">⟦gu-2⟧</span>2 Selon votre profil</h1>
+<div class="ligne-public"><b>Public :</b> chaque marin, selon son rôle · <b>Ce que vous y trouverez :</b> ce que chaque profil voit et fait dans Matrix, et où le faire · <b>Règles complètes :</b> <span class="renvoi">RF §7</span></div>
+
+<p>Matrix adapte ce que vous voyez à votre <strong>rôle</strong> et à votre <strong>périmètre</strong> (section, secteur, service, bâtiment). Les profils ci-dessous cumulent : un chef de secteur fait aussi tout ce que fait un chef de section.</p>
+<h2 id="gu-2-1"><span class="marqueur">⟦gu-2-1⟧</span>2.1 Marin (équipier)</h2>
+<ul>
+<li><span class="et v">🟢</span> <strong>Voir ma journée</strong> : actions à faire triées par urgence, quarts et services, tâches, formations, annonces (<a href="#gu-3">GU §3</a>).</li>
+<li><span class="et v">🟢</span> <strong>Faire</strong> : une tâche (démarrer, signaler un blocage, rendre compte), une maintenance guidée, un signalement d'anomalie (<a href="#gu-5">GU §5</a>, <a href="#gu-7">GU §7</a>).</li>
+<li><span class="et v">🟢</span> <strong>Échanger un tour de service</strong> avec un collègue, déclarer une absence (<a href="#gu-6">GU §6</a>).</li>
+<li><span class="et v">🟢</span> <strong>Retrouver une information</strong> avec la recherche globale (touche « / » ou Ctrl+K) (<a href="#gu-4">GU §4</a>).</li>
+</ul>
+<h2 id="gu-2-2"><span class="marqueur">⟦gu-2-2⟧</span>2.2 Chef de section</h2>
+<ul>
+<li><span class="et v">🟢</span> Tout ce que fait le marin.</li>
+<li><span class="et v">🟢</span> <strong>Attribuer des tâches</strong> à sa section, suivre leur avancement (« Synthèse »).</li>
+<li><span class="et v">🟢</span> <strong>Exécuter ou commenter</strong> une maintenance qui n'est pas la sienne ; <strong>prendre en compte</strong> une anomalie et la convertir en ticket.</li>
+</ul>
+<h2 id="gu-2-3"><span class="marqueur">⟦gu-2-3⟧</span>2.3 Chef de secteur</h2>
+<ul>
+<li><span class="et v">🟢</span> Tout ce que fait le chef de section.</li>
+<li><span class="et v">🟢</span> Voir le <strong>bloc « Supervision »</strong> de l'accueil : retards, validations en attente, tickets ouverts.</li>
+<li><span class="et v">🟢</span> <strong>Corriger un compte rendu de maintenance terminé</strong> (motif obligatoire, saisie d'origine conservée) et sortir ainsi une maintenance de l'état « En validation » (<a href="#gu-13">GU §13</a>).</li>
+<li><span class="et v">🟢</span> <strong>Ouvrir une session d'appareillage</strong> (le bouton n'est pas proposé au chef de section ni au marin) (<a href="#gu-8">GU §8</a>).</li>
+<li><span class="et v">🟢</span> <strong>Traiter les échanges de tours</strong> lorsqu'il est désigné chef de liste (<a href="#gu-6">GU §6</a>).</li>
+</ul>
+<h2 id="gu-2-4"><span class="marqueur">⟦gu-2-4⟧</span>2.4 Chef de service</h2>
+<ul>
+<li><span class="et v">🟢</span> Tout ce que fait le chef de secteur.</li>
+<li><span class="et v">🟢</span> <strong>Publier</strong> les listes de quarts et de gardes de son service, viser la feuille de service, valider les absences (<a href="#gu-6">GU §6</a>).</li>
+<li><span class="et v">🟢</span> Suivre la <strong>vue d'ensemble du service</strong> (<a href="#gu-10">GU §10</a>).</li>
+</ul>
+<p>Les fonctions de commandement (COMAEQ, COMANAV, commandant) et d'administration sont décrites dans le référentiel fonctionnel (<span class="renvoi">RF §7</span>), non dans ce guide.</p></section><section class="chapitre"><div class="surtitre-partie">Partie · Parcours et écrans</div><h1 id="gu-3"><span class="marqueur">⟦gu-3⟧</span>3 Parcours 1 — Ma journée</h1>
+<div class="ligne-public"><b>Public :</b> tous les marins · <b>Ce que vous y trouverez :</b> la page « Aujourd'hui », les notifications, le calendrier · <b>Règles complètes :</b> <span class="renvoi">RF §9</span>, <span class="renvoi">RF §10</span></div>
+
+<h2 id="gu-3-1"><span class="marqueur">⟦gu-3-1⟧</span>3.1 En bref</h2>
+<p>En vous connectant, vous arrivez sur <strong>« Aujourd'hui »</strong> : ce qu'il y a à faire, trié par urgence, votre journée heure par heure et vos prochains tours de service. Le menu de gauche donne accès au reste ; la cloche signale les notifications ; la recherche (touche « / » ou Ctrl+K) retrouve un équipement, une personne ou une information.</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Je fais…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Savoir ce que je dois faire en premier</td>
+<td>Lire « À faire » : l'urgent est en tête (retard, attente de validation)</td>
+</tr>
+<tr>
+<td>Voir ma journée</td>
+<td>Lire « Ma journée » : quarts, services, tâches, maintenances</td>
+</tr>
+<tr>
+<td>Reprendre un signalement commencé</td>
+<td>« Brouillons à reprendre », en bas de la page</td>
+</tr>
+<tr>
+<td>Voir mes notifications</td>
+<td>Cliquer sur la cloche</td>
+</tr>
+<tr>
+<td>Voir ce qui a une date</td>
+<td>« Calendrier » : jour, semaine ou mois</td>
+</tr>
+</tbody>
+</table>
+<section class="paysage capture"><h2 id="gu-3-2"><span class="marqueur">⟦gu-3-2⟧</span>3.2 Étape 1 — Je commence ma journée</h2><div class="cap-titre">La page « Aujourd&#x27;hui » du marin</div><p class="cap-texte">À gauche, « À faire » classe vos actions : retards d&#x27;abord, puis attentes de validation, annonces à accuser et tâches. À droite, « Ma journée » donne vos quarts et services, puis vos prochains tours de service.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/accueil_marin.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"><div class="rep" style="left:3.02%;top:30.41%">1</div><div class="rep" style="left:61.30%;top:30.87%">2</div><div class="rep" style="left:61.30%;top:73.35%">3</div></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Mon quotidien › Aujourd&#x27;hui · Règles : fiche Accueil et pilotage du référentiel · Repères :  <b>1</b> Actions à faire, urgentes en tête <b>2</b> Journée : quarts, services, maintenances <b>3</b> Prochains tours de service</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 1 — Je commence ma journée</div><div class="cap-titre">Le bas de la page : brouillons, formations, indicateurs</div><p class="cap-texte">Plus bas : les brouillons de signalement à reprendre, vos prochaines formations et vos qualifications, puis les indicateurs de maintenance qui vous concernent. Le bouton « Afficher les autres actions » déplie la liste complète.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/accueil_marin_bas.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Mon quotidien › Aujourd&#x27;hui (faire défiler) · Règles : fiche Accueil et pilotage du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 1 — Je commence ma journée</div><div class="cap-titre">L&#x27;onglet « Suivi » : mes difficultés signalées</div><p class="cap-texte">L&#x27;onglet « Suivi » liste les demandes de renfort que vous avez faites et celles qui vous attendent. Un lien ouvre la tâche concernée.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/accueil_marin_suivi.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Mon quotidien › Aujourd&#x27;hui › Suivi · Règles : fiche Tâches du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-3-3"><span class="marqueur">⟦gu-3-3⟧</span>3.3 Étape 2 — Je consulte mes notifications</h2><div class="cap-titre">La cloche des notifications</div><p class="cap-texte">La cloche ouvre le panneau des notifications : chaque ligne propose « Ouvrir », « Marquer comme lu » et « À traiter ». L&#x27;option « Alertes urgentes sur cet appareil » n&#x27;est pas activée sur l&#x27;instance de démonstration.</p><div class="cap-bloc"><div class="cap-cadre" style="width:234.8mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/notifications.png" style="position:absolute;width:234.78mm;left:-0.00mm;top:-0.00mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Cloche en haut de l&#x27;écran · Règles : fiche Communication du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-3-4"><span class="marqueur">⟦gu-3-4⟧</span>3.4 Étape 3 — Je consulte mon calendrier</h2><div class="cap-titre">Le calendrier du marin, vue mois</div><p class="cap-texte">Tout ce qui a une date apparaît dans un seul calendrier : quarts, services, tâches, maintenances, absences, programme du bâtiment. Les boutons « Jour », « Semaine » et « Mois » changent la vue ; « Légende des couleurs » explique les teintes.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/calendrier_mois.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Mon quotidien › Calendrier · Règles : fiche Calendrier du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 3 — Je consulte mon calendrier</div><div class="cap-titre">Le menu latéral déplié</div><p class="cap-texte">Le menu regroupe les entrées par famille : Mon quotidien, Équipements, Maintenance, Activité, Compétences, Supervision, Administration. Vous ne voyez que ce que vos droits et les modules du bâtiment permettent.</p><div class="cap-bloc"><div class="cap-cadre" style="width:234.8mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/menu_deplie.png" style="position:absolute;width:234.78mm;left:-0.00mm;top:-0.00mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Menu latéral · Règles : principes d&#x27;interface du référentiel</p></section></section><section class="chapitre"><h1 id="gu-4"><span class="marqueur">⟦gu-4⟧</span>4 Parcours 2 — Annonces et recherche</h1>
+<div class="ligne-public"><b>Public :</b> tous les marins · <b>Ce que vous y trouverez :</b> accuser réception d'une annonce et retrouver une information · <b>Règles complètes :</b> <span class="renvoi">RF §12</span></div>
+
+<h2 id="gu-4-1"><span class="marqueur">⟦gu-4-1⟧</span>4.1 En bref</h2>
+<p>Les <strong>annonces</strong> du commandement ou des chefs vous arrivent dans « À faire » et dans « Annonces ». Certaines demandent un <strong>accusé de réception</strong> : le chef sait ainsi qui a lu. La <strong>recherche globale</strong> retrouve un équipement, une personne, une tâche, une formation ou une information en quelques lettres.</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Je fais…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lire les annonces</td>
+<td>« Activité › Annonces »</td>
+</tr>
+<tr>
+<td>Accuser réception</td>
+<td>Ouvrir l'annonce, puis « J'ai pris connaissance »</td>
+</tr>
+<tr>
+<td>Retrouver quelque chose</td>
+<td>Touche « / » ou Ctrl+K, puis taper quelques lettres</td>
+</tr>
+</tbody>
+</table>
+<section class="paysage capture"><h2 id="gu-4-2"><span class="marqueur">⟦gu-4-2⟧</span>4.2 Étape 1 — Je lis les annonces</h2><div class="cap-titre">La liste des annonces</div><p class="cap-texte">Chaque annonce affiche son niveau (« Important », « Information »), sa date et un badge : « Nouvelle » ou « Accusé à donner » lorsque le chef attend votre accusé de réception.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/annonces.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Annonces · Règles : fiche Communication du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 1 — Je lis les annonces</div><div class="cap-titre">Accuser réception d&#x27;une annonce</div><p class="cap-texte">Le bouton « J&#x27;ai pris connaissance » enregistre votre accusé de réception. Tant que vous ne l&#x27;avez pas donné, l&#x27;annonce reste dans votre liste « À faire ».</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/annonce_accuser.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Annonces › ouvrir une annonce · Règles : fiche Communication du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-4-3"><span class="marqueur">⟦gu-4-3⟧</span>4.3 Étape 2 — Je retrouve une information</h2><div class="cap-titre">Recherche : un équipement</div><p class="cap-texte">Taper « pompe » propose les installations, les matériels et les tickets correspondants, regroupés par catégorie. « Recherche complète » ouvre la page de résultats.</p><div class="cap-bloc"><div class="cap-cadre" style="width:234.8mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/recherche_equipement.png" style="position:absolute;width:234.78mm;left:-0.00mm;top:-0.00mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Barre de recherche (touche « / » ou Ctrl+K) · Règles : fiche Communication du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 2 — Je retrouve une information</div><div class="cap-titre">Recherche : une information</div><p class="cap-texte">Taper « incendie » trouve la formation, les tâches et les personnes concernées. Les résultats respectent vos droits : vous ne voyez que ce qui est dans votre périmètre.</p><div class="cap-bloc"><div class="cap-cadre" style="width:234.8mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/recherche_information.png" style="position:absolute;width:234.78mm;left:-0.00mm;top:-0.00mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Barre de recherche · Règles : fiche Communication du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 2 — Je retrouve une information</div><div class="cap-titre">Recherche : une personne (vue d&#x27;un chef)</div><p class="cap-texte">Un chef peut retrouver un marin par son nom et son grade. La recherche de personnes existe aujourd&#x27;hui dans une version limitée ; les informations professionnelles étendues sont une cible <span class="et b">🔵</span>, non développée.</p><div class="cap-bloc"><div class="cap-cadre" style="width:234.8mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/01_prise_en_main/recherche_personne.png" style="position:absolute;width:234.78mm;left:-0.00mm;top:-0.00mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Barre de recherche · Règles : principes d&#x27;interface du référentiel</p></section></section><section class="chapitre"><h1 id="gu-5"><span class="marqueur">⟦gu-5⟧</span>5 Parcours 3 — Une tâche, de la prise en charge au compte rendu</h1>
+<div class="ligne-public"><b>Public :</b> marins, chefs de section · <b>Ce que vous y trouverez :</b> trouver sa tâche, la démarrer, signaler un blocage, rendre compte ; la synthèse du chef de section · <b>Règles complètes :</b> <span class="renvoi">RF §13</span></div>
+
+<h2 id="gu-5-1"><span class="marqueur">⟦gu-5-1⟧</span>5.1 En bref</h2>
+<p>Une <strong>tâche</strong> vous est attribuée par un chef (ou vous la créez pour vous-même : elle reste alors <strong>privée tant que vous ne la partagez pas</strong>). Vous la démarrez, vous rendez compte, puis vous la terminez. Si quelque chose vous bloque, vous le <strong>signalez avec son motif</strong> : la tâche passe à « Bloquée » et le chef est prévenu.</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Je fais…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voir mes tâches</td>
+<td>« Activité › Tâches »</td>
+</tr>
+<tr>
+<td>Commencer</td>
+<td>Ouvrir la tâche, puis « Démarrer »</td>
+</tr>
+<tr>
+<td>Dire que je suis bloqué</td>
+<td>« Un problème sur cette tâche », décrire le problème, « Signaler le blocage »</td>
+</tr>
+<tr>
+<td>Terminer</td>
+<td>Rédiger le compte rendu, puis « Terminer et rendre compte »</td>
+</tr>
+</tbody>
+</table>
+<section class="paysage capture"><h2 id="gu-5-2"><span class="marqueur">⟦gu-5-2⟧</span>5.2 Étape 1 — Je trouve ma tâche</h2><div class="cap-titre">Mes tâches</div><p class="cap-texte">La liste donne, pour chaque tâche, son échéance et son statut : « À faire », « Bloquée »… Les tâches urgentes ou personnelles portent une pastille. Un clic ouvre la tâche.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/02_taches/taches_liste.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Tâches · Règles : fiche Tâches du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 1 — Je trouve ma tâche</div><div class="cap-titre">La tâche ouverte</div><p class="cap-texte">La tâche rappelle sa consigne, son échéance et la personne à qui elle est assignée. « Démarrer » la lance ; la zone « Rendre compte » attend votre texte ; la zone « Un problème sur cette tâche ? » sert à signaler un blocage.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/02_taches/p_tache_1_ouverte.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Tâches › ouvrir une tâche · Règles : fiche Tâches du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-5-3"><span class="marqueur">⟦gu-5-3⟧</span>5.3 Étape 2 — Je rends compte</h2><div class="cap-titre">La tâche démarrée, compte rendu rédigé</div><p class="cap-texte">Une fois la tâche démarrée, vous décrivez ce qui a été fait. Rien n&#x27;est envoyé tant que vous n&#x27;avez pas validé : « Terminer et rendre compte » enregistre le compte rendu et ferme la tâche.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/02_taches/p_tache_2_compte_rendu.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Tâches › ouvrir une tâche · Règles : fiche Tâches du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 2 — Je rends compte</div><div class="cap-titre">La tâche terminée</div><p class="cap-texte">La tâche est terminée ; le compte rendu reste attaché à la tâche avec son auteur et sa date. Le fil de discussion permet d&#x27;échanger avec le chef sur cette tâche.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/02_taches/p_tache_3_terminee.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Tâches › ouvrir une tâche · Règles : fiche Tâches du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-5-4"><span class="marqueur">⟦gu-5-4⟧</span>5.4 Du côté du chef de section</h2><div class="cap-titre">La synthèse du chef de section</div><p class="cap-texte">Le chef de section attribue des tâches (« Attribuer une tâche »), voit l&#x27;avancement de son équipe, la charge par marin et les tâches en retard. Les lignes en retard sont signalées en rouge.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/02_taches/tache_synthese.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_section_a</b> · Navigation : Mon quotidien › Aujourd&#x27;hui › Synthèse · Profil chef de section</p></section></section><section class="chapitre"><h1 id="gu-6"><span class="marqueur">⟦gu-6⟧</span>6 Parcours 4 — Mon tour de service</h1>
+<div class="ligne-public"><b>Public :</b> marins, chefs de liste, chefs de secteur et de service · <b>Ce que vous y trouverez :</b> connaître ses quarts et services, lire la feuille de service, échanger un tour, déclarer une absence · <b>Règles complètes :</b> <span class="renvoi">RF §11</span></div>
+
+<h2 id="gu-6-1"><span class="marqueur">⟦gu-6-1⟧</span>6.1 En bref</h2>
+<p>Matrix présente vos <strong>quarts à la mer</strong> et vos <strong>services à quai</strong> jour par jour. Pour changer de tour avec un collègue, vous lui proposez un <strong>échange</strong> : il doit donner son accord, puis la demande est validée par la personne qui gère la liste. Les <strong>absences</strong> que vous déclarez sont prises en compte par les échanges et par le calendrier.</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Je fais…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voir mes quarts et services</td>
+<td>« Activité › Quarts et tours de service », onglet « Par jour »</td>
+</tr>
+<tr>
+<td>Lire la feuille de service du jour</td>
+<td>« Activité › Feuille de service »</td>
+</tr>
+<tr>
+<td>Échanger un tour</td>
+<td>Proposer l'échange, attendre l'accord du collègue, puis la validation</td>
+</tr>
+<tr>
+<td>Déclarer une absence</td>
+<td>« Activité › Absences »</td>
+</tr>
+</tbody>
+</table>
+<section class="paysage capture"><h2 id="gu-6-2"><span class="marqueur">⟦gu-6-2⟧</span>6.2 Étape 1 — Je vois mes tours</h2><div class="cap-titre">Quarts et tours de service, par jour</div><p class="cap-texte">La page présente la semaine en cours : « Mon prochain tour », les échanges à traiter et l&#x27;état des listes. Chaque jour détaille les services à quai et les quarts à la mer, avec les marins concernés.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/03_quarts_services/tours_par_jour.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Quarts et tours de service · Règles : fiche Quarts, services et feuille de service du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 1 — Je vois mes tours</div><div class="cap-titre">La feuille de service du jour</div><p class="cap-texte">La feuille réunit l&#x27;en-tête de la journée, le personnel de service par fonction et le circuit de validation : rédaction, visas successifs du chef de secteur, du chef de service, puis publication par le COMAEQ.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/03_quarts_services/feuille_service.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"><div class="rep" style="left:1.15%;top:46.51%">1</div><div class="rep" style="left:69.27%;top:48.56%">2</div></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Feuille de service · Règles : fiche Quarts, services et feuille de service du référentiel · Repères :  <b>1</b> En-tête de la journée <b>2</b> Circuit de validation : rédaction, visas, publication</p></section>
+
+<section class="paysage capture"><h2 id="gu-6-3"><span class="marqueur">⟦gu-6-3⟧</span>6.3 Étape 2 — J&#x27;échange un tour</h2><div class="cap-titre">Mes échanges de service (vue du marin)</div><p class="cap-texte">Un échange passe par quatre étapes : demande envoyée, accord du marin, validation du chef, échange effectué. Ici, le marin peut accepter ou refuser la demande reçue et ajouter un motif facultatif.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/03_quarts_services/echange_marin.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Quarts et tours de service › Mes échanges · Règles : fiche Quarts, services et feuille de service du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 2 — J&#x27;échange un tour</div><div class="cap-titre">Les échanges à traiter (vue du chef de liste)</div><p class="cap-texte">Le chef de liste voit les demandes en attente de sa validation et peut les valider ou les refuser, avec un motif. <span class="et b">🔵</span> La règle cible validée par le PO confie la décision au COMAEQ ou à son suppléant : elle n&#x27;est pas développée (écart A2).</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/03_quarts_services/echanges.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Activité › Quarts et tours de service › Mes échanges · Profil chef de liste</p></section>
+
+<section class="paysage capture"><h2 id="gu-6-4"><span class="marqueur">⟦gu-6-4⟧</span>6.4 Du côté du chef</h2><div class="cap-titre">Les tours par marin (vue du chef)</div><p class="cap-texte">Le chef voit, pour chaque marin, ses créneaux de la semaine et sa charge en heures, avec un bandeau pour les échanges à valider.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/03_quarts_services/tours_par_marin.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Activité › Quarts et tours de service › Par marin · Profil chef de secteur</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Du côté du chef</div><div class="cap-titre">Les listes de quarts et de services</div><p class="cap-texte">L&#x27;onglet « Listes » présente les listes de services à quai et de quarts à la mer avec leur statut : « Brouillon », « Proposée », « Applicable à venir », « Active ». La création d&#x27;une liste est proposée à partir du chef de secteur.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/03_quarts_services/listes.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Activité › Quarts et tours de service › Listes · Profil chef de secteur</p></section>
+
+<section class="paysage capture"><h2 id="gu-6-5"><span class="marqueur">⟦gu-6-5⟧</span>6.5 Mes absences</h2><div class="cap-titre">Les absences de l&#x27;équipe et la déclaration d&#x27;une absence</div><p class="cap-texte">À droite, on déclare une absence (type, dates, précision). À gauche, le chef voit les absences de son équipe et peut les valider. Les dates se saisissent au format jour/mois/année.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/03_quarts_services/absences.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_service_a</b> · Navigation : Activité › Absences · Règles : fiche Quarts, services et feuille de service du référentiel</p></section></section><section class="chapitre"><h1 id="gu-7"><span class="marqueur">⟦gu-7⟧</span>7 Maintenance, anomalies et tickets</h1>
+<div class="ligne-public"><b>Public :</b> marins, chefs de section, de secteur et de service · <b>Ce que vous y trouverez :</b> deux parcours illustrés (réaliser une maintenance ; signaler une anomalie et suivre son ticket), ce que Matrix fait seul, ce que vous pouvez faire et ce qui reste ouvert · <b>Règles complètes :</b> <span class="renvoi">RF §15</span></div>
+
+<h2 id="gu-7-1"><span class="marqueur">⟦gu-7-1⟧</span>7.1 En bref</h2>
+<p>Matrix vous dit <strong>quels contrôles et entretiens vous attendent</strong> et vous guide pas à pas. Si vous voyez quelque chose d'anormal, vous le <strong>signalez</strong> en quelques clics ; un chef le prend en compte et, si un équipement est en cause, le transforme en <strong>ticket de réparation</strong> que vous pouvez suivre.</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Où aller</th>
+<th>Ce que je fais</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voir mes maintenances</td>
+<td>« Maintenance » dans le menu, ou « À faire » sur l'accueil</td>
+<td>Ouvrir l'échéance, suivre les contrôles</td>
+</tr>
+<tr>
+<td>Signaler quelque chose d'anormal</td>
+<td>« Anomalies » → « Signaler »</td>
+<td>Remplir quatre petites étapes</td>
+</tr>
+<tr>
+<td>Savoir où en est ma demande</td>
+<td>« Anomalies » ou « Tickets correctifs »</td>
+<td>Lire l'état et l'historique</td>
+</tr>
+</tbody>
+</table>
+<h2 id="gu-7-2"><span class="marqueur">⟦gu-7-2⟧</span>7.2 Après un contrôle non conforme : ce que Matrix fait, ce que vous pouvez faire</h2>
+<p>Chaque ligne porte une étiquette : <span class="et v">🟢</span> <strong>comportement réellement implémenté</strong> et vérifié ; <span class="et b">🔵</span> <strong>cible validée</strong> par le PO, pas nécessairement développée ; <span class="et p">🟣</span> <strong>proposition non arbitrée</strong> : ce n'est <strong>pas</strong> une fonctionnalité disponible ; <span class="et n">◯</span> <strong>élément non vérifié</strong>. Dans ce tableau, <strong>seules les mentions <span class="et v">🟢</span> décrivent ce que Matrix fait aujourd'hui</strong> ; les mentions <span class="et p">🟣</span> sont des propositions, jamais des règles.</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Ce que Matrix fait seul</th>
+<th>Ce que vous pouvez faire</th>
+<th>Limite ou statut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tous les contrôles sont conformes</td>
+<td>L'échéance passe à <strong>« Terminée »</strong> ; le compte rendu est archivé ; les chefs de secteur sont informés</td>
+<td>Rien d'autre</td>
+<td><span class="et v">🟢</span></td>
+</tr>
+<tr>
+<td>Un contrôle est <strong>non conforme</strong>, sur un <strong>matériel mobile</strong></td>
+<td>L'échéance passe à <strong>« En validation »</strong> ; Matrix <strong>crée un ticket de réparation</strong> (gravité 3) et alerte les chefs</td>
+<td>Terminer le compte rendu ; suivre le ticket dans « Tickets correctifs »</td>
+<td><span class="et v">🟢</span> L'échéance reste « En validation » (voir la dernière ligne)</td>
+</tr>
+<tr>
+<td>Un contrôle est <strong>non conforme</strong>, sur une <strong>installation</strong></td>
+<td>L'échéance passe à <strong>« En validation »</strong> ; les chefs de secteur sont informés ; <strong>aucun ticket n'est créé</strong></td>
+<td><strong>Signaler vous-même une anomalie</strong> (menu « Anomalies », parcours 2). C'est une action <strong>manuelle et facultative</strong> : elle n'est ni automatique, ni une validation</td>
+<td><span class="et v">🟢</span> L'écran de fin annonce pourtant « un ticket correctif sera (ou a été) ouvert » : c'est inexact pour une installation (écart NE-07). <span class="et p">🟣</span> Créer un ticket automatiquement pour une installation est une <strong>proposition</strong> (D1), pas une règle</td>
+</tr>
+<tr>
+<td>Un relevé chiffré est <strong>hors plage</strong></td>
+<td>L'écran de fin propose un lien <strong>« signaler une anomalie »</strong> pré-rempli</td>
+<td>Cliquer pour signaler</td>
+<td><span class="et v">🟢</span> Ce lien n'apparaît <strong>que</strong> pour un relevé hors plage, pas pour un simple contrôle non conforme</td>
+</tr>
+<tr>
+<td>L'échéance est <strong>« En validation »</strong></td>
+<td><strong>Rien de plus</strong> : pas de bouton de validation, pas de notification, pas de relance ; pour une installation, l'entretien récurrent est suspendu</td>
+<td>Rien : seul un <strong>chef de secteur ou plus</strong> peut corriger le compte rendu</td>
+<td><span class="et v">🟢</span> Limite connue <strong>A20</strong> : la règle de sortie reste <strong>à décider par le PO</strong> (proposition D2)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="gu-7-3"><span class="marqueur">⟦gu-7-3⟧</span>7.3 À savoir avant de commencer</h2>
+<ul>
+<li>Le bouton <strong>« Exécuter »</strong> apparaît parfois dans la liste pour une échéance qui n'est pas à vous : si vous n'y avez pas droit, Matrix refuse l'ouverture (écart NE-01). Utilisez « M'assigner » ou demandez à un chef.</li>
+<li>Les <strong>alertes sur l'appareil</strong> (notifications poussées) ne sont pas actives sur l'instance de démonstration ayant servi aux captures ; les notifications dans l'application le sont.</li>
+<li>Ce guide décrit <strong>ce que fait Matrix aujourd'hui</strong>. Les périodicités nommées, les remarques d'outillage ou le ticket automatique pour une installation sont <strong>prévus ou proposés</strong>, pas disponibles.</li>
+<li>Les captures qui suivent sont <strong>recadrées</strong> sur la zone utile ; le menu de gauche n'est pas reproduit : la ligne « Navigation » de chaque légende dit où se trouve l'écran.</li>
+</ul>
+<section class="paysage capture"><h2 id="gu-7-4"><span class="marqueur">⟦gu-7-4⟧</span>7.4 Parcours 1 — Je réalise une maintenance</h2><div class="cap-titre">Étape 1 — La liste des maintenances</div><p class="cap-texte">Les échéances sont classées par état. Le bloc « À traiter » donne les compteurs ; le bouton « M&#x27;assigner » permet de prendre une échéance non assignée.</p><div class="cap-bloc"><div class="cap-cadre" style="width:207.7mm;height:124.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/04_maintenance/occurrences.png" style="position:absolute;width:248.00mm;left:-40.30mm;top:-15.43mm;max-width:none"><div class="rep" style="left:76.53%;top:75.64%">1</div><div class="rep" style="left:66.30%;top:75.64%">2</div></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Maintenance › Maintenance · Règles : fiche Maintenance du référentiel · Repères :  <b>1</b> NE-01 : « Exécuter » affiché pour une échéance non assignée à ce marin <b>2</b> « M&#x27;assigner » : prendre l&#x27;échéance</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 1 — Je réalise une maintenance</div><div class="cap-titre">Étape 2 — La fiche d&#x27;exécution guidée</div><p class="cap-texte">La fiche rappelle les consignes de sécurité et liste les contrôles. Chaque contrôle se règle d&#x27;un clic : conforme, non conforme ou sans objet. La progression indique combien d&#x27;opérations sont faites.</p><div class="cap-bloc"><div class="cap-cadre" style="width:221.1mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/04_maintenance/execution_fiche.png" style="position:absolute;width:264.00mm;left:-42.90mm;top:-16.43mm;max-width:none"><div class="rep" style="left:4.11%;top:53.72%">1</div><div class="rep" style="left:69.52%;top:49.25%">2</div><div class="rep" style="left:4.02%;top:93.63%">3</div></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : bouton « Exécuter » de la liste · Règles : fiche Maintenance du référentiel · Repères :  <b>1</b> Contrôles : Conforme, Non conforme ou Sans objet <b>2</b> Consignes de sécurité de la fiche <b>3</b> Progression et enregistrement</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 1 — Je réalise une maintenance</div><div class="cap-titre">Étape 3 — Renseigner les contrôles, puis terminer</div><p class="cap-texte">Ici, les quatre contrôles sont marqués « Conforme » ; la barre du bas affiche la progression et les trois boutons Annuler, Enregistrer (en cours de route) et Terminer. Après « Terminer la maintenance », l&#x27;échéance passe à « Terminée » et le bouton devient « Maintenance terminée ».</p><div class="cap-bloc"><div class="cap-cadre" style="width:176.5mm;height:85.4mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/04_maintenance/p_maintenance_1_saisie.png" style="position:absolute;width:325.76mm;left:-58.43mm;top:-97.78mm;max-width:none"></div><div class="cap-vignette">Avant : contrôles renseignés, boutons Enregistrer et Terminer</div><div class="cap-cadre" style="width:176.5mm;height:10.7mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/04_maintenance/p_maintenance_2_termine.png" style="position:absolute;width:224.24mm;left:-40.22mm;top:-13.95mm;max-width:none"></div><div class="cap-vignette">Après : l&#x27;état de l&#x27;échéance devient « Terminée »</div><div class="cap-cadre" style="width:176.5mm;height:13.4mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/04_maintenance/p_maintenance_2_termine.png" style="position:absolute;width:325.76mm;left:-58.43mm;top:-169.80mm;max-width:none"></div><div class="cap-vignette">Après : le bouton devient « Maintenance terminée »</div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : bouton « Exécuter » de la liste · Règles : fiche Maintenance du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-7-5"><span class="marqueur">⟦gu-7-5⟧</span>7.5 Parcours 2 — Je signale une anomalie et je suis le ticket</h2><div class="cap-titre">Étape 1 — Choisir l&#x27;objet concerné</div><p class="cap-texte">Un assistant en quatre étapes. Choisissez l&#x27;installation ou le matériel concerné s&#x27;il est identifié (un seul des deux), le secteur et le lieu.</p><div class="cap-bloc"><div class="cap-cadre" style="width:199.6mm;height:124.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/p_anomalie_1_objet.png" style="position:absolute;width:342.88mm;left:-58.99mm;top:-26.61mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Maintenance › Anomalies › Signaler · Règles : fiche Maintenance du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 2 — Dire ce que vous constatez</div><p class="cap-texte">Un titre court et la gravité, de 1 (mineure) à 5 (critique). Le chef de secteur lira d&#x27;abord ce titre.</p><div class="cap-bloc"><div class="cap-cadre" style="width:256.0mm;height:103.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/p_anomalie_2_nature.png" style="position:absolute;width:439.87mm;left:-75.67mm;top:-43.47mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Maintenance › Anomalies › Signaler · Règles : fiche Maintenance du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 3 — Décrire et joindre une photo</div><p class="cap-texte">Une description libre et une photo, toutes deux facultatives. Plus le signalement est clair, plus la réponse est rapide.</p><div class="cap-bloc"><div class="cap-cadre" style="width:256.0mm;height:122.4mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/p_anomalie_3_description.png" style="position:absolute;width:439.87mm;left:-75.67mm;top:-43.47mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Maintenance › Anomalies › Signaler · Règles : fiche Maintenance du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 4 — Vérifier avant d&#x27;envoyer</div><p class="cap-texte">Le récapitulatif vous laisse le temps de corriger avant l&#x27;envoi : « Précédent » revient en arrière, « Signaler l&#x27;anomalie » envoie.</p><div class="cap-bloc"><div class="cap-cadre" style="width:256.0mm;height:107.9mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/p_anomalie_4_verification.png" style="position:absolute;width:439.87mm;left:-75.67mm;top:-43.47mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Maintenance › Anomalies › Signaler · Règles : fiche Maintenance du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 5 — Suivre mon signalement</div><p class="cap-texte">L&#x27;anomalie est « Signalée ». Vous voyez son état, son historique et le fil de discussion, où vous pouvez répondre aux questions du chef. Le message vert en bas de l&#x27;écran d&#x27;origine n&#x27;est pas repris ici.</p><div class="cap-bloc"><div class="cap-cadre" style="width:256.0mm;height:93.6mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/p_anomalie_5_suivi.png" style="position:absolute;width:311.95mm;left:-55.95mm;top:-20.55mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Maintenance › Anomalies · Règles : fiche Maintenance du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Du côté du chef</div><div class="cap-titre">Étape 6 — Le chef de secteur prend en compte</div><p class="cap-texte">Un chef de section ou plus fait avancer l&#x27;anomalie (« Prise en compte »). Quand un matériel ou une installation est identifié, il peut la convertir en ticket correctif : c&#x27;est une décision du chef, jamais automatique.</p><div class="cap-bloc"><div class="cap-cadre" style="width:256.0mm;height:103.9mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/p_anomalie_7_prise_en_compte.png" style="position:absolute;width:311.95mm;left:-55.95mm;top:-20.55mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Maintenance › Anomalies · Profil chef de secteur</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Du côté du chef</div><div class="cap-titre">Étape 7 — Le ticket correctif</div><p class="cap-texte">Le ticket garde le lien avec l&#x27;anomalie d&#x27;origine et suit sept étapes : signalé, diagnostiqué, pièces, réparation, essais, remise en service, clôture. La remise en service demande une confirmation explicite, la clôture un retour d&#x27;expérience.</p><div class="cap-bloc"><div class="cap-cadre" style="width:256.0mm;height:115.3mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/p_anomalie_8_ticket.png" style="position:absolute;width:311.95mm;left:-55.95mm;top:-19.41mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Maintenance › Tickets correctifs · Règles : fiche Maintenance du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-7-6"><span class="marqueur">⟦gu-7-6⟧</span>7.6 Quand l&#x27;échéance reste « En validation »</h2><div class="cap-titre">Limite actuelle (écart A20) — vue du chef de secteur</div><p class="cap-texte">Après un compte rendu non conforme, l&#x27;échéance attend qu&#x27;un chef de secteur corrige le compte rendu. Vous ne voyez pas de bouton « Valider » : il n&#x27;existe pas. Seul le chef de secteur (ou plus) voit « Enregistrer la correction » ; l&#x27;exécutant et le chef de section ne le voient pas. Rien ne relance automatiquement cette échéance.</p><div class="cap-bloc"><div class="cap-cadre" style="width:184.8mm;height:11.2mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/09_limites/en_validation_execution.png" style="position:absolute;width:234.88mm;left:-42.13mm;top:-14.62mm;max-width:none"></div><div class="cap-vignette">L&#x27;échéance est « En validation »</div><div class="cap-cadre" style="width:184.8mm;height:89.4mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/09_limites/en_validation_execution.png" style="position:absolute;width:341.21mm;left:-61.20mm;top:-102.41mm;max-width:none"></div><div class="cap-vignette">Le bouton « Enregistrer la correction » est réservé au chef de secteur ou plus</div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Maintenance › Maintenance (filtre « En validation ») › Exécuter · Écart A20 : voir la fiche Maintenance du référentiel et le registre</p></section></section><section class="chapitre"><h1 id="gu-8"><span class="marqueur">⟦gu-8⟧</span>8 Parcours 5 — Préparer l'appareillage</h1>
+<div class="ligne-public"><b>Public :</b> chefs de secteur et de service, commandement · <b>Ce que vous y trouverez :</b> la checklist « Prêt à appareiller » et l'ouverture d'une session · <b>Règles complètes :</b> <span class="renvoi">RF §19</span></div>
+
+<h2 id="gu-8-1"><span class="marqueur">⟦gu-8-1⟧</span>8.1 En bref</h2>
+<p>« Prêt à appareiller » est une <strong>checklist de préparation</strong> portant sur les installations critiques de l'unité. On <strong>ouvre une session</strong> quand l'appareillage se prépare ; les contrôles y sont ensuite renseignés et la session est signée. <span class="et b">🔵</span> Le circuit cible validé par le PO (fiche de référence, classification « critique », circuit COMANAV) n'est <strong>pas</strong> développé : aujourd'hui, la signature est unique et Matrix reste un outil de suivi (écart A17).</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Je fais…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voir si une session est ouverte</td>
+<td>« Supervision › Prêt à appareiller »</td>
+</tr>
+<tr>
+<td>Ouvrir une session</td>
+<td>« Ouvrir une session » (à partir du chef de secteur)</td>
+</tr>
+<tr>
+<td>Retrouver les sessions passées</td>
+<td>« Historique des sessions »</td>
+</tr>
+</tbody>
+</table>
+<section class="paysage capture"><h2 id="gu-8-2"><span class="marqueur">⟦gu-8-2⟧</span>8.2 Étape 1 — Aucune session ouverte</h2><div class="cap-titre">Prêt à appareiller, sans session ouverte</div><p class="cap-texte">Sans session ouverte, la page l&#x27;indique et propose « Ouvrir une session ». Le marin et le chef de section n&#x27;ont pas ce bouton.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/pret_appareillage.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_service_a</b> · Navigation : Supervision › Prêt à appareiller · Règles : fiche Préparation à l&#x27;appareillage du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Étape 1 — Aucune session ouverte</div><div class="cap-titre">Une session ouverte</div><p class="cap-texte">Après l&#x27;ouverture, la checklist des installations critiques s&#x27;affiche : chaque contrôle se renseigne, puis la session est signée. L&#x27;historique des sessions garde la trace de chaque appareillage.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/appareillage_session_ouverte.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Supervision › Prêt à appareiller · Règles : fiche Préparation à l&#x27;appareillage du référentiel</p></section></section><section class="chapitre"><h1 id="gu-9"><span class="marqueur">⟦gu-9⟧</span>9 Écrans de référence — Matériel, installations et stock</h1>
+<div class="ligne-public"><b>Public :</b> marins, chefs · <b>Ce que vous y trouverez :</b> les écrans du matériel mobile, des installations, du catalogue, du plan du navire et du stock · <b>Règles complètes :</b> <span class="renvoi">RF §14</span>, <span class="renvoi">RF §16</span></div>
+
+<h2 id="gu-9-1"><span class="marqueur">⟦gu-9-1⟧</span>9.1 En bref</h2>
+<p>Matrix distingue le <strong>matériel mobile</strong> (extincteurs, instruments, pompes portables…) des <strong>installations</strong> (propulsion, ventilation, circuits…). Chaque équipement a sa fiche, son QR code et son historique. Depuis une fiche, on <strong>signale une anomalie</strong> en un clic.</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Je vais dans…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Retrouver un matériel</td>
+<td>« Équipements › Matériels »</td>
+</tr>
+<tr>
+<td>Voir une installation et ses relevés</td>
+<td>« Équipements › Installations »</td>
+</tr>
+<tr>
+<td>Chercher dans le catalogue de la flotte</td>
+<td>« Équipements › Catalogue »</td>
+</tr>
+<tr>
+<td>Situer un matériel sur le pont</td>
+<td>« Équipements › Plan du navire »</td>
+</tr>
+<tr>
+<td>Vérifier une pièce en stock</td>
+<td>« Maintenance › Logistique »</td>
+</tr>
+</tbody>
+</table>
+<section class="paysage capture"><h2 id="gu-9-2"><span class="marqueur">⟦gu-9-2⟧</span>9.2 Matériel mobile</h2><div class="cap-titre">La liste des matériels</div><p class="cap-texte">Chaque carte donne le nom du matériel, son unité et son état : « OK », « Défectueux ». Le bouton « Ajouter du matériel » est réservé aux chefs de section et plus.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/06_materiel_stock/materiels.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Équipements › Matériels · Règles : fiche Matériel et installations du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Matériel mobile</div><div class="cap-titre">La fiche d&#x27;un matériel</div><p class="cap-texte">La fiche rappelle la criticité, les tickets ouverts et les maintenances en retard, avec le QR code du matériel et ses documents. « Signaler une anomalie » ouvre directement le signalement pour ce matériel.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/06_materiel_stock/materiel_detail.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Équipements › Matériels › ouvrir une fiche · Règles : fiche Matériel et installations du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-9-3"><span class="marqueur">⟦gu-9-3⟧</span>9.3 Installations</h2><div class="cap-titre">La liste des installations</div><p class="cap-texte">Les installations fixes sont présentées par carte, avec leur gisement et leur local.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/06_materiel_stock/installations.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Équipements › Installations · Règles : fiche Matériel et installations du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Installations</div><div class="cap-titre">La fiche d&#x27;une installation : relevés et entretien</div><p class="cap-texte">La fiche d&#x27;une installation affiche ses indicateurs (état vibratoire, dernier isolement, heures de marche) et des onglets : « Maintenance », « Mesures », « Historique », « Pièces ». Le QR code ouvre le contrôle du jour.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/06_materiel_stock/installation_detail.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Équipements › Installations › ouvrir une fiche · Règles : fiche Matériel et installations du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-9-4"><span class="marqueur">⟦gu-9-4⟧</span>9.4 Catalogue et plan</h2><div class="cap-titre">Le catalogue du matériel de la flotte</div><p class="cap-texte">Le catalogue commun à la flotte permet d&#x27;équiper un bâtiment à partir de fiches existantes, classées par spécialité et par catégorie.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/06_materiel_stock/catalogue.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Équipements › Catalogue · Règles : fiche Matériel et installations du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Catalogue et plan</div><div class="cap-titre">Le plan du navire</div><p class="cap-texte">Chaque pont a son plan ; une épingle verte indique un matériel en bon état, orange un contrôle en retard, rouge un matériel hors service. La liste de droite donne les matériels positionnés.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/06_materiel_stock/plan_navire.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"><div class="rep" style="left:75.64%;top:21.84%">1</div><div class="rep" style="left:75.64%;top:47.06%">2</div></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Équipements › Plan du navire · Règles : fiche Matériel et installations du référentiel · Repères :  <b>1</b> Légende des couleurs <b>2</b> Matériels épinglés sur le pont</p></section>
+
+<section class="paysage capture"><h2 id="gu-9-5"><span class="marqueur">⟦gu-9-5⟧</span>9.5 Stock de pièces</h2><div class="cap-titre">Le stock de pièces</div><p class="cap-texte">Chaque pièce a sa référence, sa quantité et son état : « Conforme », « Stock bas », « Stock critique ». Les exports et l&#x27;ajout d&#x27;une pièce sont proposés selon les droits.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/06_materiel_stock/stock.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Maintenance › Logistique · Règles : fiche Logistique du référentiel</p></section></section><section class="chapitre"><h1 id="gu-10"><span class="marqueur">⟦gu-10⟧</span>10 Écrans de référence — Supervision</h1>
+<div class="ligne-public"><b>Public :</b> chefs de section, de secteur et de service · <b>Ce que vous y trouverez :</b> l'accueil du chef, le calendrier de l'équipe, les vues d'ensemble du secteur et du service · <b>Règles complètes :</b> <span class="renvoi">RF §9</span></div>
+
+<h2 id="gu-10-1"><span class="marqueur">⟦gu-10-1⟧</span>10.1 En bref</h2>
+<p>À partir du <strong>chef de secteur</strong>, l'accueil ajoute un bloc « Supervision » : retards, validations en attente, tickets ouverts. Les <strong>vues d'ensemble</strong> (secteur, service) donnent les mêmes indicateurs sous forme de jauges et de graphiques. Chacun ne voit que <strong>son périmètre</strong>.</p>
+<section class="paysage capture"><h2 id="gu-10-2"><span class="marqueur">⟦gu-10-2⟧</span>10.2 Accueil du chef</h2><div class="cap-titre">L&#x27;accueil du chef de secteur</div><p class="cap-texte">Un bandeau d&#x27;alerte signale les maintenances en retard du secteur. Le chef retrouve ensuite ses actions, sa journée et ses tours, comme tout marin.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/07_supervision/accueil_chef_secteur.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Mon quotidien › Aujourd&#x27;hui · Profil chef de secteur</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Accueil du chef</div><div class="cap-titre">Le bas de l&#x27;accueil : le bloc Supervision</div><p class="cap-texte">En bas de page : échanges de service à valider, qualifications à renouveler, puis les quatre indicateurs de maintenance et de correctif du secteur, et le bilan du secteur exportable en PDF, Excel ou CSV.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/07_supervision/accueil_chef_secteur_bas.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Mon quotidien › Aujourd&#x27;hui (faire défiler) · Profil chef de secteur</p></section>
+
+<section class="paysage capture"><h2 id="gu-10-3"><span class="marqueur">⟦gu-10-3⟧</span>10.3 L&#x27;équipe</h2><div class="cap-titre">Le calendrier de l&#x27;équipe</div><p class="cap-texte">Un chef de section voit les événements de son équipe ; le filtre « Mon équipe » les superpose au calendrier.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/07_supervision/equipe_calendrier.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_section_a</b> · Navigation : Mon quotidien › Calendrier › Mon équipe · Profil chef de section</p></section>
+
+<section class="paysage capture"><div class="cap-sec">L&#x27;équipe</div><div class="cap-titre">Les difficultés signalées à traiter</div><p class="cap-texte">Le chef voit les demandes de renfort des marins, leur état et le responsable désigné, et suit celles qu&#x27;il a émises.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/07_supervision/difficultes.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Activité › Difficultés signalées · Profil chef de secteur</p></section>
+
+<section class="paysage capture"><h2 id="gu-10-4"><span class="marqueur">⟦gu-10-4⟧</span>10.4 Vues d&#x27;ensemble</h2><div class="cap-titre">Vue d&#x27;ensemble du secteur</div><p class="cap-texte">Trois indicateurs (maintenances en retard, tickets ouverts, pièces sous seuil) et deux détails : répartition des tickets par statut et pièces de stock à réapprovisionner.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/07_supervision/vue_secteur.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"><div class="rep" style="left:1.24%;top:18.75%">1</div><div class="rep" style="left:1.24%;top:45.08%">2</div></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Supervision › Flotte · Profil chef de secteur · Repères :  <b>1</b> Indicateurs du secteur <b>2</b> Répartition des tickets par statut</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Vues d&#x27;ensemble</div><div class="cap-titre">Vue d&#x27;ensemble du service</div><p class="cap-texte">La même vue agrège les secteurs du service : les chiffres sont ceux de toute l&#x27;unité visible par le chef de service.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/07_supervision/vue_unite.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_service_a</b> · Navigation : Supervision › Flotte · Profil chef de service</p></section>
+
+<section class="paysage capture"><h2 id="gu-10-5"><span class="marqueur">⟦gu-10-5⟧</span>10.5 Maintenance et anomalies vues du chef</h2><div class="cap-titre">Les maintenances en retard du secteur</div><p class="cap-texte">Le filtre « Filtrer les retards » limite la liste aux échéances dépassées. Le chef peut s&#x27;assigner une échéance (« M&#x27;assigner ») ou ouvrir la fiche (« Exécuter »).</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/04_maintenance/occurrences_retard.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Maintenance › Maintenance › Filtrer les retards · Profil chef de secteur</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Maintenance et anomalies vues du chef</div><div class="cap-titre">Les signalements d&#x27;anomalies</div><p class="cap-texte">Chaque anomalie porte sa gravité de 1 à 5, son statut (« Signalée », « Prise en compte », « Traitée », « Clôturée ») et le lieu concerné. Le tableau de droite compte les anomalies par statut. « Mes signalements » et « Ma section » changent la portée de la liste.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/anomalies_liste.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Maintenance › Anomalies · Règles : fiche Maintenance du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Maintenance et anomalies vues du chef</div><div class="cap-titre">Le détail d&#x27;une anomalie</div><p class="cap-texte">Le chef lit le signalement, change le statut (« Prise en compte », « Traitée », « Clôturée »), ajoute une note et consulte l&#x27;historique. Il peut aussi proposer un RETEX.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/anomalie_detail.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Maintenance › Anomalies › ouvrir une anomalie · Profil chef de section et plus</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Maintenance et anomalies vues du chef</div><div class="cap-titre">Les tickets correctifs du secteur</div><p class="cap-texte">« Mes tickets » ou « Tout le secteur » : chaque ticket affiche son équipement, sa description, sa gravité et son statut, du signalement à la remise en service.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/05_anomalies_tickets/tickets_liste.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Maintenance › Tickets correctifs · Règles : fiche Maintenance du référentiel</p></section></section><section class="chapitre"><h1 id="gu-11"><span class="marqueur">⟦gu-11⟧</span>11 Écrans de référence — Compétences, documentation, programme</h1>
+<div class="ligne-public"><b>Public :</b> marins, chefs · <b>Ce que vous y trouverez :</b> formations et qualifications, postes du bord, documentation, RETEX, programme du bâtiment, profil, notifications · <b>Règles complètes :</b> <span class="renvoi">RF §17</span>, <span class="renvoi">RF §18</span></div>
+
+<h2 id="gu-11-1"><span class="marqueur">⟦gu-11-1⟧</span>11.1 En bref</h2>
+<p>Matrix tient vos <strong>qualifications</strong> à jour et vous prévient avant leur expiration. La <strong>documentation</strong> du bord est versionnée : une seule version est applicable à la fois. Un <strong>RETEX</strong> transforme un cas significatif en enseignement publié. Le <strong>programme du bâtiment</strong> réunit escales, exercices et réunions, et alimente le calendrier.</p>
+<section class="paysage capture"><h2 id="gu-11-2"><span class="marqueur">⟦gu-11-2⟧</span>11.2 Formations et qualifications</h2><div class="cap-titre">Les formations</div><p class="cap-texte">Les indicateurs du haut résument vos formations à jour, à renouveler, expirées et non suivies. Le catalogue est classé par catégorie, avec la validité de chaque formation.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/formations.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Compétences › Formations · Règles : fiche Formations du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Formations et qualifications</div><div class="cap-titre">La fiche d&#x27;une formation</div><p class="cap-texte">La fiche donne votre état, la validité de la formation, les sessions à venir (avec le nombre de places) et le bouton « Réserver une place ». Les dernières validations sont listées.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/formation_detail.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Compétences › Formations › ouvrir une formation · Règles : fiche Formations du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Formations et qualifications</div><div class="cap-titre">Mon profil et mes qualifications</div><p class="cap-texte">Le profil rappelle le grade, la spécialité, le rôle et le rattachement. Les informations sont gérées par un administrateur ou le commandant ; les qualifications bientôt expirées sont signalées.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/profil.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Menu utilisateur › Profil · Règles : fiche Rôles et autorisations du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-11-3"><span class="marqueur">⟦gu-11-3⟧</span>11.3 Postes du bord</h2><div class="cap-titre">Les postes du bord</div><p class="cap-texte">Un tableau d&#x27;effectifs : un marin peut tenir un poste sans toutes les qualifications exigées, le manque est seulement signalé. Les places non pourvues et les titulaires sous-qualifiés sont comptés en haut.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/postes.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Compétences › Postes du bord · Règles : fiche Tâches, demandes, programme et postes du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-11-4"><span class="marqueur">⟦gu-11-4⟧</span>11.4 Documentation et RETEX</h2><div class="cap-titre">La documentation et les procédures</div><p class="cap-texte">Chaque document porte sa version et sa date ; le badge « Note locale » signale un document propre au bâtiment. La recherche filtre par titre, domaine ou texte.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/documentation.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Compétences › Documentation · Règles : fiche Documentation et RETEX du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Documentation et RETEX</div><div class="cap-titre">Les RETEX</div><p class="cap-texte">Un RETEX validé est publié dans la documentation. Pour en proposer un, on part d&#x27;une tâche, d&#x27;un ticket, d&#x27;une anomalie ou d&#x27;une demande. <span class="et b">🔵</span> Le circuit hiérarchique cible n&#x27;est pas développé (écart A15).</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/retex.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Compétences › RETEX · Règles : fiche Documentation et RETEX du référentiel</p></section>
+
+<section class="paysage capture"><h2 id="gu-11-5"><span class="marqueur">⟦gu-11-5⟧</span>11.5 Programme et réglages</h2><div class="cap-titre">Le programme du bâtiment</div><p class="cap-texte">Escales, arrêts techniques, exercices et réunions à venir, par date. Ils apparaissent aussi dans le calendrier.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/programme.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Activité › Programme du bâtiment · Règles : fiche Tâches, demandes, programme et postes du référentiel</p></section>
+
+<section class="paysage capture"><div class="cap-sec">Programme et réglages</div><div class="cap-titre">Les paramètres de notification</div><p class="cap-texte">Chacun règle l&#x27;heure de son résumé du matin (« Ma journée ») et de son résumé du soir (« Ma journée de demain »). Ce réglage est personnel.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/08_autres_ecrans/parametres.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Administration › Paramètres · Règles : fiche Communication du référentiel</p></section></section><section class="chapitre"><h1 id="gu-12"><span class="marqueur">⟦gu-12⟧</span>12 Vues sur écran de téléphone (émulation)</h1>
+<div class="ligne-public"><b>Public :</b> tous · <b>Ce que vous y trouverez :</b> deux écrans sur une largeur de téléphone · <b>Règles complètes :</b> <span class="renvoi">RF §20</span></div>
+
+<p><span class="et n">◯</span> <strong>Ces deux vues sont émulées</strong> (largeur de 390 pixels dans le navigateur de démonstration). Aucun téléphone ni tablette réel n'a été essayé : l'affichage sur appareil réel reste <strong>non vérifié</strong>.</p>
+<section class="paysage capture"><h2 id="gu-12-1"><span class="marqueur">⟦gu-12-1⟧</span>12.1 Deux écrans sur une largeur de téléphone</h2><div class="cap-titre">Accueil et maintenance sur un écran étroit</div><p class="cap-texte">À gauche, la page « Aujourd&#x27;hui » ; à droite, la gestion de la maintenance. Le menu se replie derrière le bouton en haut à gauche ; les tableaux deviennent des cartes empilées.</p><div class="cap-bloc ligne"><div class="cap-col"><div class="cap-cadre" style="width:67.4mm;height:145.8mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/10_mobile/mobile_accueil.png" style="position:absolute;width:67.37mm;left:-0.00mm;top:-0.00mm;max-width:none"></div><div class="cap-vignette">Accueil (émulation)</div></div><div class="cap-col"><div class="cap-cadre" style="width:67.4mm;height:145.8mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/10_mobile/mobile_maintenance.png" style="position:absolute;width:67.37mm;left:-0.00mm;top:-0.00mm;max-width:none"></div><div class="cap-vignette">Maintenance (émulation)</div></div></div><p class="cap-legende"><b>Émulation d'un écran de téléphone <span class="et n">◯</span> (aucun appareil réel) · profil de démonstration : equipier_a</b> · Navigation : Émulation d&#x27;un écran de 390 pixels de large · Règles : principes d&#x27;interface du référentiel</p></section></section><section class="chapitre"><div class="surtitre-partie">Partie · Limites et références</div><h1 id="gu-13"><span class="marqueur">⟦gu-13⟧</span>13 Les limites visibles de l'état B</h1>
+<div class="ligne-public"><b>Public :</b> tous · <b>Ce que vous y trouverez :</b> ce que Matrix ne fait pas encore ou fait autrement que prévu, avec l'écran qui le montre · <b>Registre complet :</b> <span class="renvoi">RE §1</span></div>
+
+<p>Cette page rassemble les écarts qu'un utilisateur peut <strong>rencontrer à l'écran</strong>. Chaque écart est un <strong>constat documenté</strong>, pas une autorisation de modifier le logiciel ni une décision. Les statuts sont ceux du registre central.</p>
+<table>
+<thead>
+<tr>
+<th>Écart</th>
+<th>Ce que vous voyez</th>
+<th>Ce qu'il faut savoir</th>
+<th>Étiquette</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>NE-01</strong></td>
+<td>Le bouton « Exécuter » apparaît dans la liste des maintenances, même pour une échéance qui n'est pas à vous</td>
+<td>Si vous n'y avez pas droit, Matrix refuse l'ouverture (erreur d'accès). Utilisez « M'assigner » ou demandez à un chef</td>
+<td><span class="et v">🟢</span></td>
+</tr>
+<tr>
+<td><strong>NE-07</strong></td>
+<td>L'écran de fin d'un compte rendu non conforme annonce qu'un ticket sera ouvert</td>
+<td>Pour une <strong>installation</strong>, aucun ticket n'est créé : signalez vous-même une anomalie (menu « Anomalies »)</td>
+<td><span class="et v">🟢</span></td>
+</tr>
+<tr>
+<td><strong>A20</strong></td>
+<td>Une maintenance reste « En validation »</td>
+<td>Il n'existe pas de bouton « Valider » ; seul un chef de secteur ou plus corrige le compte rendu ; rien ne relance l'échéance</td>
+<td><span class="et v">🟢</span> ; règle de sortie à décider par le PO</td>
+</tr>
+<tr>
+<td><strong>A14</strong></td>
+<td>La synthèse de passation</td>
+<td>Un chef de section la lit pour tout son bâtiment et non pour sa seule section ; vérifié par test sur comptes fictifs</td>
+<td><span class="et v">🟢</span></td>
+</tr>
+<tr>
+<td><strong>A25</strong></td>
+<td>Un module désactivé par le bâtiment</td>
+<td>Ses pages disparaissent du menu ; certains chemins (interface de programmation, tâches planifiées, accueil, calendrier) restent actifs</td>
+<td><span class="et v">🟢</span> ; règle attendue à décider</td>
+</tr>
+<tr>
+<td><strong>A12</strong></td>
+<td>« Imprimer » sur la feuille de service</td>
+<td>L'impression passe par le navigateur ; la mise en page A4 dédiée et la réimpression versionnée ne sont pas développées</td>
+<td><span class="et b">🔵</span></td>
+</tr>
+<tr>
+<td><strong>A13</strong></td>
+<td>Deux niveaux de priorité de tâche</td>
+<td>Le PO a décidé trois niveaux ; pas de règle d'abaissement</td>
+<td><span class="et b">🔵</span></td>
+</tr>
+<tr>
+<td><strong>A21</strong></td>
+<td>Périodicités nommées, remarques d'outillage, durée indicative</td>
+<td>Les échéances se génèrent par intervalle en jours ; les périodicités nommées et la durée actualisée sont une cible non développée</td>
+<td><span class="et b">🔵</span></td>
+</tr>
+<tr>
+<td><strong>NE-02</strong></td>
+<td>Les lignes de la liste des tickets</td>
+<td>Elles s'ouvrent à la souris mais pas au clavier</td>
+<td><span class="et v">🟢</span></td>
+</tr>
+<tr>
+<td><strong>D1, D2</strong></td>
+<td>Ticket pour une installation non conforme ; règle de sortie de « En validation »</td>
+<td><strong>Propositions</strong> non arbitrées, jamais des règles</td>
+<td><span class="et p">🟣</span></td>
+</tr>
+</tbody>
+</table>
+<section class="paysage capture"><h2 id="gu-13-1"><span class="marqueur">⟦gu-13-1⟧</span>13.1 Écart NE-01 — Un bouton affiché sans droit</h2><div class="cap-titre">La liste des maintenances vue par un marin</div><p class="cap-texte">Le bouton « Exécuter » est affiché sur toutes les lignes, y compris sur celles qui ne sont pas assignées au marin. Si le marin n&#x27;a pas le droit, l&#x27;ouverture de la fiche est refusée par le serveur.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/04_maintenance/occurrences.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"><div class="rep" style="left:76.18%;top:76.56%">1</div><div class="rep" style="left:65.79%;top:76.56%">2</div></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Navigation : Maintenance › Maintenance · Écart NE-01 : voir le registre · Repères :  <b>1</b> NE-01 : « Exécuter » affiché pour une échéance non assignée à ce marin <b>2</b> « M&#x27;assigner » : prendre l&#x27;échéance</p></section>
+
+<section class="paysage capture"><h2 id="gu-13-2"><span class="marqueur">⟦gu-13-2⟧</span>13.2 Écart A20 — Une maintenance « En validation »</h2><div class="cap-titre">La liste filtrée sur l&#x27;état « En validation »</div><p class="cap-texte">L&#x27;échéance est « En validation » depuis son compte rendu non conforme. Elle reste visible dans « À traiter » sans échéance de sortie et sans notification.</p><div class="cap-bloc"><div class="cap-cadre" style="width:209.5mm;height:132.0mm;overflow:hidden"><img src="file:///home/user/Matrix/docs/dossier-technique/refonte/captures/09_limites/en_validation_liste.png" style="position:absolute;width:253.96mm;left:-44.43mm;top:-10.78mm;max-width:none"></div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Navigation : Maintenance › Maintenance (filtre « En validation ») · Écart A20 : voir le registre</p></section></section><section class="chapitre"><h1 id="gu-14"><span class="marqueur">⟦gu-14⟧</span>14 Glossaire minimal et index des termes</h1>
+<div class="ligne-public"><b>Public :</b> tous · <b>Ce que vous y trouverez :</b> les mots du guide, leur sens dans Matrix et la page où les retrouver · <b>Glossaire complet :</b> <span class="renvoi">RF §23</span></div>
+
+<h2 id="gu-14-1"><span class="marqueur">⟦gu-14-1⟧</span>14.1 Glossaire minimal</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Sens dans Matrix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rôle</strong></td>
+<td>Profil d'accès dans Matrix (équipier, chef de section, chef de secteur, chef de service…). Ce n'est ni un grade ni une fonction</td>
+</tr>
+<tr>
+<td><strong>Fonction</strong></td>
+<td>Ce que la personne exerce réellement : chef de liste, BSC, COMAEQ…</td>
+</tr>
+<tr>
+<td><strong>Périmètre</strong></td>
+<td>Ce sur quoi vous agissez : votre section, votre secteur, votre service, votre bâtiment</td>
+</tr>
+<tr>
+<td><strong>Occurrence (échéance)</strong></td>
+<td>Une maintenance à réaliser à une date donnée</td>
+</tr>
+<tr>
+<td><strong>Compte rendu</strong></td>
+<td>Le résultat d'une maintenance ou d'une tâche, rédigé par l'exécutant</td>
+</tr>
+<tr>
+<td><strong>En validation</strong></td>
+<td>État d'une maintenance dont le contrôle est non conforme, en attente d'une correction du compte rendu par un chef de secteur ou plus</td>
+</tr>
+<tr>
+<td><strong>Anomalie</strong></td>
+<td>Ce que vous avez vu d'anormal, avec ou sans équipement identifié</td>
+</tr>
+<tr>
+<td><strong>Ticket correctif</strong></td>
+<td>La réparation d'un équipement précis, de son diagnostic à sa remise en service</td>
+</tr>
+<tr>
+<td><strong>Tour de service</strong></td>
+<td>Un quart à la mer ou un service à quai</td>
+</tr>
+<tr>
+<td><strong>Chef de liste</strong></td>
+<td>Marin désigné pour préparer les listes de quarts ou de services d'un périmètre</td>
+</tr>
+<tr>
+<td><strong>BSC</strong></td>
+<td>Rédacteur de la feuille de service, désigné par le COMAEQ</td>
+</tr>
+<tr>
+<td><strong>COMAEQ, COMOPS, COMANAV, COMAVIA</strong></td>
+<td>Commandants adjoints du bâtiment, chacun pour sa fonction</td>
+</tr>
+<tr>
+<td><strong>RETEX</strong></td>
+<td>Retour d'expérience : un cas significatif devenu enseignement validé</td>
+</tr>
+<tr>
+<td><strong>Accusé de réception</strong></td>
+<td>Votre confirmation d'avoir lu une annonce</td>
+</tr>
+<tr>
+<td><strong>Instance de démonstration</strong></td>
+<td>Copie isolée de Matrix avec des données fictives, utilisée pour les captures</td>
+</tr>
+</tbody>
+</table>
+<h2 id="gu-14-2"><span class="marqueur">⟦gu-14-2⟧</span>14.2 Index des termes</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Où le trouver</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Absence</td>
+<td><a href="#gu-6">GU §6</a></td>
+</tr>
+<tr>
+<td>Accusé de réception, annonce</td>
+<td><a href="#gu-4">GU §4</a></td>
+</tr>
+<tr>
+<td>Anomalie, ticket correctif</td>
+<td><a href="#gu-7">GU §7</a></td>
+</tr>
+<tr>
+<td>Appareillage</td>
+<td><a href="#gu-8">GU §8</a></td>
+</tr>
+<tr>
+<td>Calendrier</td>
+<td><a href="#gu-3">GU §3</a></td>
+</tr>
+<tr>
+<td>Catalogue, matériel, installation, plan du navire, stock</td>
+<td><a href="#gu-9">GU §9</a></td>
+</tr>
+<tr>
+<td>Échange de tour</td>
+<td><a href="#gu-6">GU §6</a></td>
+</tr>
+<tr>
+<td>Feuille de service</td>
+<td><a href="#gu-6">GU §6</a></td>
+</tr>
+<tr>
+<td>Formation, qualification, documentation, RETEX, programme, poste</td>
+<td><a href="#gu-11">GU §11</a></td>
+</tr>
+<tr>
+<td>Limites, écarts (A14, A20, A25, NE-01, NE-07)</td>
+<td><a href="#gu-13">GU §13</a></td>
+</tr>
+<tr>
+<td>Maintenance, compte rendu</td>
+<td><a href="#gu-7">GU §7</a></td>
+</tr>
+<tr>
+<td>Notification</td>
+<td><a href="#gu-3">GU §3</a></td>
+</tr>
+<tr>
+<td>Profil (marin, chef de section, de secteur, de service)</td>
+<td><a href="#gu-2">GU §2</a></td>
+</tr>
+<tr>
+<td>Recherche</td>
+<td><a href="#gu-4">GU §4</a></td>
+</tr>
+<tr>
+<td>Supervision, vue d'ensemble</td>
+<td><a href="#gu-10">GU §10</a></td>
+</tr>
+<tr>
+<td>Tâche</td>
+<td><a href="#gu-5">GU §5</a></td>
+</tr>
+<tr>
+<td>Vue sur téléphone</td>
+<td><a href="#gu-12">GU §12</a></td>
+</tr>
+</tbody>
+</table></section></body></html>
