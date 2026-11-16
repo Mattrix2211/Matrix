@@ -261,6 +261,8 @@ def construire_html(code, fichiers, pilote, pages=None):
     # sommaire
     lis = []
     for niv, num, titre, ident_ in entrees:
+        if niv == 2 and re.match(r"AUD-\d+", titre):
+            continue                                    # 38 fiches : le sommaire renvoie à la section « Anomalies du dossier »
         pg = (pages or {}).get(ident_, "000")
         lis.append(f'<li class="niv{niv}"><span class="t"><a href="#{ident_}">{num} {html.escape(titre)}</a></span><span class="p"></span><span class="n">{pg}</span></li>')
     toc = '<section class="toc"><h2>Sommaire</h2><ul>' + "".join(lis) + "</ul></section>"

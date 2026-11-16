@@ -247,11 +247,11 @@
 
 | Rubrique | Contenu |
 |---|---|
-| **Règle validée** | Périodicités nommées, remarques d'outillage, durée indicative (DEC-PER-01, DEC-PER-02, DEC-PER-03, DEC-PER-04, DEC-OUT-01, DEC-OUT-02, DEC-OUT-03, DEC-OUT-04, DEC-OUT-05, `DEC-DUR-*`) |
-| **Constat dans l'état B** | Non développé |
-| **Conséquences** | Cible, non contradictoire |
+| **Règle validée** | Périodicités nommées, remarques d'outillage et durée indicative : décisions DEC-PER-01, DEC-PER-02, DEC-PER-03, DEC-PER-04, DEC-OUT-01, DEC-OUT-02, DEC-OUT-03, DEC-OUT-04, DEC-OUT-05, DEC-DUR-01, DEC-DUR-02, DEC-DUR-03, DEC-DUR-04, DEC-DUR-05, DEC-DUR-06, DEC-DUR-07. |
+| **Constat dans l'état B** | État décision par décision (les statuts viennent du plan en lots et du code, sans promotion) : DEC-PER-01 : partielle (L19) ; DEC-PER-02 : non développée (L19) ; DEC-PER-03 : non développée (L19) ; DEC-PER-04 : réalisée (L19) ; DEC-OUT-01 : non développée (L26) ; DEC-OUT-02 : non développée (L26) ; DEC-OUT-03 : non développée (L26) ; DEC-OUT-04 : non développée (L26) ; DEC-OUT-05 : non développée (L26) ; DEC-DUR-01 : non développée (L20) ; DEC-DUR-02 : non développée (L20) ; DEC-DUR-03 : non développée (L20) ; DEC-DUR-04 : non développée (L20) ; DEC-DUR-05 : non développée (L20) ; DEC-DUR-06 : non développée (L20) ; DEC-DUR-07 : non développée (L20). **Réellement disponible** : génération des échéances depuis les plans et fiches par un intervalle en jours (90 par défaut) ; historique des états conservé, retards compris. **Reste à développer** : périodicités nommées (hebdomadaire à quinquennale), échéance calculée depuis la réalisation effective, remarques d'outillage, durée indicative actualisée. Seules DEC-PER-01 (partielle) et DEC-PER-04 (réalisée) ont une part existante. |
+| **Conséquences** | Cible validée par le PO, pour l'essentiel non développée ; ne contredit pas le fonctionnement actuel. Aucune règle nouvelle. |
 | **Profils concernés** | chefs de secteur |
-| **Lot de correction prévu** | Plan V1.2 |
+| **Lot de correction prévu** | L19 (périodicités), L26 (outillage), L20 (durée) : non livrés dans l'état B |
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 

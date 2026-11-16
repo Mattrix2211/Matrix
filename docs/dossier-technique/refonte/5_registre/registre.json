@@ -360,11 +360,11 @@
   {
    "id": "A21",
    "titre": "Périodicités nommées, remarques d'outillage, durée indicative",
-   "regle": "Périodicités nommées, remarques d'outillage, durée indicative (DEC-PER-01, DEC-PER-02, DEC-PER-03, DEC-PER-04, DEC-OUT-01, DEC-OUT-02, DEC-OUT-03, DEC-OUT-04, DEC-OUT-05, `DEC-DUR-*`)",
-   "constat": "Non développé",
+   "regle": "Périodicités nommées, remarques d'outillage et durée indicative : décisions DEC-PER-01, DEC-PER-02, DEC-PER-03, DEC-PER-04, DEC-OUT-01, DEC-OUT-02, DEC-OUT-03, DEC-OUT-04, DEC-OUT-05, DEC-DUR-01, DEC-DUR-02, DEC-DUR-03, DEC-DUR-04, DEC-DUR-05, DEC-DUR-06, DEC-DUR-07.",
+   "constat": "État décision par décision (les statuts viennent du plan en lots et du code, sans promotion) : DEC-PER-01 : partielle (L19) ; DEC-PER-02 : non développée (L19) ; DEC-PER-03 : non développée (L19) ; DEC-PER-04 : réalisée (L19) ; DEC-OUT-01 : non développée (L26) ; DEC-OUT-02 : non développée (L26) ; DEC-OUT-03 : non développée (L26) ; DEC-OUT-04 : non développée (L26) ; DEC-OUT-05 : non développée (L26) ; DEC-DUR-01 : non développée (L20) ; DEC-DUR-02 : non développée (L20) ; DEC-DUR-03 : non développée (L20) ; DEC-DUR-04 : non développée (L20) ; DEC-DUR-05 : non développée (L20) ; DEC-DUR-06 : non développée (L20) ; DEC-DUR-07 : non développée (L20). **Réellement disponible** : génération des échéances depuis les plans et fiches par un intervalle en jours (90 par défaut) ; historique des états conservé, retards compris. **Reste à développer** : périodicités nommées (hebdomadaire à quinquennale), échéance calculée depuis la réalisation effective, remarques d'outillage, durée indicative actualisée. Seules DEC-PER-01 (partielle) et DEC-PER-04 (réalisée) ont une part existante.",
    "sources": "`maintenance/models.py:18`",
-   "consequences": "Cible, non contradictoire",
-   "lot": "Plan V1.2",
+   "consequences": "Cible validée par le PO, pour l'essentiel non développée ; ne contredit pas le fonctionnement actuel. Aucune règle nouvelle.",
+   "lot": "L19 (périodicités), L26 (outillage), L20 (durée) : non livrés dans l'état B",
    "nature": "écart du logiciel",
    "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
    "profils_concernes": "chefs de secteur",
@@ -769,9 +769,13 @@
    "id": "AUD-001",
    "nature": "anomalie documentaire",
    "gravite": "Bloquante (diffusion)",
-   "lieu": "PDF à large diffusion (ancienne édition) — Couverture p.1 et en-tête des 108 pages",
-   "constat": "L'en-tête de chaque page dit « mention de diffusion large (ancienne édition) » et le fichier s'appelle « à large diffusion (ancienne édition) », alors que la couverture et le chapitre 3 disent que la classification n'est pas validée. La couverture annonce « Aucune référence de code » alors que le texte contient 39 chemins de fichiers `.py` (12 pages), 8 noms de branches internes `claude/…` (7 pages), 9 chemins `docs/…`",
+   "document": "PDF [ancien qualificatif de large diffusion]",
+   "page_ou_lieu": "Couverture p.1 et en-tête des 108 pages",
+   "constat": "L'en-tête de chaque page dit « [ancienne mention de large diffusion] » et le fichier s'appelle « [ancien qualificatif de large diffusion] », alors que la couverture et le chapitre 3 disent que la classification n'est pas validée. La couverture annonce « Aucune référence de code » alors que le texte contient 39 chemins de fichiers `.py` (12 pages), 8 noms de branches internes `claude/…` (7 pages), 9 chemins `docs/…`",
    "preuve": "[A][V] `pdf_controles.md` §3 ; p.1, 14, 20, 24",
+   "consequence": "Le PDF peut être pris pour autorisé à la [ancienne mention de large diffusion] ; le critère de séparation annoncé n'est pas celui qui a été contrôlé (« fichier:ligne » seulement)",
+   "correction": "Remplacer l'en-tête par « DIFFUSION RESTREINTE PROVISOIRE — classification à valider » (comme le guide visuel) ; aligner la couverture sur la réalité ou retirer chemins et branches ; décision de l'autorité sur ce qu'est une « référence de code »",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-1",
    "niveau_preuve": "[V][A][C]",
@@ -784,9 +788,13 @@
    "id": "AUD-002",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Chap. 8 §8.13 (l.184) ; registre A12 — « Le rendu imprimable de la feuille de service n'a pas été trouvé dans le code » ; A12 : « aucune page imprimable »",
-   "constat": "`matrix/templates/quarts/feuille_service_detail.html:18` contient un bouton « Imprimer » (`window.print()`, classe `no-print`) ; le guide visuel p.25 le montre",
+   "document": "Chap. 8 §8.13 (l.184) ; registre A12",
+   "page_ou_lieu": "",
+   "constat": "« Le rendu imprimable de la feuille de service n'a pas été trouvé dans le code » ; A12 : « aucune page imprimable » — `matrix/templates/quarts/feuille_service_detail.html:18` contient un bouton « Imprimer » (`window.print()`, classe `no-print`) ; le guide visuel p.25 le montre",
    "preuve": "[C][N][V]",
+   "consequence": "Faux : une impression navigateur existe ; seules l'impression A4 dédiée et l'alerte de réimpression (DEC-FDS-04/06) manquent",
+   "correction": "Corriger §8.13 et A12 : « impression par le navigateur disponible ; mise en page A4 dédiée et alerte de réimpression non développées »",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-2",
    "niveau_preuve": "[V][A][C]",
@@ -799,9 +807,13 @@
    "id": "AUD-003",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Chap. 2, 6 (§6.11), 7, 9, 10, 11, 12, 15, 16, 17 ; annexe F ; compléments 11T, 12T, 15T… — « Les écrans n'ont pas été rejoués dans un navigateur » (au moins 11 occurrences)",
-   "constat": "Le guide visuel (64 captures, 5 parcours) et cet audit ont rejoué ces écrans",
+   "document": "Chap. 2, 6 (§6.11), 7, 9, 10, 11, 12, 15, 16, 17 ; annexe F ; compléments 11T, 12T, 15T…",
+   "page_ou_lieu": "",
+   "constat": "« Les écrans n'ont pas été rejoués dans un navigateur » (au moins 11 occurrences) — Le guide visuel (64 captures, 5 parcours) et cet audit ont rejoué ces écrans",
    "preuve": "[?] grep ; [N]",
+   "consequence": "Contradiction entre documents : le lecteur ne sait pas si les écrans sont vérifiés. Les étiquettes ⚪ ne reflètent plus l'état de la preuve",
+   "correction": "Réviser ces phrases : « rejoué sur instance de démonstration le 12/11/2026 pour les écrans du guide visuel ; non rejoué pour … »",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-4",
    "niveau_preuve": "[V][A][C]",
@@ -814,9 +826,13 @@
    "id": "AUD-004",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Chap. 1 §1.1 (l.18) — « Que dois-je faire ? → les tâches, la maintenance, les rondes de contrôle »",
-   "constat": "Le module `rondes` n'a aucune vue et a été retiré de l'interface (chap. 2, 12 ; A8 ; `rondes/models.py` seul)",
+   "document": "Chap. 1 §1.1 (l.18)",
+   "page_ou_lieu": "",
+   "constat": "« Que dois-je faire ? → les tâches, la maintenance, les rondes de contrôle » — Le module `rondes` n'a aucune vue et a été retiré de l'interface (chap. 2, 12 ; A8 ; `rondes/models.py` seul)",
    "preuve": "[C] `matrix/tests/test_module_rondes_retire.py` cité en 12T",
+   "consequence": "Le premier chapitre promet une fonction qui n'existe pas",
+   "correction": "Retirer les rondes de la réponse ou les marquer « retirées de l'interface »",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-2",
    "niveau_preuve": "[V][A][C]",
@@ -829,9 +845,13 @@
    "id": "AUD-005",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Chap. 6, 10, 17 — La page « Aujourd'hui » est décrite en blocs ; la barre de parcours du quotidien (« Mon quotidien · Mon équipe · Suivi · Synthèse ») n'est décrite nulle part (« Mon équipe » : 0 occurrence dans les chapitres diffusables)",
-   "constat": "`matrix/templates/components/parcours.html` ; visible sur toutes les captures d'accueil du guide",
+   "document": "Chap. 6, 10, 17",
+   "page_ou_lieu": "",
+   "constat": "La page « Aujourd'hui » est décrite en blocs ; la barre de parcours du quotidien (« Mon quotidien · Mon équipe · Suivi · Synthèse ») n'est décrite nulle part (« Mon équipe » : 0 occurrence dans les chapitres [ancien qualificatif de large diffusion]) — `matrix/templates/components/parcours.html` ; visible sur toutes les captures d'accueil du guide",
    "preuve": "[C][N][V]",
+   "consequence": "Un chef cherche « le bloc Supervision » ; il trouve des onglets qui ne portent pas ce nom. Le fil central de navigation du chef est absent",
+   "correction": "Documenter la barre (quatre vues, onglets réservés aux chefs, ce que contient chacun) au chapitre 6 et 17",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-2",
    "niveau_preuve": "[V][A][C]",
@@ -844,9 +864,13 @@
    "id": "AUD-006",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "PDF restreint p.4–5 ; PDF à large diffusion (ancienne édition) p.99–100 — Schéma S10 : image p.4, légende en haut de p.5 ; S40 idem",
+   "document": "PDF restreint p.4–5 ; PDF [ancien qualificatif de large diffusion] p.99–100",
+   "page_ou_lieu": "Schéma S10 : image p.4, légende en haut de p.5 ; S40 idem",
    "constat": "Détection : légende dans les 6 % supérieurs de la page. S10 vu : illisible (5,0 pt), diagramme en pelote",
    "preuve": "[A][V] `schemas_lisibilite.csv`",
+   "consequence": "Légende séparée de sa figure ; S10 inutilisable à 100 %",
+   "correction": "Garder figure et légende ensemble (`break-inside: avoid`) ; relayouter S10 (deux schémas)",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-6",
    "niveau_preuve": "[V][A][C]",
@@ -859,9 +883,13 @@
    "id": "AUD-007",
    "nature": "anomalie documentaire",
    "gravite": "Majeure (précisée en phase 2 : le bouton « M'assigner » existe aussi dans la liste)",
-   "lieu": "Chap. 5 §5.4 ; guide visuel p.13 — « L'écran peut masquer un bouton, mais c'est toujours le serveur qui décide »",
-   "constat": "La liste de maintenance affiche « Exécuter » sur toutes les lignes pour un équipier ; `/maintenance/occurrences/4/execute/` répond 403 pour lui. Le guide p.13 montre ces boutons sans explication",
+   "document": "Chap. 5 §5.4 ; guide visuel p.13",
+   "page_ou_lieu": "",
+   "constat": "« L'écran peut masquer un bouton, mais c'est toujours le serveur qui décide » — La liste de maintenance affiche « Exécuter » sur toutes les lignes pour un équipier ; `/maintenance/occurrences/4/execute/` répond 403 pour lui. Le guide p.13 montre ces boutons sans explication",
    "preuve": "[N] `navigateur_droits.md`",
+   "consequence": "Le marin croit pouvoir exécuter des maintenances d'autrui ; le guide visuel risque de l'enseigner",
+   "correction": "Ajouter un constat au chapitre 12 ; nouvel écart candidat NE-01 (hors décision) ; annoter la capture p.13 du guide",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-2",
    "niveau_preuve": "[V][A][C]",
@@ -874,9 +902,13 @@
    "id": "AUD-008",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Registre A14, A20, A25 ; chap. 6 §6.6, 6 §6.9, 12 ; `RAPPORT_QUALIFICATION_FINALE_G0.md` — « Vérifié par test (12/11/2026) »",
-   "constat": "Les fichiers de test ne sont dans aucun dépôt (rapport de qualification : « non conservés ») ; une copie est maintenant archivée dans `audit_preuves/tests_verification/` et relancée : 29 tests OK",
+   "document": "Registre A14, A20, A25 ; chap. 6 §6.6, 6 §6.9, 12 ; `RAPPORT_QUALIFICATION_FINALE_G0.md`",
+   "page_ou_lieu": "",
+   "constat": "« Vérifié par test (12/11/2026) » — Les fichiers de test ne sont dans aucun dépôt (rapport de qualification : « non conservés ») ; une copie est maintenant archivée dans `audit_preuves/tests_verification/` et relancée : 29 tests OK",
    "preuve": "[T] `audit_preuves/tests_verification/`",
+   "consequence": "Une preuve non rejouable n'en est pas une pour un futur mainteneur",
+   "correction": "Citer ces fichiers dans le registre ; décider avec le PO s'ils entrent dans le dépôt applicatif (hors de cette mission)",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-5",
    "niveau_preuve": "[V][A][C]",
@@ -889,9 +921,13 @@
    "id": "AUD-009",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "PDF restreint p.39, 41, 45 ; à large diffusion (ancienne édition) p.14, 82, 93, 106 — Pages portant 1 à 5 lignes (« Limites », « Sources », une ligne de tableau)",
-   "constat": "`RAPPORT_CLOTURE_G0.md` §3 : « Pages quasi vides : Aucune dans les deux PDF »",
+   "document": "PDF restreint p.39, 41, 45 ; [ancien qualificatif de large diffusion] p.14, 82, 93, 106",
+   "page_ou_lieu": "",
+   "constat": "Pages portant 1 à 5 lignes (« Limites », « Sources », une ligne de tableau) — `RAPPORT_CLOTURE_G0.md` §3 : « Pages quasi vides : Aucune dans les deux PDF »",
    "preuve": "[A][V] `pdf_controles.md` §2",
+   "consequence": "Impression d'inachevé ; le rapport de clôture est inexact sur ce point",
+   "correction": "Ne plus forcer un saut de page avant la dernière section des chapitres courts ; corriger le rapport",
+   "priorite": "P0",
    "statut": "fusionnée dans AUD-034",
    "traite_par": "AUD-034",
    "niveau_preuve": "[V][A][C]",
@@ -904,9 +940,13 @@
    "id": "AUD-010",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "`guide-visuel/RAPPORT_GUIDE_VISUEL_G0.md` — §3 « 25 captures non retenues » ; §5 « la liste des tickets n'a pas de lien de ligne visible »",
-   "constat": "29 captures non utilisées (64 − 35). Les lignes de tickets sont cliquables (`onclick`, `ticket_list.html:28`) : ma capture automatique cherchait un lien `<a>`",
+   "document": "`guide-visuel/RAPPORT_GUIDE_VISUEL_G0.md`",
+   "page_ou_lieu": "",
+   "constat": "§3 « 25 captures non retenues » ; §5 « la liste des tickets n'a pas de lien de ligne visible » — 29 captures non utilisées (64 − 35). Les lignes de tickets sont cliquables (`onclick`, `ticket_list.html:28`) : ma capture automatique cherchait un lien `<a>`",
    "preuve": "[C][A]",
+   "consequence": "Erreurs de mon propre rapport",
+   "correction": "Corriger le rapport (affirmation retirée)",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-2",
    "niveau_preuve": "[V][A][C]",
@@ -919,9 +959,13 @@
    "id": "AUD-011",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Ensemble — Aucun document court pour un décideur",
-   "constat": "Les PDF ne contiennent ni synthèse de 2 pages (valeur, maturité, limites, risques) ni lecture de la `SYNTHESE_ECARTS_PAR_CRITICITE.md` (fichier restreint hors PDF)",
+   "document": "Ensemble",
+   "page_ou_lieu": "",
+   "constat": "Aucun document court pour un décideur — Les PDF ne contiennent ni synthèse de 2 pages (valeur, maturité, limites, risques) ni lecture de la `SYNTHESE_ECARTS_PAR_CRITICITE.md` (fichier restreint hors PDF)",
    "preuve": "[V] sommaires",
+   "consequence": "Le commandement doit lire 108 pages pour comprendre l'intérêt et les limites",
+   "correction": "Ajouter un « Résumé pour décideur » en tête du PDF [ancien qualificatif de large diffusion] (valeur, maturité par module, limites, décisions en attente)",
+   "priorite": "P1",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-1",
    "niveau_preuve": "[V][A][C]",
@@ -934,9 +978,13 @@
    "id": "AUD-012",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Sommaires, guides — Sommaires des deux PDF sans numéros de page ; `00_LISEZ-MOI.md` et `GUIDE_DE_LECTURE.md` indiquent deux parcours « marin » différents (ch. 1–2 contre ch. 1, 6, 8, 12 + annexe A) ; le guide visuel n'est cité ni dans le LISEZ-MOI, ni dans le guide de lecture, ni dans le chapitre 3 ; la numérotation saute de 17 à 25 sans explication dans le sommaire à large diffusion (ancienne édition)",
-   "constat": "[V] p.2 ; [A] grep",
-   "preuve": "Le lecteur retrouve difficilement l'information ; les trois documents ne forment pas un ensemble",
+   "document": "Sommaires, guides",
+   "page_ou_lieu": "",
+   "constat": "Sommaires des deux PDF sans numéros de page ; `00_LISEZ-MOI.md` et `GUIDE_DE_LECTURE.md` indiquent deux parcours « marin » différents (ch. 1–2 contre ch. 1, 6, 8, 12 + annexe A) ; le guide visuel n'est cité ni dans le LISEZ-MOI, ni dans le guide de lecture, ni dans le chapitre 3 ; la numérotation saute de 17 à 25 sans explication dans le sommaire [ancien qualificatif de large diffusion]",
+   "preuve": "[V] p.2 ; [A] grep",
+   "consequence": "Le lecteur retrouve difficilement l'information ; les trois documents ne forment pas un ensemble",
+   "correction": "Numéroter les sommaires ; un seul parcours par profil ; référencer le guide visuel ; expliquer la numérotation",
+   "priorite": "P1",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-4 / P1-2",
    "niveau_preuve": "[V][A][C]",
@@ -949,9 +997,13 @@
    "id": "AUD-013",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Guide visuel — 35 captures sur 64 utilisées",
-   "constat": "Écrans importants absents : accusé de réception d'une annonce, fiche d'installation (relevés, entretien), échange de tour, Documentation/RETEX, bas de l'accueil (indicateurs, bloc Supervision), prêt à appareiller avec session ouverte, vue mobile (le chapitre 17 en parle)",
+   "document": "Guide visuel",
+   "page_ou_lieu": "",
+   "constat": "35 captures sur 64 utilisées — Écrans importants absents : accusé de réception d'une annonce, fiche d'installation (relevés, entretien), échange de tour, Documentation/RETEX, bas de l'accueil (indicateurs, bloc Supervision), prêt à appareiller avec session ouverte, vue mobile (le chapitre 17 en parle)",
    "preuve": "[V] `captures_audit.csv`",
+   "consequence": "Des parcours promis (annonces à accuser, RETEX) ne sont pas illustrés ; des doublons occupent la place de ces écrans",
+   "correction": "Ajouter 6 à 8 captures et en retirer 4 doublons",
+   "priorite": "P1",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-3",
    "niveau_preuve": "[V][A][C]",
@@ -964,9 +1016,13 @@
    "id": "AUD-014",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Guide visuel p.15, 19, 30 — Textes anglais du navigateur dans une interface française : « mm/dd/yyyy », « Choose File / No file chosen », « 08:00 AM »",
-   "constat": "[V] captures `p_maintenance_1_saisie`, `p_anomalie_3_description`, `parametres`",
-   "preuve": "Le lecteur croit que Matrix affiche de l'anglais",
+   "document": "Guide visuel p.15, 19, 30",
+   "page_ou_lieu": "",
+   "constat": "Textes anglais du navigateur dans une interface française : « mm/dd/yyyy », « Choose File / No file chosen », « 08:00 AM »",
+   "preuve": "[V] captures `p_maintenance_1_saisie`, `p_anomalie_3_description`, `parametres`",
+   "consequence": "Le lecteur croit que Matrix affiche de l'anglais",
+   "correction": "Relancer Chromium en langue française",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -979,9 +1035,13 @@
    "id": "AUD-015",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Guide visuel p.11, 12, 17, 21, 22, 23 — Messages de confirmation superposés, mention « Brouillon abandonné. »",
-   "constat": "[V]",
-   "preuve": "Le regard est détourné ; une capture semi-transparente (p.23)",
+   "document": "Guide visuel p.11, 12, 17, 21, 22, 23",
+   "page_ou_lieu": "",
+   "constat": "Messages de confirmation superposés, mention « Brouillon abandonné. »",
+   "preuve": "[V]",
+   "consequence": "Le regard est détourné ; une capture semi-transparente (p.23)",
+   "correction": "Attendre la disparition des messages avant capture ; abandonner le brouillon avant la session",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -994,9 +1054,13 @@
    "id": "AUD-016",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Captures sources — 4 doublons exacts (`tache_detail`=`p_tache_1_ouverte`, `occurrences`=`p_maintenance_3_liste`, `execution_saisie`=`p_maintenance_1_saisie`) et 4 quasi-doublons",
-   "constat": "[A] différence de pixels 0,0 à 4,6 %",
-   "preuve": "21 Mo d'images dont une part redondante",
+   "document": "Captures sources",
+   "page_ou_lieu": "",
+   "constat": "4 doublons exacts (`tache_detail`=`p_tache_1_ouverte`, `occurrences`=`p_maintenance_3_liste`, `execution_saisie`=`p_maintenance_1_saisie`) et 4 quasi-doublons",
+   "preuve": "[A] différence de pixels 0,0 à 4,6 %",
+   "consequence": "21 Mo d'images dont une part redondante",
+   "correction": "Supprimer ou fusionner",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-3",
    "niveau_preuve": "[V][A][C]",
@@ -1009,9 +1073,13 @@
    "id": "AUD-017",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Chap. 5, en-tête (l.3) — « …dans la partie restreinte du dossier et la partie restreinte du dossier »",
-   "constat": "[V] p.21 ; [A] grep",
-   "preuve": "Faute visible dès la première page du chapitre le plus consulté",
+   "document": "Chap. 5, en-tête (l.3)",
+   "page_ou_lieu": "",
+   "constat": "« …dans la partie restreinte du dossier et la partie restreinte du dossier »",
+   "preuve": "[V] p.21 ; [A] grep",
+   "consequence": "Faute visible dès la première page du chapitre le plus consulté",
+   "correction": "Corriger la phrase",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1024,9 +1092,13 @@
    "id": "AUD-018",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "PDF restreint p.4 — Identifiants coupés en milieu de mot dans les cellules (« SynthesePassati / on », « ReferenceBatime / nt »), régression de la correction de l'ensemble précédent",
-   "constat": "[V] ; étendue non mesurée [?]",
-   "preuve": "Illisibilité des noms de modèles",
+   "document": "PDF restreint p.4",
+   "page_ou_lieu": "",
+   "constat": "Identifiants coupés en milieu de mot dans les cellules (« SynthesePassati / on », « ReferenceBatime / nt »), régression de la correction de l'ensemble précédent",
+   "preuve": "[V] ; étendue non mesurée [?]",
+   "consequence": "Illisibilité des noms de modèles",
+   "correction": "Largeur minimale de colonne ou césure autorisée avant les parenthèses",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1039,9 +1111,13 @@
    "id": "AUD-019",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Deux PDF du dossier — Le symbole ⚪ se rend en petit cercle « ◦ » alors que 🟢🔵🟣 sont des pastilles",
-   "constat": "[V] p.1, 14, 82",
-   "preuve": "La légende n'est pas reconnaissable",
+   "document": "Deux PDF du dossier",
+   "page_ou_lieu": "",
+   "constat": "Le symbole ⚪ se rend en petit cercle « ◦ » alors que 🟢🔵🟣 sont des pastilles",
+   "preuve": "[V] p.1, 14, 82",
+   "consequence": "La légende n'est pas reconnaissable",
+   "correction": "Même traitement que le guide visuel (pastille dessinée)",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1054,9 +1130,13 @@
    "id": "AUD-020",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Schémas — S04, S13, S28 : 5,8 pt ; S09, S15 : 6,0 pt ; S01, S21 : 6,2 pt (libellés minimaux) ; S09 : flèches enchevêtrées",
-   "constat": "[A][V] `schemas_lisibilite.csv`",
-   "preuve": "Lecture pénible à 100 % ; S09/S13 « déjà signalés » restent petits",
+   "document": "Schémas",
+   "page_ou_lieu": "",
+   "constat": "S04, S13, S28 : 5,8 pt ; S09, S15 : 6,0 pt ; S01, S21 : 6,2 pt (libellés minimaux) ; S09 : flèches enchevêtrées",
+   "preuve": "[A][V] `schemas_lisibilite.csv`",
+   "consequence": "Lecture pénible à 100 % ; S09/S13 « déjà signalés » restent petits",
+   "correction": "Relayouter ou doubler le corps de police ; S10 prioritaire (AUD-006)",
+   "priorite": "P1",
    "statut": "fusionnée dans AUD-036",
    "traite_par": "AUD-036",
    "niveau_preuve": "[V][A][C]",
@@ -1069,9 +1149,13 @@
    "id": "AUD-021",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Chap. 24 §24.8 ; rapports — « ≈ 3 950 fonctions de test » ; « 3 963 tests »",
-   "constat": "Recomptage `def test_` indenté : 3 912 [C] ; 3 963 exécutés non rejoués [R]",
-   "preuve": "Trois chiffres différents pour une même notion",
+   "document": "Chap. 24 §24.8 ; rapports",
+   "page_ou_lieu": "",
+   "constat": "« ≈ 3 950 fonctions de test » ; « 3 963 tests »",
+   "preuve": "Recomptage `def test_` indenté : 3 912 [C] ; 3 963 exécutés non rejoués [R]",
+   "consequence": "Trois chiffres différents pour une même notion",
+   "correction": "Un seul chiffre, avec méthode",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1084,9 +1168,13 @@
    "id": "AUD-022",
    "nature": "anomalie documentaire",
    "gravite": "Amélioration",
-   "lieu": "Chap. 6 §6.10, 9, 17 — « Recherche de personnes » classée cible (DEC-UX-09 / PO-18) alors que la catégorie « Marins » existe (`recherche.py:193`, chap. 9 §77, captures p.8)",
-   "constat": "[C][N][V]",
-   "preuve": "Ambiguïté : existant ou cible ?",
+   "document": "Chap. 6 §6.10, 9, 17",
+   "page_ou_lieu": "",
+   "constat": "« Recherche de personnes » classée cible (DEC-UX-09 / PO-18) alors que la catégorie « Marins » existe (`recherche.py:193`, chap. 9 §77, captures p.8)",
+   "preuve": "[C][N][V]",
+   "consequence": "Ambiguïté : existant ou cible ?",
+   "correction": "Préciser : « recherche par nom et grade existante ; informations professionnelles étendues : cible »",
+   "priorite": "P1",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-6",
    "niveau_preuve": "[V][A][C]",
@@ -1099,9 +1187,13 @@
    "id": "AUD-023",
    "nature": "anomalie documentaire",
    "gravite": "Amélioration",
-   "lieu": "PDF restreint — Les chapitres techniques renvoient aux chapitres diffusables « à lire d'abord » mais le PDF restreint ne contient pas les chapitres 1 à 17",
-   "constat": "[A] S02… absents de la liste des schémas ; [V]",
-   "preuve": "Le développeur doit détenir deux PDF ; l'ordre n'est dit nulle part sur la couverture",
+   "document": "PDF restreint",
+   "page_ou_lieu": "",
+   "constat": "Les chapitres techniques renvoient aux chapitres [ancien qualificatif de large diffusion] « à lire d'abord » mais le PDF restreint ne contient pas les chapitres 1 à 17",
+   "preuve": "[A] S02… absents de la liste des schémas ; [V]",
+   "consequence": "Le développeur doit détenir deux PDF ; l'ordre n'est dit nulle part sur la couverture",
+   "correction": "Dire sur la couverture et le sommaire que le PDF restreint complète le [ancien qualificatif de large diffusion] ; ou proposer une édition « intégrale »",
+   "priorite": "P1",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-2",
    "niveau_preuve": "[V][A][C]",
@@ -1114,9 +1206,13 @@
    "id": "AUD-024",
    "nature": "anomalie documentaire",
    "gravite": "Amélioration",
-   "lieu": "Chap. 23, 24 — Pas de recette du premier jour pour un développeur (installer, lancer, tester, ajouter une action de seuil ou un module), pas de glossaire du code ; conséquence pratique de `SECURE_SSL_REDIRECT` sans `SECURE_PROXY_SSL_HEADER` non dite (risque de redirection en boucle derrière un proxy TLS [?])",
-   "constat": "[C] `settings.py:422-424` ; plan des chapitres",
-   "preuve": "Reprise difficile sans l'auteur",
+   "document": "Chap. 23, 24",
+   "page_ou_lieu": "",
+   "constat": "Pas de recette du premier jour pour un développeur (installer, lancer, tester, ajouter une action de seuil ou un module), pas de glossaire du code ; conséquence pratique de `SECURE_SSL_REDIRECT` sans `SECURE_PROXY_SSL_HEADER` non dite (risque de redirection en boucle derrière un proxy TLS [?])",
+   "preuve": "[C] `settings.py:422-424` ; plan des chapitres",
+   "consequence": "Reprise difficile sans l'auteur",
+   "correction": "Ajouter une « Prise en main développeur » d'une page et une « Recette de déploiement »",
+   "priorite": "P1",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-4",
    "niveau_preuve": "[V][A][C]",
@@ -1129,9 +1225,13 @@
    "id": "AUD-025",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Guide visuel p.36–37 — A20 : le texte dit « seul “Enregistrer la correction” est offert » sans préciser que l'exécutant et le chef de section ne voient pas ce bouton ; A14 : la raison de la non-capture (relève validée requise) est exacte mais non démontrée à l'écran",
-   "constat": "[N] `navigateur_droits.md`",
-   "preuve": "Lecture trop courte du circuit",
+   "document": "Guide visuel p.36–37",
+   "page_ou_lieu": "",
+   "constat": "A20 : le texte dit « seul “Enregistrer la correction” est offert » sans préciser que l'exécutant et le chef de section ne voient pas ce bouton ; A14 : la raison de la non-capture (relève validée requise) est exacte mais non démontrée à l'écran",
+   "preuve": "[N] `navigateur_droits.md`",
+   "consequence": "Lecture trop courte du circuit",
+   "correction": "Ajouter la phrase et une capture « profil équipier »",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-3",
    "niveau_preuve": "[V][A][C]",
@@ -1144,9 +1244,13 @@
    "id": "AUD-026",
    "nature": "anomalie documentaire",
    "gravite": "Amélioration",
-   "lieu": "Registre, chap. 5 — Les `DEC-*` renvoient à une branche (`claude/eager-hopper-2cbcqh`) et à Notion, non joignables dans le dossier",
-   "constat": "[?]",
-   "preuve": "Un futur mainteneur ne peut pas retrouver la décision",
+   "document": "Registre, chap. 5",
+   "page_ou_lieu": "",
+   "constat": "Les `DEC-*` renvoient à une branche (`claude/eager-hopper-2cbcqh`) et à Notion, non joignables dans le dossier",
+   "preuve": "[?]",
+   "consequence": "Un futur mainteneur ne peut pas retrouver la décision",
+   "correction": "Annexe « Décisions citées » avec texte et date, sans inventer",
+   "priorite": "P1",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-6",
    "niveau_preuve": "[V][A][C]",
@@ -1159,9 +1263,13 @@
    "id": "AUD-027",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Chap. 11, 13, 15 (hors périmètre du dossier) — Les lignes de la liste de tickets sont cliquables par `onclick` seulement (non accessibles au clavier)",
-   "constat": "[C] `ticket_list.html:28`",
-   "preuve": "Accessibilité ; nouvel écart candidat NE-02",
+   "document": "Chap. 11, 13, 15 (hors périmètre du dossier)",
+   "page_ou_lieu": "",
+   "constat": "Les lignes de la liste de tickets sont cliquables par `onclick` seulement (non accessibles au clavier)",
+   "preuve": "[C] `ticket_list.html:28`",
+   "consequence": "Accessibilité ; nouvel écart candidat NE-02",
+   "correction": "Le noter dans les limites du chapitre 17",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1174,9 +1282,13 @@
    "id": "AUD-028",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Annexe F, rapports E1–E4, BILAN — Les rapports précédents conservent leurs chiffres d'origine (105/142 pages, 1 093 références) ; plusieurs rapports se contredisent légèrement ; 11 fichiers de pilotage à la racine du dossier pour 3 lecteurs",
-   "constat": "[V] listing",
-   "preuve": "Bruit pour un nouveau lecteur",
+   "document": "Annexe F, rapports E1–E4, BILAN",
+   "page_ou_lieu": "",
+   "constat": "Les rapports précédents conservent leurs chiffres d'origine (105/142 pages, 1 093 références) ; plusieurs rapports se contredisent légèrement ; 11 fichiers de pilotage à la racine du dossier pour 3 lecteurs",
+   "preuve": "[V] listing",
+   "consequence": "Bruit pour un nouveau lecteur",
+   "correction": "Ranger les rapports de livraison dans `rapports/` et ne garder à la racine que LISEZ-MOI, guide, synthèse",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1189,9 +1301,13 @@
    "id": "AUD-029",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Chap. 5 — « Un exemple : le maître Durand » et le « matelot Durand » (chap. 6) sont des personnages différents sous le même nom ; « personnage fictif » non repris dans les captures (noms « Karim Equipier A »)",
-   "constat": "[V]",
-   "preuve": "Deux jeux de personnages fictifs non reliés",
+   "document": "Chap. 5",
+   "page_ou_lieu": "",
+   "constat": "« Un exemple : le maître Durand » et le « matelot Durand » (chap. 6) sont des personnages différents sous le même nom ; « personnage fictif » non repris dans les captures (noms « Karim Equipier A »)",
+   "preuve": "[V]",
+   "consequence": "Deux jeux de personnages fictifs non reliés",
+   "correction": "Un seul fil rouge de personnages (ceux du guide visuel)",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1204,9 +1320,13 @@
    "id": "AUD-030",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Doc. — Ch. 20 §20.5",
+   "document": "Ch. 20 §20.5",
+   "page_ou_lieu": "",
    "constat": "« scan web `assets/scan/<uuid>/` » : le chemin réel est `/scan/<uuid>/` (`assets/web_urls.py:72` ; annexe C correcte)",
    "preuve": "[C]",
+   "consequence": "Voir le constat.",
+   "correction": "Corriger le chemin",
+   "priorite": "P0 (erreur factuelle)",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-2",
    "niveau_preuve": "[V][A][C]",
@@ -1219,9 +1339,13 @@
    "id": "AUD-031",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Annexe F §F.5, PDF restreint p.127–135",
-   "constat": "Annexe générée de 4 900 mots (79 % de l'annexe F) : lignes tronquées par « … » (« Une correcti… », « L… »), fragments de tableau (« \\",
-   "preuve": "Tâches (ch. 10) \\",
+   "document": "Annexe F §F.5, PDF restreint p.127–135",
+   "page_ou_lieu": "",
+   "constat": "Annexe générée de 4 900 mots (79 % de l'annexe F) : lignes tronquées par « … » (« Une correcti… », « L… »), fragments de tableau (« / Tâches (ch. 10) / »), les astérisques et les accents graves bruts (p.130, 131, 134, 135), « ◦ ◦ » doublés, numérotation orpheline (« 2. L'API… »), et reprise d'énoncés périmés (« n'ont pas été rejoués »)",
+   "preuve": "[V] p.127, 130, 131",
+   "consequence": "Voir le constat.",
+   "correction": "Régénérer F.5 par chapitre sans tronquer, ou le remplacer par un tableau (chapitre, point, étiquette)",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-6",
    "niveau_preuve": "[V][A][C]",
@@ -1234,9 +1358,13 @@
    "id": "AUD-032",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Présentation — PDF restreint p.37 et p.79",
+   "document": "PDF restreint p.37 et p.79",
+   "page_ou_lieu": "",
    "constat": "Tableaux Markdown non rendus : p.37 (« Routes web », source `restreint/13_logistique_technique.md:20-22`) et p.79 (§23.9, source `23_configuration_deploiement_exploitation.md:119-123`, tableau collé au paragraphe) apparaissent en barres verticales brutes",
    "preuve": "[V][A]",
+   "consequence": "Voir le constat.",
+   "correction": "Ligne vide avant le tableau ; compléter l'en-tête",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-6",
    "niveau_preuve": "[V][A][C]",
@@ -1249,9 +1377,13 @@
    "id": "AUD-033",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Doc. — Ch. 6 §6.10, 12 (tableau cible), 17, 25 ; registre partie C",
+   "document": "Ch. 6 §6.10, 12 (tableau cible), 17, 25 ; registre partie C",
+   "page_ou_lieu": "",
    "constat": "Des plages de décisions sont citées comme « cible, non développée » alors que certaines sont déjà réalisées : `DEC-PER-01` (tâches périodiques générées depuis les fiches) et `DEC-PER-04` (historiques conservés) vs `maintenance/tasks.py:66` et `OccurrenceStatusLog` ; `DEC-UX-01` (accueil) vs `aujourdhui.html`. Aucune phrase ne dit que 51 décisions sur 125 ne sont pas traitées",
    "preuve": "[C] ; source v1.2 `A1_DECISIONS_S1_S2.md`",
+   "consequence": "Voir le constat.",
+   "correction": "Citer les décisions une à une avec état (réalisée, partielle, non développée) ; ne pas utiliser de plage",
+   "priorite": "P0",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-3",
    "niveau_preuve": "[V][A][C]",
@@ -1264,9 +1396,13 @@
    "id": "AUD-034",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Architecture — Deux PDF ; fusionne AUD-009",
-   "constat": "Densité : 18 pages du à large diffusion (ancienne édition) et 26 du restreint sont remplies à moins de 70 % (11 et 15 à moins de 50 %) ; les compléments techniques (1 à 3 pages par chapitre) répètent chacun un cartouche de 5 lignes ; le restreint ne contient pas les chapitres de base qu'il complète ; 3 pages ≤ 5 lignes (p.39, 41, 45)",
+   "document": "Deux PDF ; fusionne AUD-009",
+   "page_ou_lieu": "",
+   "constat": "Densité : 18 pages du [ancien qualificatif de large diffusion] et 26 du restreint sont remplies à moins de 70 % (11 et 15 à moins de 50 %) ; les compléments techniques (1 à 3 pages par chapitre) répètent chacun un cartouche de 5 lignes ; le restreint ne contient pas les chapitres de base qu'il complète ; 3 pages ≤ 5 lignes (p.39, 41, 45)",
    "preuve": "[A] `pages_remplissage.csv` ; [V]",
+   "consequence": "Voir le constat.",
+   "correction": "Voir §J (refonte de l'architecture)",
+   "priorite": "P1 (P0 pour les 3 pages)",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-8 (architecture)",
    "niveau_preuve": "[V][A][C]",
@@ -1279,9 +1415,13 @@
    "id": "AUD-035",
    "nature": "anomalie documentaire",
    "gravite": "Majeure",
-   "lieu": "Pédagogie — S17, S21, S31, S33 (à large diffusion (ancienne édition) p.42, 52, 80, 86)",
+   "document": "S17, S21, S31, S33 ([ancien qualificatif de large diffusion] p.42, 52, 80, 86)",
+   "page_ou_lieu": "",
    "constat": "Les schémas de circuit cible ne se distinguent pas des schémas de fonctionnement réel : seule la légende dit « cible » ; l'image seule (cadre, couleur, mention) est identique à S16, S20, S30, S32",
    "preuve": "[V]",
+   "consequence": "Voir le constat.",
+   "correction": "Cadre pointillé bleu + mention « 🔵 CIBLE — non développé » dans l'image",
+   "priorite": "P0 (règle de distinction)",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P0-7",
    "niveau_preuve": "[V][A][C]",
@@ -1294,9 +1434,13 @@
    "id": "AUD-036",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Pédagogie — Schémas ; fusionne AUD-020",
+   "document": "Schémas ; fusionne AUD-020",
+   "page_ou_lieu": "",
    "constat": "Sur 42 schémas : 22 bons, 7 moyens, 10 faibles (listes de cases sans information relationnelle : S02, S14, S22, S24, S27, S36, S37, S38, S40, S42), 1 difficile (S09), 1 illisible (S10) ; S02 montre 6 groupes quand le tableau juste dessous en compte 11",
    "preuve": "[V][A] `schemas_verdicts.csv`",
+   "consequence": "Voir le constat.",
+   "correction": "Remplacer les listes par des tableaux ; garder les schémas à circuit (S04, S05, S06, S07, S11, S12, S15, S16, S18, S20, S23, S25, S26, S29, S30, S32)",
+   "priorite": "P1",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P1-5",
    "niveau_preuve": "[V][A][C]",
@@ -1309,9 +1453,13 @@
    "id": "AUD-037",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Doc. — Ch. 5 §5.4 bis, ch. 11 T2 bis, 12 T2 bis, 13 §13.9 bis",
+   "document": "Ch. 5 §5.4 bis, ch. 11 T2 bis, 12 T2 bis, 13 §13.9 bis",
+   "page_ou_lieu": "",
    "constat": "Rubriques « bis » : traces d'édition (insertions tardives)",
    "preuve": "[V]",
+   "consequence": "Voir le constat.",
+   "correction": "Renumérotation",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1324,9 +1472,13 @@
    "id": "AUD-038",
    "nature": "anomalie documentaire",
    "gravite": "Mineure",
-   "lieu": "Contradiction — Ch. 26 §26.4 (« 52 branches distantes ») et annexe F.4, p.125 (« 53 branches ») ; F.4 donne `f960c84` comme tête de la branche documentaire",
+   "document": "Ch. 26 §26.4 (« 52 branches distantes ») et annexe F.4, p.125 (« 53 branches ») ; F.4 donne `f960c84` comme tête de la branche documentaire",
+   "page_ou_lieu": "",
    "constat": "Deux chiffres pour le même inventaire ; l'annexe F.4 est datée de l'ensemble 4 et n'est plus à jour (la branche compte d'autres commits)",
    "preuve": "[V] p.125 ; [A] grep",
+   "consequence": "Voir le constat.",
+   "correction": "Un seul chiffre, avec date ; ne pas citer la tête d'une branche vivante",
+   "priorite": "P2",
    "statut": "ouverte — à traiter par la refonte",
    "traite_par": "P2",
    "niveau_preuve": "[V][A][C]",
@@ -1355,7 +1507,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L22",
+     "titre": "Anomalies, interventions et ticket correctif",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L22 non livré dans l'état B"
   },
   {
    "id": "DEC-ANO-02",
@@ -1375,7 +1535,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L22",
+     "titre": "Anomalies, interventions et ticket correctif",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L22 non livré dans l'état B"
   },
   {
    "id": "DEC-ANO-03",
@@ -1395,7 +1563,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L22",
+     "titre": "Anomalies, interventions et ticket correctif",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L22 non livré dans l'état B"
   },
   {
    "id": "DEC-ANO-04",
@@ -1415,7 +1591,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L22",
+     "titre": "Anomalies, interventions et ticket correctif",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L22 non livré dans l'état B"
   },
   {
    "id": "DEC-ANO-05",
@@ -1435,7 +1619,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L22",
+     "titre": "Anomalies, interventions et ticket correctif",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L22 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-01",
@@ -1455,7 +1647,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-02",
@@ -1475,7 +1675,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-03",
@@ -1495,7 +1703,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-04",
@@ -1515,7 +1731,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-05",
@@ -1535,7 +1759,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-06",
@@ -1555,7 +1787,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-07",
@@ -1575,7 +1815,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-08",
@@ -1595,7 +1843,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-09",
@@ -1615,7 +1871,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-10",
@@ -1635,7 +1899,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-11",
@@ -1655,7 +1927,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-12",
@@ -1675,7 +1955,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-13",
@@ -1695,7 +1983,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L23",
+     "titre": "Préparation à l'appareillage",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L23 non livré dans l'état B"
   },
   {
    "id": "DEC-APP-14",
@@ -1713,7 +2009,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-BLQ-01",
@@ -1733,7 +2030,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L17",
+     "titre": "Tâche bloquée et « Non réalisée — À reprogrammer »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L17 non livré dans l'état B"
   },
   {
    "id": "DEC-BLQ-02",
@@ -1753,7 +2058,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L17",
+     "titre": "Tâche bloquée et « Non réalisée — À reprogrammer »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L17 non livré dans l'état B"
   },
   {
    "id": "DEC-BLQ-03",
@@ -1773,7 +2086,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L17",
+     "titre": "Tâche bloquée et « Non réalisée — À reprogrammer »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L17 non livré dans l'état B"
   },
   {
    "id": "DEC-BLQ-04",
@@ -1793,7 +2114,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L17",
+     "titre": "Tâche bloquée et « Non réalisée — À reprogrammer »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L17 non livré dans l'état B"
   },
   {
    "id": "DEC-BLQ-05",
@@ -1813,7 +2142,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L17",
+     "titre": "Tâche bloquée et « Non réalisée — À reprogrammer »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L17 non livré dans l'état B"
   },
   {
    "id": "DEC-CLO-01",
@@ -1833,7 +2170,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L15",
+     "titre": "Validation facultative et statut « À valider »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L15 non livré dans l'état B"
   },
   {
    "id": "DEC-CLO-02",
@@ -1853,7 +2198,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L15",
+     "titre": "Validation facultative et statut « À valider »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L15 non livré dans l'état B"
   },
   {
    "id": "DEC-CLO-03",
@@ -1873,7 +2226,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L15",
+     "titre": "Validation facultative et statut « À valider »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L15 non livré dans l'état B"
   },
   {
    "id": "DEC-CLO-04",
@@ -1893,7 +2254,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L15",
+     "titre": "Validation facultative et statut « À valider »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L15 non livré dans l'état B"
   },
   {
    "id": "DEC-CLO-05",
@@ -1913,7 +2282,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L15",
+     "titre": "Validation facultative et statut « À valider »",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L15 non livré dans l'état B"
   },
   {
    "id": "DEC-COL-01",
@@ -1931,7 +2308,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-COL-02",
@@ -1951,7 +2329,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L16",
+     "titre": "Tâche collective : coordinateur et rang des grades",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L16 non livré dans l'état B"
   },
   {
    "id": "DEC-COL-03",
@@ -1971,7 +2357,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L16",
+     "titre": "Tâche collective : coordinateur et rang des grades",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L16 non livré dans l'état B"
   },
   {
    "id": "DEC-COL-04",
@@ -1991,7 +2385,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L16",
+     "titre": "Tâche collective : coordinateur et rang des grades",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L16 non livré dans l'état B"
   },
   {
    "id": "DEC-COL-05",
@@ -2011,7 +2413,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L16",
+     "titre": "Tâche collective : coordinateur et rang des grades",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L16 non livré dans l'état B"
   },
   {
    "id": "DEC-DRT-01",
@@ -2031,7 +2441,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L09",
+     "titre": "Visas par fonction et listes publiées (découpé en 3)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L09 non livré dans l'état B"
   },
   {
    "id": "DEC-DRT-02",
@@ -2051,7 +2469,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L06",
+     "titre": "Exclusion de l'administrateur technique des actes métier",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L06 non livré dans l'état B"
   },
   {
    "id": "DEC-DRT-03",
@@ -2069,7 +2495,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-DRT-04",
@@ -2087,7 +2514,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-DRT-05",
@@ -2102,14 +2530,32 @@
     "L03",
     "L04"
    ],
-   "etat_dans_etat_b": "partielle (un lot livré, un lot non livré)",
+   "etat_dans_etat_b": "partielle (2 lot(s) livré(s) sur 3)",
    "etat_methode": "plan en lots (V1.2) et comptes rendus de lots",
-   "note": "",
+   "note": "Partielle : l'archivage effectif (L02) et la suppression sûre des unités (L03) sont livrés dans l'état B ; le volet « comptes : désactiver au lieu de supprimer » (L04) n'est pas lancé. Statut global conservé : partielle. Les lots L02 et L03 attendent encore la validation du PO selon le plan.",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L02",
+     "titre": "Archivage effectif",
+     "etat": "livré"
+    },
+    {
+     "lot": "L03",
+     "titre": "Suppression sûre des unités",
+     "etat": "livré (validation du PO en attente selon le plan)"
+    },
+    {
+     "lot": "L04",
+     "titre": "Comptes : désactiver au lieu de supprimer",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L02 livré ; L03 livré ; L04 non livré dans l'état B"
   },
   {
    "id": "DEC-DRT-06",
@@ -2129,7 +2575,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L07",
+     "titre": "Rattachement incomplet et validation des rôles",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L07 non livré dans l'état B"
   },
   {
    "id": "DEC-DUR-01",
@@ -2149,7 +2603,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L20",
+     "titre": "Durée estimée actualisée (option B)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L20 non livré dans l'état B"
   },
   {
    "id": "DEC-DUR-02",
@@ -2169,7 +2631,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L20",
+     "titre": "Durée estimée actualisée (option B)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L20 non livré dans l'état B"
   },
   {
    "id": "DEC-DUR-03",
@@ -2189,7 +2659,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L20",
+     "titre": "Durée estimée actualisée (option B)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L20 non livré dans l'état B"
   },
   {
    "id": "DEC-DUR-04",
@@ -2209,7 +2687,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L20",
+     "titre": "Durée estimée actualisée (option B)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L20 non livré dans l'état B"
   },
   {
    "id": "DEC-DUR-05",
@@ -2229,7 +2715,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L20",
+     "titre": "Durée estimée actualisée (option B)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L20 non livré dans l'état B"
   },
   {
    "id": "DEC-DUR-06",
@@ -2249,7 +2743,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L20",
+     "titre": "Durée estimée actualisée (option B)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L20 non livré dans l'état B"
   },
   {
    "id": "DEC-DUR-07",
@@ -2269,7 +2771,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L20",
+     "titre": "Durée estimée actualisée (option B)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L20 non livré dans l'état B"
   },
   {
    "id": "DEC-FDS-01",
@@ -2287,7 +2797,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-FDS-02",
@@ -2308,7 +2819,20 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L08",
+     "titre": "Suppléance explicite",
+     "etat": "non livré dans l'état B"
+    },
+    {
+     "lot": "L09",
+     "titre": "Visas par fonction et listes publiées (découpé en 3)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L08 non livré dans l'état B ; L09 non livré dans l'état B"
   },
   {
    "id": "DEC-FDS-03",
@@ -2326,7 +2850,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-FDS-04",
@@ -2344,7 +2869,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-FDS-05",
@@ -2364,7 +2890,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L09",
+     "titre": "Visas par fonction et listes publiées (découpé en 3)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L09 non livré dans l'état B"
   },
   {
    "id": "DEC-FDS-06",
@@ -2384,7 +2918,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L27",
+     "titre": "Feuille de service : réimpression et fraction à quai",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L27 non livré dans l'état B"
   },
   {
    "id": "DEC-FDS-07",
@@ -2402,7 +2944,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-FDS-08",
@@ -2422,7 +2965,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L27",
+     "titre": "Feuille de service : réimpression et fraction à quai",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L27 non livré dans l'état B"
   },
   {
    "id": "DEC-FDS-09",
@@ -2442,7 +2993,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L27",
+     "titre": "Feuille de service : réimpression et fraction à quai",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L27 non livré dans l'état B"
   },
   {
    "id": "DEC-FDS-10",
@@ -2460,7 +3019,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-FDS-11",
@@ -2478,7 +3038,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-FDS-12",
@@ -2496,7 +3057,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-FDS-13",
@@ -2514,7 +3076,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-FDS-14",
@@ -2532,7 +3095,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-MAT-01",
@@ -2552,7 +3116,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L13",
+     "titre": "Transfert de matériel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L13 non livré dans l'état B"
   },
   {
    "id": "DEC-MAT-02",
@@ -2572,7 +3144,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L13",
+     "titre": "Transfert de matériel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L13 non livré dans l'état B"
   },
   {
    "id": "DEC-MAT-03",
@@ -2592,7 +3172,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L13",
+     "titre": "Transfert de matériel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L13 non livré dans l'état B"
   },
   {
    "id": "DEC-MAT-04",
@@ -2612,7 +3200,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L13",
+     "titre": "Transfert de matériel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L13 non livré dans l'état B"
   },
   {
    "id": "DEC-MUT-01",
@@ -2632,7 +3228,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L25",
+     "titre": "Mutation de personnel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L25 non livré dans l'état B"
   },
   {
    "id": "DEC-MUT-02",
@@ -2652,7 +3256,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L25",
+     "titre": "Mutation de personnel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L25 non livré dans l'état B"
   },
   {
    "id": "DEC-MUT-03",
@@ -2672,7 +3284,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L25",
+     "titre": "Mutation de personnel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L25 non livré dans l'état B"
   },
   {
    "id": "DEC-MUT-04",
@@ -2692,7 +3312,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L25",
+     "titre": "Mutation de personnel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L25 non livré dans l'état B"
   },
   {
    "id": "DEC-MUT-05",
@@ -2712,7 +3340,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L25",
+     "titre": "Mutation de personnel",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L25 non livré dans l'état B"
   },
   {
    "id": "DEC-MUT-06",
@@ -2732,7 +3368,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L04",
+     "titre": "Comptes : désactiver au lieu de supprimer",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L04 non livré dans l'état B"
   },
   {
    "id": "DEC-MUT-07",
@@ -2752,7 +3396,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L04",
+     "titre": "Comptes : désactiver au lieu de supprimer",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L04 non livré dans l'état B"
   },
   {
    "id": "DEC-ORG-01",
@@ -2770,7 +3422,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-ORG-02",
@@ -2790,7 +3443,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L12",
+     "titre": "Structure du bord par une fonction habilitée",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L12 non livré dans l'état B"
   },
   {
    "id": "DEC-ORG-03",
@@ -2808,7 +3469,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-ORG-04",
@@ -2826,7 +3488,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-ORG-05",
@@ -2844,7 +3507,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-ORG-06",
@@ -2862,7 +3526,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-OUT-01",
@@ -2882,7 +3547,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L26",
+     "titre": "Remarques d'outillage et d'instruction",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L26 non livré dans l'état B"
   },
   {
    "id": "DEC-OUT-02",
@@ -2902,7 +3575,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L26",
+     "titre": "Remarques d'outillage et d'instruction",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L26 non livré dans l'état B"
   },
   {
    "id": "DEC-OUT-03",
@@ -2922,7 +3603,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L26",
+     "titre": "Remarques d'outillage et d'instruction",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L26 non livré dans l'état B"
   },
   {
    "id": "DEC-OUT-04",
@@ -2942,7 +3631,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L26",
+     "titre": "Remarques d'outillage et d'instruction",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L26 non livré dans l'état B"
   },
   {
    "id": "DEC-OUT-05",
@@ -2962,7 +3659,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L26",
+     "titre": "Remarques d'outillage et d'instruction",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L26 non livré dans l'état B"
   },
   {
    "id": "DEC-PER-01",
@@ -2982,7 +3687,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L19",
+     "titre": "Périodicités nommées et échéance",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L19 non livré dans l'état B"
   },
   {
    "id": "DEC-PER-02",
@@ -3002,7 +3715,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L19",
+     "titre": "Périodicités nommées et échéance",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L19 non livré dans l'état B"
   },
   {
    "id": "DEC-PER-03",
@@ -3022,7 +3743,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L19",
+     "titre": "Périodicités nommées et échéance",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L19 non livré dans l'état B"
   },
   {
    "id": "DEC-PER-04",
@@ -3042,7 +3771,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L19",
+     "titre": "Périodicités nommées et échéance",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L19 non livré dans l'état B"
   },
   {
    "id": "DEC-PRE-01",
@@ -3060,7 +3797,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-PRE-02",
@@ -3078,7 +3816,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-PRE-03",
@@ -3096,7 +3835,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-PRE-04",
@@ -3114,7 +3854,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-PRE-05",
@@ -3132,7 +3873,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-PRE-06",
@@ -3146,14 +3888,27 @@
     "L01",
     "L21"
    ],
-   "etat_dans_etat_b": "partielle (un lot livré, un lot non livré)",
+   "etat_dans_etat_b": "partielle (1 lot(s) livré(s) sur 2)",
    "etat_methode": "plan en lots (V1.2) et comptes rendus de lots",
-   "note": "",
+   "note": "Partielle : le verrou des commandes de démonstration (L01) est livré ; la sécurité d'accès avec les SIC (L21) n'est pas lancée.",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L01",
+     "titre": "Verrou des commandes de démonstration",
+     "etat": "livré"
+    },
+    {
+     "lot": "L21",
+     "titre": "Sécurité d'accès (avec les SIC)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L01 livré ; L21 non livré dans l'état B"
   },
   {
    "id": "DEC-QUA-01",
@@ -3173,7 +3928,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L18",
+     "titre": "Qualifications : information et exigences réglementaires",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L18 non livré dans l'état B"
   },
   {
    "id": "DEC-QUA-02",
@@ -3193,7 +3956,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L18",
+     "titre": "Qualifications : information et exigences réglementaires",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L18 non livré dans l'état B"
   },
   {
    "id": "DEC-QUA-03",
@@ -3213,7 +3984,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L18",
+     "titre": "Qualifications : information et exigences réglementaires",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L18 non livré dans l'état B"
   },
   {
    "id": "DEC-QUA-04",
@@ -3233,7 +4012,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L18",
+     "titre": "Qualifications : information et exigences réglementaires",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L18 non livré dans l'état B"
   },
   {
    "id": "DEC-RTX-01",
@@ -3253,7 +4040,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L11",
+     "titre": "Circuit RETEX",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L11 non livré dans l'état B"
   },
   {
    "id": "DEC-RTX-02",
@@ -3273,7 +4068,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L11",
+     "titre": "Circuit RETEX",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L11 non livré dans l'état B"
   },
   {
    "id": "DEC-RTX-03",
@@ -3293,7 +4096,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L11",
+     "titre": "Circuit RETEX",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L11 non livré dans l'état B"
   },
   {
    "id": "DEC-RTX-04",
@@ -3313,7 +4124,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L11",
+     "titre": "Circuit RETEX",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L11 non livré dans l'état B"
   },
   {
    "id": "DEC-SUP-01",
@@ -3333,7 +4152,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L08",
+     "titre": "Suppléance explicite",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L08 non livré dans l'état B"
   },
   {
    "id": "DEC-SUP-02",
@@ -3353,7 +4180,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L08",
+     "titre": "Suppléance explicite",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L08 non livré dans l'état B"
   },
   {
    "id": "DEC-SUP-03",
@@ -3373,7 +4208,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L08",
+     "titre": "Suppléance explicite",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L08 non livré dans l'état B"
   },
   {
    "id": "DEC-SUP-04",
@@ -3393,7 +4236,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L08",
+     "titre": "Suppléance explicite",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L08 non livré dans l'état B"
   },
   {
    "id": "DEC-SUP-05",
@@ -3413,7 +4264,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L08",
+     "titre": "Suppléance explicite",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L08 non livré dans l'état B"
   },
   {
    "id": "DEC-SUP-06",
@@ -3433,7 +4292,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L08",
+     "titre": "Suppléance explicite",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L08 non livré dans l'état B"
   },
   {
    "id": "DEC-SUP-07",
@@ -3453,7 +4320,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L08",
+     "titre": "Suppléance explicite",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L08 non livré dans l'état B"
   },
   {
    "id": "DEC-TAC-01",
@@ -3471,7 +4346,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-TAC-02",
@@ -3489,7 +4365,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-TAC-03",
@@ -3507,7 +4384,8 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": []
   },
   {
    "id": "DEC-TAC-04",
@@ -3527,7 +4405,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L14",
+     "titre": "Trois niveaux de priorité",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L14 non livré dans l'état B"
   },
   {
    "id": "DEC-TAC-05",
@@ -3547,7 +4433,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L14",
+     "titre": "Trois niveaux de priorité",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L14 non livré dans l'état B"
   },
   {
    "id": "DEC-TAC-06",
@@ -3567,7 +4461,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L14",
+     "titre": "Trois niveaux de priorité",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L14 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-01",
@@ -3587,7 +4489,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-02",
@@ -3607,7 +4517,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-03",
@@ -3627,7 +4545,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-04",
@@ -3647,7 +4573,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-05",
@@ -3667,7 +4601,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-06",
@@ -3687,7 +4629,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-07",
@@ -3707,7 +4657,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-08",
@@ -3727,7 +4685,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-09",
@@ -3747,7 +4713,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-10",
@@ -3767,7 +4741,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   },
   {
    "id": "DEC-UX-11",
@@ -3787,7 +4769,15 @@
    "derniere_verification": {
     "date": "2026-11-13",
     "etat_reference": "EB-2026-11-11"
-   }
+   },
+   "lots_detail": [
+    {
+     "lot": "L24",
+     "titre": "Ergonomie (plusieurs petits lots)",
+     "etat": "non livré dans l'état B"
+    }
+   ],
+   "lots_texte": "L24 non livré dans l'état B"
   }
  ],
  "lots": {

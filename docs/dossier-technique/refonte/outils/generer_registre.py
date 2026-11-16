@@ -38,8 +38,9 @@ def court(t, n):
 
 def sans_ancienne_mention(t):
     """Le registre cite des défauts de l'ancienne édition sans reproduire la mention qui prêtait à confusion."""
-    t = re.sub(r"(?i)diffusion générale", "mention de diffusion large (ancienne édition)", t)
-    return re.sub(r"(?i)\bdiffusable\b", "à large diffusion (ancienne édition)", t)
+    t = re.sub(r"(?i)diffusion générale", "[ancienne mention de large diffusion]", t)
+    t = t.replace("`**` et `` ` ``", "les astérisques et les accents graves")
+    return re.sub(r"(?i)\bdiffusables?\b", "[ancien qualificatif de large diffusion]", t)
 
 
 def deplier_plages(t):
@@ -160,17 +161,40 @@ TRAITE = {"AUD-001": "P0-1", "AUD-002": "P0-2", "AUD-004": "P0-2", "AUD-005": "P
           "AUD-024": "P1-4", "AUD-036": "P1-5", "AUD-022": "P1-6", "AUD-026": "P1-6", "AUD-034": "P1-8 (architecture)"}
 FUSION = {"AUD-009": "AUD-034", "AUD-020": "AUD-036"}
 aud = []
+def cellules_audit(ligne):
+    """Cellules d'une ligne du rapport d'audit ; les barres verticales échappées (\\|) restent dans la cellule."""
+    return [c.replace("\\|", "/").strip() for c in re.split(r"(?<!\\)\|", ligne.strip().strip("|"))]
+
+
+def sain(t):
+    t = t.replace("`**` et `` ` ``", "les astérisques et les accents graves")
+    return sans_ancienne_mention(nettoyer(t))
+
+
 for l in audit.split("\n"):
     m = re.match(r"^\| (AUD-\d{3}) \|", l)
     if not m:
         continue
-    c = cellules(l)
+    c = cellules_audit(l)
     i = m.group(1)
-    if len(c) >= 9 and c[0].startswith("AUD") and ("Doc." in c[2] or "Présentation" in c[2] or "Pédagogie" in c[2] or "Architecture" in c[2] or "Contradiction" in c[2]):
-        gravite, nature, lieu, constat, preuve = c[1], c[2], c[3], c[4], c[5]
-    else:
-        gravite, nature, lieu, constat, preuve = c[1], "", c[2] + " — " + c[3], c[4], c[5]
-    aud.append({"id": i, "nature": "anomalie documentaire", "gravite": nettoyer(gravite), "lieu": sans_ancienne_mention(nettoyer(lieu)), "constat": sans_ancienne_mention(nettoyer(constat)), "preuve": sans_ancienne_mention(nettoyer(preuve)),
+    n = int(i[4:])
+    if len(c) == 9:                        # phase 1 : id, gravité, document, où, constat, preuve, conséquence, correction, priorité
+        g, doc, ou, constat, preuve, cons, corr, prio = c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8]
+        if n not in (1, 6):                # dans ces lignes la 4e cellule rappelle l'énoncé mis en cause : elle fait partie du constat
+            constat, ou = f"{ou} — {constat}", ""
+    elif n <= 29:                          # phase 1 sans colonne « Où » : le document et la page sont dans une seule cellule
+        g, doc, ou, constat, preuve, cons, corr, prio = c[1], c[2], "", c[3], c[4], c[5], c[6], c[7]
+    elif len(c) == 8:                      # phase 2 : id, gravité, nature, lieu, constat, preuve, correction, priorité
+        g, doc, ou, constat, preuve, cons, corr, prio = c[1], c[3], "", c[4], c[5], "", c[6], c[7]
+    else:                                  # AUD-031 : barres dans le constat
+        g, doc, ou, constat, preuve, cons, corr, prio = c[1], c[3], "", " ".join(c[4:-3]), c[-3], "", c[-2], c[-1]
+    if " — " in doc and not ou:            # « Guide visuel p.11, 12 — Messages … » : séparer le document de l'objet du constat
+        doc, _, reste = doc.partition(" — ")
+        constat = f"{reste} : {constat}" if constat and not constat.startswith("[") else (reste or constat)
+    if n >= 30 and not cons:
+        cons = "Voir le constat."
+    aud.append({"id": i, "nature": "anomalie documentaire", "gravite": sain(g), "document": sain(doc), "page_ou_lieu": sain(ou), "constat": sain(constat),
+                "preuve": sain(preuve), "consequence": sain(cons), "correction": sain(corr), "priorite": sain(prio),
                 "statut": f"fusionnée dans {FUSION[i]}" if i in FUSION else "ouverte — à traiter par la refonte", "traite_par": TRAITE.get(i, "P2" if i not in FUSION else FUSION[i]),
                 "niveau_preuve": "[V][A][C]", "derniere_verification": {"date": "2026-11-12", "etat_reference": ETAT}})
 
@@ -233,7 +257,7 @@ for i in sorted(src):
     elif lots_i and all(l in LOTS_LIVRES for l in lots_i):
         etat, note, methode = "réalisée (lot livré dans l'état B)", "", "plan en lots (V1.2) et comptes rendus de lots"
     elif any(l in LOTS_LIVRES for l in lots_i):
-        etat, note, methode = "partielle (un lot livré, un lot non livré)", "", "plan en lots (V1.2) et comptes rendus de lots"
+        etat, note, methode = f"partielle ({sum(l in LOTS_LIVRES for l in lots_i)} lot(s) livré(s) sur {len(lots_i)})", "", "plan en lots (V1.2) et comptes rendus de lots"
     elif lots_i:
         etat, note, methode = "non développée", "", "plan en lots (V1.2) : lot non livré dans l'état B"
     else:
@@ -241,6 +265,37 @@ for i in sorted(src):
     decisions.append({"id": i, "nature": "décision du PO", "statut_po": s["statut_po"], "regle": deplier_plages(s["regle"]), "precisions": deplier_plages(s["precisions"]), "source_po": s["source"], "acteurs": s["acteurs"],
                       "lots": lots_i, "etat_dans_etat_b": etat, "etat_methode": methode, "note": note, "niveau_preuve": "[C]" if methode.startswith("vérifié") else "[R]",
                       "derniere_verification": {"date": DATE, "etat_reference": ETAT}})
+
+# ---- état lot par lot (plan V1.2, comptes rendus de lots et dépôt de l'état B) ----
+LOT_ETAT = {"L01": "livré", "L02": "livré", "L03": "livré (validation du PO en attente selon le plan)", "L05": "livré"}
+def etat_lot(l):
+    return LOT_ETAT.get(l, "non livré dans l'état B")
+for d in decisions:
+    d["lots_detail"] = [{"lot": l, "titre": lots.get(l, {}).get("titre", ""), "etat": etat_lot(l)} for l in d["lots"]]
+    if d["lots_detail"]:
+        d["lots_texte"] = " ; ".join(f"{x['lot']} {x['etat'].split(' (')[0]}" for x in d["lots_detail"])
+    if d["id"] == "DEC-DRT-05":
+        d["note"] = ("Partielle : l'archivage effectif (L02) et la suppression sûre des unités (L03) sont livrés dans l'état B ; le volet « comptes : désactiver au lieu de supprimer » (L04) "
+                     "n'est pas lancé. Statut global conservé : partielle. Les lots L02 et L03 attendent encore la validation du PO selon le plan.")
+    if d["id"] == "DEC-PRE-06":
+        d["note"] = "Partielle : le verrou des commandes de démonstration (L01) est livré ; la sécurité d'accès avec les SIC (L21) n'est pas lancée."
+par_id = {d["id"]: d for d in decisions}
+def resume_decisions(ids):
+    sortie = []
+    for i in ids:
+        d = par_id[i]
+        sortie.append(f"{i} : {d['etat_dans_etat_b']}" + (f" ({', '.join(d['lots'])})" if d["lots"] else ""))
+    return sortie
+A21 = [f"DEC-PER-{k:02d}" for k in range(1, 5)] + [f"DEC-OUT-{k:02d}" for k in range(1, 6)] + [f"DEC-DUR-{k:02d}" for k in range(1, 8)]
+for e in liste_a:
+    if e["id"] == "A21":
+        e["regle"] = "Périodicités nommées, remarques d'outillage et durée indicative : décisions " + ", ".join(A21) + "."
+        e["constat"] = ("État décision par décision (les statuts viennent du plan en lots et du code, sans promotion) : " + " ; ".join(resume_decisions(A21)) + ". "
+                        "**Réellement disponible** : génération des échéances depuis les plans et fiches par un intervalle en jours (90 par défaut) ; historique des états conservé, retards compris. "
+                        "**Reste à développer** : périodicités nommées (hebdomadaire à quinquennale), échéance calculée depuis la réalisation effective, remarques d'outillage, durée indicative actualisée. "
+                        "Seules DEC-PER-01 (partielle) et DEC-PER-04 (réalisée) ont une part existante.")
+        e["consequences"] = "Cible validée par le PO, pour l'essentiel non développée ; ne contredit pas le fonctionnement actuel. Aucune règle nouvelle."
+        e["lot"] = "L19 (périodicités), L26 (outillage), L20 (durée) : non livrés dans l'état B"
 
 registre = {"meta": {"serie": "Matrix — G0, révision 2", "date": DATE, "etat_reference": ETAT, "mention": "DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE",
                      "regle": "Aucune entrée ne devient une décision sans mention du PO. Une modification = un commit daté.",
@@ -279,14 +334,22 @@ for e in points:
 M += ["# Propositions non arbitrées (D1 à D7) 🟣", ""]
 for e in propositions:
     M += fiche(e, [("origine", "Origine"), ("garde_fous", "Garde-fous demandés"), ("chapitres", "Chapitres concernés"), ("statut", "Statut")])
-M += ["# Anomalies du dossier (audit)", "", "| Id | Gravité | Constat | Traitement prévu | Statut |", "|---|---|---|---|---|"]
+M += ["# Anomalies du dossier (audit)", "", "> Une fiche par anomalie : constat, document et page, preuve, gravité, traitement prévu et statut sont séparés. Les niveaux de preuve [C] [N] [T] [V] [A] [R] [?] sont définis en début de registre."]
 for a in aud:
-    M.append(f"| {a['id']} | {a['gravite']} | {court(a['constat'], 170).replace('|','/')} | {a['traite_par']} | {a['statut']} |")
+    M += ["", f"## {a['id']} — {court(re.sub(r'\s+', ' ', re.sub(r'^[«»\s]+|[«»]', '', a['constat'].split(' — ')[0])).strip(), 80)}", "", "| Rubrique | Contenu |", "|---|---|"]
+    for lab, k in (("Constat", "constat"), ("Document et page concernés", "document"), ("Page, chapitre ou capture", "page_ou_lieu"), ("Preuve", "preuve"), ("Conséquence pour le lecteur", "consequence"),
+                   ("Correction recommandée", "correction"), ("Gravité", "gravite"), ("Priorité", "priorite"), ("Traitement prévu", "traite_par"), ("Statut", "statut")):
+        if a.get(k):
+            M.append(f"| **{lab}** | {a[k].replace('|', '/')} |")
 M += ["", "# Décisions du PO et état dans l'état B", "", "> Colonne « Méthode » : **code** = vérifié dans le code de l'état B ; **plan en lots** = déduit du plan en lots du dossier V1.2 (lot livré ou non dans l'état B) ; **aucune** = non rattachée à un lot. « À instruire » signifie que le dossier ne l'a pas établi : ce n'est pas un constat de non-réalisation.", "",
       "| Décision | Règle | Lot(s) | État dans l'état B | Méthode |", "|---|---|---|---|---|"]
 for d in decisions:
     METH = {"vérifié dans le code de l'état B": "code", "plan en lots (V1.2) et comptes rendus de lots": "plan en lots", "plan en lots (V1.2) : lot non livré dans l'état B": "plan en lots", "aucun rattachement": "aucune"}
-    M.append(f"| <span class='nb'>{d['id']}</span> | {court(d['regle'], 170).replace('|','/')} | {', '.join(d['lots']) or '—'} | {d['etat_dans_etat_b']} | {METH.get(d['etat_methode'], d['etat_methode'])} |")
+    M.append(f"| <span class='nb'>{d['id']}</span> | {court(d['regle'], 170).replace('|','/')} | {d.get('lots_texte') or '—'} | {d['etat_dans_etat_b']} | {METH.get(d['etat_methode'], d['etat_methode'])} |")
+M += ["", "## Précisions sur les décisions partielles", ""]
+for d in decisions:
+    if d.get("note") and d["etat_dans_etat_b"].startswith("partielle"):
+        M.append(f"- **{d['id']}** — {d['note']}")
 (OUT / "ECARTS_ET_DECISIONS.md").write_text("\n".join(M) + "\n", encoding="utf-8")
 # fichiers sources du document RE (un par partie)
 for ancien in OUT.glob("0[0-9]_*.md"):

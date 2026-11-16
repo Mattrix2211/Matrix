@@ -33,13 +33,14 @@
 | non développée | 88 |
 | à instruire ⚪ | 20 |
 | réalisée | 5 |
-| partielle (un lot livré, un lot non livré) | 2 |
 | partielle | 2 |
 | écart (A13) | 2 |
 | non développée (A17) | 1 |
 | écart (A1) | 1 |
+| partielle (2 lot(s) livré(s) sur 3) | 1 |
 | écart (A2) | 1 |
 | écart (A3) | 1 |
+| partielle (1 lot(s) livré(s) sur 2) | 1 |
 | écart (A15) | 1 |
 | écart (A11) | 1 |
 

@@ -15,7 +15,7 @@ Matrix vous dit **quels contrôles et entretiens vous attendent** et vous guide 
 
 ## Après un contrôle non conforme : ce que Matrix fait, ce que vous pouvez faire
 
-Les étiquettes disent la nature de chaque ligne : 🟢 **comportement actuel**, vérifié ; 🟣 **proposition**, non arbitrée par le PO, donc **non disponible**. Aucune règle de ce tableau n'est nouvelle : ce sont celles de l'état actuel de Matrix.
+Chaque ligne porte une étiquette : 🟢 **comportement réellement implémenté** et vérifié ; 🔵 **cible validée** par le PO, pas nécessairement développée ; 🟣 **proposition non arbitrée** : ce n'est **pas** une fonctionnalité disponible ; ⚪ **élément non vérifié**. Dans ce tableau, **seules les mentions 🟢 décrivent ce que Matrix fait aujourd'hui** ; les mentions 🟣 sont des propositions, jamais des règles.
 
 | Situation | Ce que Matrix fait seul | Ce que vous pouvez faire | Limite ou statut |
 |---|---|---|---|

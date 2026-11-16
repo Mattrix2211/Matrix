@@ -1,14 +1,14 @@
 flowchart TB
-  PL["Planifiée"] -->|"assignation"| AS["Assignée"]
-  PL -->|"enregistrement<br/>en direct"| EC["En cours"]
-  AS --> EC
-  PL -->|"échéance dépassée<br/>(tâche compute_overdue)"| OV["En retard"]
-  AS -->|"échéance dépassée"| OV
-  OV --> EC
+  subgraph AV["Avant exécution"]
+    direction LR
+    PL["Planifiée"] -->|"assignation"| AS["Assignée"]
+  end
+  AV -->|"échéance dépassée<br/>(compute_overdue)"| OV["En retard"]
+  AV -->|"fiche remplacée<br/>(tasks.py:40)"| CA["Annulée"]
+  AV -->|"enregistrement en direct"| EC["En cours"]
+  OV -->|"enregistrement<br/>en direct"| EC
   EC -->|"terminer : conforme<br/>ou à surveiller"| DO["Terminée"]
   EC -->|"terminer :<br/>non conforme"| WV["En validation"]
-  WV -->|"correction du compte rendu,<br/>chef de secteur ou plus,<br/>conformité finale conforme"| DO
-  PL -->|"fiche remplacée<br/>(tasks.py:40)"| CA["Annulée"]
-  AS -->|"fiche remplacée"| CA
-  WV -.->|"API « démarrer » sans<br/>contrôle de l'état<br/>(views.py:108) :<br/>état incohérent"| EC
+  WV -->|"correction du compte rendu<br/>par un chef de secteur ou plus<br/>(conformité finale conforme)"| DO
+  WV -.->|"API « démarrer » :<br/>état non contrôlé<br/>(views.py:108)"| EC
   WV -.->|"administration :<br/>tout état possible"| CA

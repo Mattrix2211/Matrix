@@ -114,10 +114,12 @@ Cas particuliers : en **double équipage**, listes et compteurs sont bornés à 
 | Génération des échéances, retards, exécution guidée, compte rendu, correction motivée | 🟢 Disponible |
 | Ticket automatique pour un matériel mobile non conforme | 🟢 Disponible |
 | Ticket automatique pour une **installation** non conforme, avec garde-fous (ne clôture jamais une anomalie, n'autorise jamais une remise en service) | 🟣 **Proposition** à valider par le PO (D1) ; non développé |
-| Périodicités nommées (hebdomadaire à quinquennale), échéance calculée depuis la réalisation effective. *Aujourd'hui : un intervalle en jours (90 par défaut) ; l'échéance suivante prolonge la grille déjà planifiée* | 🔵 Cible validée, non développée |
+| Périodicités nommées (hebdomadaire à quinquennale), échéance calculée depuis la réalisation effective. *Aujourd'hui : un intervalle en jours (90 par défaut) ; l'échéance suivante prolonge la grille déjà planifiée* | 🔵 Cible validée, **non développée** (DEC-PER-02, DEC-PER-03). Deux décisions voisines ont une part existante : DEC-PER-01 **partielle**, DEC-PER-04 **réalisée** |
 | Remarques d'outillage et d'instruction visibles du chef de secteur, sans modification automatique de la fiche | 🔵 Cible validée, non développée |
 | Durée indicative actualisée, historique des estimations. *Aujourd'hui : une durée estimée saisie, jamais recalculée* | 🔵 Cible validée, non développée |
 | Configuration réelle, potentiels, composants | 🔵 Orientation, non développée |
+
+**Écart A21, état décision par décision.** Le registre ne range pas A21 en bloc « non développé » : l'historique des états (DEC-PER-04) est réalisé ; la génération des échéances depuis les plans et fiches (DEC-PER-01) l'est en partie ; **reste à développer** les périodicités nommées et le calcul depuis la réalisation effective (DEC-PER-02, DEC-PER-03), les remarques d'outillage (DEC-OUT-01, DEC-OUT-02, DEC-OUT-03, DEC-OUT-04, DEC-OUT-05) et la durée indicative actualisée (DEC-DUR-01, DEC-DUR-02, DEC-DUR-03, DEC-DUR-04, DEC-DUR-05, DEC-DUR-06, DEC-DUR-07). Aucun statut n'est promu : il vient du plan en lots et du code.
 
 **Décisions du PO qui changent ce que vous pouvez attendre de ce module** (état dans l'état B ; « partielle » = en partie réalisée) :
 
