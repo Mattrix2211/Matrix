@@ -17,7 +17,6 @@
 | Liste de stock | `logistics/web_views.py` `StockPieceListView` (:634) |
 | Seuil `stock_ecriture` | `matrix/core/role_thresholds.py` (:100), portée navire, chef de section |
 | Alerte de pénurie | `notifications/tasks.py` `notify_low_stock` (:101) |
-
 | Routes web | `logistics/web_urls.py` (`stock/`, `stock/<pk>/mouvements/`, `tickets/<uuid>/prelever-stock/`, `part-request/…`, `part-line/…`) |
 | Mouvements | `logistics/mouvements_web.py` `StockPieceMouvementsView` (:32) |
 | API | `logistics/urls.py` : tickets, part-requests, part-lines ; pas de route stock |

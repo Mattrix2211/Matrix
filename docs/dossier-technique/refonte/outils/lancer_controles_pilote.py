@@ -1,4 +1,5 @@
 """Construit les trois maquettes pilotes et leur applique les contrôles. Usage : python lancer_controles_pilote.py"""
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -10,7 +11,9 @@ CFG = {
     "DT": ("3_dossier_technique", "Matrix_G0R2_3_Dossier_technique_reprise_PROVISOIRE_RESTREINT.pdf", ["restreint/12_maintenance_anomalies_tickets_technique.md"]),
     "RE": ("5_registre", "Matrix_G0R2_5_Registre_ecarts_decisions_PROVISOIRE_RESTREINT.pdf", []),
 }
-ETAT_B = "/tmp/claude-0/-home-user-Matrix/5a9ffb65-0eb5-5851-be68-103a39fb63e7/scratchpad/ref"
+ETAT_B = os.environ.get("MATRIX_ETAT_B") or (sys.argv[1] if len(sys.argv) > 1 else "")      # racine de la copie isolée de l'état B (git archive 6d6d0be)
+if not ETAT_B:
+    sys.exit("Indiquer la copie isolée de l'état B : variable MATRIX_ETAT_B ou premier argument")
 for code, (dossier, pdf, anciens) in CFG.items():
     subprocess.run([sys.executable, str(R / "outils/construire.py"), code, "--pilote", "--sortie", str(R / "apercus_V1")], check=True)
     sources = [str(p) for p in sorted((R / dossier).glob("[0-9][0-9]_*.md"))]

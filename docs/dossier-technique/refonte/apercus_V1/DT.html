@@ -157,7 +157,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </tbody>
 </table>
 <h2 id="dt-1-3"><span class="marqueur">⟦dt-1-3⟧</span>1.3 États et transitions d'une occurrence</h2>
-<figure><img alt="Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25d_etats_occurrence_detail.svg" style="width:356pt"><figcaption>Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)</figcaption></figure>
+<figure><img alt="Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)" src="../schemas/svg/S25d_etats_occurrence_detail.svg" style="width:356pt"><figcaption>Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)</figcaption></figure>
 <table>
 <thead>
 <tr>
@@ -206,7 +206,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <li><strong>Anomalie</strong> : création (<code>logistics/<wbr>anomalie_<wbr>views.py</code> <code>AnomalieCreateView</code> (:141)), prise en charge réservée aux chefs (<code>_est_chef</code> :35, <code>_peut_traiter</code> :39), conversion en ticket (<code>AnomalieConvertirView</code> :341) avec lien dans les deux sens.</li>
 <li><strong>Ticket</strong> : <code>TicketTransitionView</code> (<code>logistics/<wbr>web_<wbr>views.py:368</code>) ; table des étapes suivantes <code>ACTION_<wbr>SUIVANTE_<wbr>TICKET</code> (<code>logistics/<wbr>web_<wbr>views.py:154</code>) ; seuil « chef de section », périmètre <code>perimetre_<wbr>tickets_<wbr>q</code> ; <strong>retour d'expérience obligatoire</strong> à la clôture ; confirmation <code>remise_<wbr>en_<wbr>service</code> avant la remise en service.</li>
 </ul>
-<figure><img alt="Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S26_ticket_et_anomalie.svg" style="width:499pt"><figcaption>Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service</figcaption></figure>
+<figure><img alt="Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service" src="../schemas/svg/S26_ticket_et_anomalie.svg" style="width:499pt"><figcaption>Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service</figcaption></figure>
 <h2 id="dt-1-6"><span class="marqueur">⟦dt-1-6⟧</span>1.6 Droits et seuils</h2>
 <p>Les droits passent par le registre de seuils (<code>matrix/<wbr>core/<wbr>role_<wbr>thresholds.py</code> <code>REGISTRE_<wbr>ACTIONS</code> (:45)), réglable par bâtiment.</p>
 <table>

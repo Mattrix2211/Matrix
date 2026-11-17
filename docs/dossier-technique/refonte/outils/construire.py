@@ -14,6 +14,7 @@ Directives Markdown : @capture id=... titre="..." texte="..." [renvoi="..."] [pr
 import argparse
 import html
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -68,6 +69,19 @@ def substituer(texte, code):
     texte = re.sub(r"\{\{fait:([a-z_0-9]+)\}\}", fait, texte)
     texte = texte.replace("{{mention}}", ident["mention"]).replace("{{ref}}", ident["reference_documentaire"])
     return texte
+
+
+def isoler_tableaux(texte):
+    """Markdown exige une ligne vide avant un tableau : sans elle, le tableau est lu comme du texte (barres verticales visibles)."""
+    sortie, dans_code, prec = [], False, ""
+    for ligne in texte.split("\n"):
+        if ligne.lstrip().startswith("```"):
+            dans_code = not dans_code
+        if not dans_code and ligne.startswith("|") and prec.strip() and not prec.startswith("|") and not prec.lstrip().startswith(("<", ">")):
+            sortie.append("")
+        sortie.append(ligne)
+        prec = ligne
+    return "\n".join(sortie)
 
 
 def separer_listes(texte):
@@ -157,7 +171,18 @@ def capture_html(args, code, captures_dir, manifeste):
         vignettes.append((m, x0, y0, x1, y1, leg[0] if leg else ""))
     if not vignettes:
         sys.exit("@capture sans vignette c1=…")
-    dispo = float(d.get("dispo", 132))                    # hauteur disponible en mm pour les vignettes
+    dispo = float(d.get("dispo", 132))                    # hauteur disponible en mm pour les vignettes (plafond)
+    leg_rep = ""
+    if len(vignettes) == 1:                               # légende des repères réellement dessinés (dans le cadre)
+        m0, x0_, y0_, x1_, y1_, _ = vignettes[0]
+        for r in m0.get("reperes") or []:
+            if 0 <= r["x"] * 1366 - x0_ <= x1_ - x0_ and 0 <= r["y"] * 768 - y0_ <= y1_ - y0_:
+                leg_rep += f' {r["n"]} {r["texte"]}'
+    # hauteur utile d'une page paysage (174 mm) moins titre, texte et légende estimés ligne par ligne : jamais de légende orpheline
+    n_texte = -(-len(d.get("texte", "")) // 150)
+    n_leg = -(-(len(d.get("nav", "")) + len(d.get("renvoi", "")) + len(leg_rep) + 110) // 160)
+    reserve = (8.0 if d.get("h2") else 4.5) + 9.5 + 5.0 * n_texte + 2.5 + 4.6 * n_leg + 6.0
+    dispo = min(dispo, 174.0 - reserve)
     maxw = float(d.get("largeur", 256))
     mobiles = all(v[0].get("mobile") for v in vignettes)  # vues de téléphone : côte à côte, pas empilées
     if mobiles:
@@ -206,13 +231,14 @@ def convertir(chemin, code, cfg_doc, ctx):
     brut = re.sub(r"<!--\s*suite\s*-->", "", brut)
     partie = re.search(r"<!--\s*partie:\s*(.+?)\s*-->", brut)
     brut = re.sub(r"<!--\s*(couvre|retire|partie):.*?-->", "", brut)
+    brut = brut.replace('<div class="ligne-public">', '<div class="ligne-public" markdown="1">')
     brut = re.sub(r"<!--\s*paysage\s*-->", '<section class="paysage tableau">', brut)
     brut = re.sub(r"<!--\s*/paysage\s*-->", "</section>", brut)
     brut = re.sub(r"^@decisions (.+)$", lambda m: "\n" + table_decisions(m.group(1).split()) + "\n", brut, flags=re.M)
     brut = re.sub(r"^@routes (.+)$", lambda m: "\n" + table_routes(m.group(1).split()) + "\n", brut, flags=re.M)
     brut = re.sub(r"^@ecarts (.+)$", lambda m: "\n" + table_ecarts(m.group(1).split()) + "\n", brut, flags=re.M)
     brut = re.sub(r"^@capture (.+)$", lambda m: "\n\n" + capture_html(m.group(1), code, ctx["captures_dir"], ctx["manifeste"]) + "\n\n", brut, flags=re.M)
-    brut = separer_listes(brut)
+    brut = separer_listes(isoler_tableaux(brut))
     corps = markdown.markdown(brut, extensions=["tables", "fenced_code", "sane_lists", "md_in_html"])
     base = chemin.parent
     corps = re.sub(r'src="((?!file:|data:|http)[^"]+)"', lambda m: f'src="{(base / m.group(1)).resolve().as_uri()}"', corps)
@@ -280,6 +306,7 @@ def construire_html(code, fichiers, pilote, pages=None):
         ctx["manifeste"] = {m["id"]: m for m in json.loads(mf.read_text(encoding="utf-8"))}
     compteurs, entrees, refs, blocs = [0, 0, 0], [], [], []
     derniere_partie = None
+    partie_precedente = None
     for f in fichiers:
         partie, corps = convertir(f, code, cfg, ctx)
         corps = numeroter(corps, code, compteurs, entrees)
@@ -289,7 +316,9 @@ def construire_html(code, fichiers, pilote, pages=None):
         if partie and partie != derniere_partie:
             surtitre = f'<div class="surtitre-partie">Partie · {html.escape(partie)}</div>'
         derniere_partie = partie or derniere_partie
-        classe = "chapitre" + (" fiche-module" if "fiche" in f.name else "") + (" suite" if ctx.get("suite") else "")
+        suite = ctx.get("suite") or (bool(partie) and partie == partie_precedente)      # plan §5.4 : saut de page avant les parties seulement
+        classe = "chapitre" + (" fiche-module" if "fiche" in f.name else "") + (" suite" if suite else "")
+        partie_precedente = partie
         blocs.append(f'<section class="{classe}">{surtitre}{corps}</section>')
     # sommaire
     lis = []
@@ -357,9 +386,11 @@ def main():
     if not fichiers:
         sys.exit("aucun fichier source")
     out = Path(a.sortie).resolve(); out.mkdir(parents=True, exist_ok=True)
+    def relatif(page):                                   # aucun chemin de la machine dans les aperçus : chemins relatifs au dossier du HTML
+        return re.sub(r"file://(/[^\"' )]+)", lambda m: os.path.relpath(m.group(1), out).replace(os.sep, "/"), page)
     page, entrees, refs, ctx = construire_html(a.code, fichiers, a.pilote)
     h = out / f"{a.code}.html"
-    h.write_text(page, encoding="utf-8")
+    h.write_text(relatif(page), encoding="utf-8")
     (out / f"{a.code}.ancres.json").write_text(json.dumps([e[3] for e in entrees]), encoding="utf-8")
     (out / f"{a.code}.dpi.json").write_text(json.dumps(DPI), encoding="utf-8")
     (out / f"{a.code}.refs.json").write_text(json.dumps(refs), encoding="utf-8")
@@ -370,7 +401,7 @@ def main():
     imprimer(h, pdf, a.code)                                   # passe 1 : mesure des pages
     pages, n = pages_des_titres(pdf, entrees)
     page2, *_ = construire_html(a.code, fichiers, a.pilote, pages)
-    h.write_text(page2, encoding="utf-8")
+    h.write_text(relatif(page2), encoding="utf-8")
     imprimer(h, pdf, a.code)                                   # passe 2 : sommaire paginé
     pages2, n2 = pages_des_titres(pdf, entrees)
     if pages2 != pages:
