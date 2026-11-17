@@ -372,7 +372,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </table>
 <p>Le rattachement d'un marin (<code>accounts.UserProfile</code>) pointe vers les quatre niveaux en <strong>PROTECT</strong> (voir <a href="#dt-18">DT §18</a>).</p>
 <p><strong>Le niveau le plus fin renseigné donne le périmètre.</strong> <code>UserProfile.scope</code> (<code>accounts/<wbr>models.py:87</code>) renvoie section, sinon secteur, sinon service, sinon unité. Un profil peut n'avoir que son secteur renseigné ; <code>navire_<wbr>id_<wbr>effectif</code> remonte alors au bâtiment par la hiérarchie.</p>
-<figure><img alt="Modèle de l'organisation" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S10_organisation_rattachement.svg" style="width:218pt"><figcaption>Modèle de l'organisation</figcaption></figure>
+<figure><img alt="Modèle de l'organisation" src="../schemas/svg/S10_organisation_rattachement.svg" style="width:218pt"><figcaption>Modèle de l'organisation</figcaption></figure>
 <h2 id="dt-3-2"><span class="marqueur">⟦dt-3-2⟧</span>3.2 La relève : mécanisme exact</h2>
 <p>Tout le double équipage est dans <code>matrix/<wbr>core/<wbr>equipage.py</code>. Ce module est <strong>le seul à lire ou écrire <code>Ship.equipage_<wbr>a_<wbr>bord</code></strong> : le reste du code passe par <code>equipage_<wbr>a_<wbr>bord(navire)</code> (<code>:45</code>), qui applique d'abord les relèves planifiées dont la date est atteinte.</p>
 <table>
@@ -1729,7 +1729,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </tbody>
 </table>
 <h2 id="dt-11-3"><span class="marqueur">⟦dt-11-3⟧</span>11.3 États et transitions d'une occurrence</h2>
-<figure><img alt="Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25d_etats_occurrence_detail.svg" style="width:356pt"><figcaption>Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)</figcaption></figure>
+<figure><img alt="Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)" src="../schemas/svg/S25d_etats_occurrence_detail.svg" style="width:356pt"><figcaption>Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)</figcaption></figure>
 <table>
 <thead>
 <tr>
@@ -1778,7 +1778,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <li><strong>Anomalie</strong> : création (<code>logistics/<wbr>anomalie_<wbr>views.py</code> <code>AnomalieCreateView</code> (:141)), prise en charge réservée aux chefs (<code>_est_chef</code> :35, <code>_peut_traiter</code> :39), conversion en ticket (<code>AnomalieConvertirView</code> :341) avec lien dans les deux sens.</li>
 <li><strong>Ticket</strong> : <code>TicketTransitionView</code> (<code>logistics/<wbr>web_<wbr>views.py:368</code>) ; table des étapes suivantes <code>ACTION_<wbr>SUIVANTE_<wbr>TICKET</code> (<code>logistics/<wbr>web_<wbr>views.py:154</code>) ; seuil « chef de section », périmètre <code>perimetre_<wbr>tickets_<wbr>q</code> ; <strong>retour d'expérience obligatoire</strong> à la clôture ; confirmation <code>remise_<wbr>en_<wbr>service</code> avant la remise en service.</li>
 </ul>
-<figure><img alt="Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S26_ticket_et_anomalie.svg" style="width:499pt"><figcaption>Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service</figcaption></figure>
+<figure><img alt="Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service" src="../schemas/svg/S26_ticket_et_anomalie.svg" style="width:499pt"><figcaption>Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service</figcaption></figure>
 <h2 id="dt-11-6"><span class="marqueur">⟦dt-11-6⟧</span>11.6 Droits et seuils</h2>
 <p>Les droits passent par le registre de seuils (<code>matrix/<wbr>core/<wbr>role_<wbr>thresholds.py</code> <code>REGISTRE_<wbr>ACTIONS</code> (:45)), réglable par bâtiment.</p>
 <table>
@@ -2315,7 +2315,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 
 <h2 id="dt-17-1"><span class="marqueur">⟦dt-17-1⟧</span>17.1 L'essentiel en un schéma</h2>
 <p>Matrix est une application web classique : un <strong>serveur</strong> qui fabrique des pages et répond à des demandes, une <strong>base de données</strong> qui garde l'information, et un <strong>service d'arrière-plan</strong> qui fait le travail planifié (rappels, alertes, application des relèves). Tout fonctionne <strong>sur le réseau du bord</strong>, sans Internet.</p>
-<figure><img alt="Contexte réseau" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S01_contexte_reseau.svg" style="width:499pt"><figcaption>Contexte réseau</figcaption></figure>
+<figure><img alt="Contexte réseau" src="../schemas/svg/S01_contexte_reseau.svg" style="width:499pt"><figcaption>Contexte réseau</figcaption></figure>
 <ul>
 <li>Les marins se connectent avec un <strong>navigateur</strong> (PC, tablette, mobile) au <strong>serveur du bord</strong>.</li>
 <li>Le personnel à terre et l'équipage à terre utilisent le <strong>même serveur</strong> avec un périmètre réduit (<a href="#dt-3">DT §3</a> et <a href="#dt-4">DT §4</a>). <span class="et b">🔵</span> Une architecture à serveurs distincts (bord et terre) avec synchronisation est un objectif de la phase 7, <strong>non développé</strong> : aujourd'hui, il y a un seul serveur.</li>
@@ -2454,7 +2454,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </table>
 <p>Ce n'est pas uniforme : certains paquets n'ont pas de <code>services.py</code> (par exemple <code>assets</code>, <code>logistics</code>, <code>maintenance</code>, qui regroupent leurs règles dans des modules nommés par sujet), <code>rondes</code> ne garde que ses modèles et ses migrations (plus de vue, de route, de service ni de tâche), et <code>reports</code> n'a pas de modèle.</p>
 <h2 id="dt-17-4"><span class="marqueur">⟦dt-17-4⟧</span>17.4 Les couches et le trajet d'une requête</h2>
-<figure><img alt="Couches" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S08_couches.svg" style="width:499pt"><figcaption>Couches</figcaption></figure>
+<figure><img alt="Couches" src="../schemas/svg/S08_couches.svg" style="width:499pt"><figcaption>Couches</figcaption></figure>
 <ol>
 <li>Le navigateur envoie une requête (page ou API).</li>
 <li>Elle traverse la <strong>chaîne de middlewares</strong> (<code>matrix/<wbr>settings.py:115</code>), qui pose le contexte (version de configuration, session, bâtiment courant) et refuse d'emblée ce qui ne doit pas passer : déconnexion par inactivité, mot de passe provisoire à changer, module désactivé, écriture d'un équipage à terre, page ouverte pour un autre marin. Le détail est au <a href="#dt-21">DT §21</a> (schéma S11).</li>
@@ -2524,7 +2524,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </table>
 <h2 id="dt-17-6"><span class="marqueur">⟦dt-17-6⟧</span>17.6 Les dépendances entre paquets</h2>
 <p>Les paquets ne sont pas indépendants : une donnée créée dans l'un alimente les autres (<a href="#dt-20">DT §20</a>). Le schéma ci-dessous montre les liaisons principales ; <strong>l'inventaire complet, mesuré sur le code, est dans <code>couverture/<wbr>etat_<wbr>B/<wbr>INVENTAIRE.md</code></strong> (nombre d'imports entre paquets, hors tests).</p>
-<figure><img alt="Dépendances" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S09d_dependances_detail.svg" style="width:499pt"><figcaption>Dépendances</figcaption></figure>
+<figure><img alt="Dépendances" src="../schemas/svg/S09d_dependances_detail.svg" style="width:499pt"><figcaption>Dépendances</figcaption></figure>
 <p>Ce que l'inventaire montre :</p>
 <ul>
 <li><strong><code>accounts</code> et <code>org</code> forment le socle</strong> : 19 et 14 paquets dépendent respectivement d'eux. Ils se référencent mutuellement (le profil pointe vers l'organisation ; l'organisation compte ses marins), ce qui impose des imports différés dans le code.</li>
@@ -2833,7 +2833,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <div class="ligne-public"><b>Public :</b> développeurs, administrateurs, interlocuteurs SIC · <b>Ce que vous y trouverez :</b> ce que Matrix expose (pages, API, fichiers), comment l'accès est contrôlé, ce qui sert d'intégration aujourd'hui et ce qui reste cible. Le catalogue complet des routes est l'annexe C (générée)</div>
 
 <h2 id="dt-19-1"><span class="marqueur">⟦dt-19-1⟧</span>19.1 Trois surfaces</h2>
-<figure><img alt="Carte des routes" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S42_carte_des_routes.svg" style="width:475pt"><figcaption>Carte des routes</figcaption></figure>
+<figure><img alt="Carte des routes" src="../schemas/svg/S42_carte_des_routes.svg" style="width:475pt"><figcaption>Carte des routes</figcaption></figure>
 <table>
 <thead>
 <tr>
@@ -3158,7 +3158,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </tbody>
 </table>
 <h2 id="dt-20-4"><span class="marqueur">⟦dt-20-4⟧</span>20.4 Tâches planifiées (annexe E : détail)</h2>
-<figure><img alt="Flux asynchrones" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S37_flux_asynchrones.svg" style="width:499pt"><figcaption>Flux asynchrones</figcaption></figure>
+<figure><img alt="Flux asynchrones" src="../schemas/svg/S37_flux_asynchrones.svg" style="width:499pt"><figcaption>Flux asynchrones</figcaption></figure>
 <p><span class="et v">🟢</span> <strong>20 tâches</strong> programmées dans <code>CELERY_<wbr>BEAT_<wbr>SCHEDULE</code> (<code>matrix/<wbr>settings.py:273</code>). Rythmes : <strong>chaque minute</strong> (relèves à appliquer, activation des listes à l'échéance, « Ma journée » du matin et du soir, deux tâches de notification d'installations), <strong>tous les quarts d'heure</strong> (divergences de feuilles de service), <strong>toutes les heures</strong> (retards de maintenance, diffusion des annonces), <strong>chaque jour</strong> (génération des échéances, alertes, purges), à heure fixe pour trois d'entre elles (07:00 tâches en retard, 07:15 rappel d'accusés, 08:30 dérives).</p>
 <p>⚠ <strong>Sans worker Celery et sans beat, aucune alerte automatique n'est produite</strong>, même si la donnée qui la déclenche est visible (README). Redis doit tourner. Une panne de ces processus ne produit <strong>aucun message d'erreur côté application</strong> (<span class="et n">◯</span> aucune supervision livrée).</p>
 <p><span class="et v">🟢</span> Deux tâches nommées « …_daily » (notifications d'échéances d'installations) sont lancées <strong>chaque minute</strong> : la tâche compare l'heure courante à la <strong>préférence de chaque marin</strong> pour savoir qui notifier (même principe que « Ma journée »). Le nom ne reflète donc pas le rythme réel.</p>
@@ -3231,7 +3231,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </tbody>
 </table>
 <h2 id="dt-21-2"><span class="marqueur">⟦dt-21-2⟧</span>21.2 La chaîne de contrôles d'une requête</h2>
-<figure><img alt="Chaîne de contrôles" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S11_chaine_requete.svg" style="width:476pt"><figcaption>Chaîne de contrôles</figcaption></figure>
+<figure><img alt="Chaîne de contrôles" src="../schemas/svg/S11_chaine_requete.svg" style="width:476pt"><figcaption>Chaîne de contrôles</figcaption></figure>
 <p>Les middlewares, dans l'ordre de <code>MIDDLEWARE</code> (<code>matrix/<wbr>settings.py:115</code>), et ce que chacun garantit :</p>
 <table>
 <thead>
@@ -3348,7 +3348,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <h2 id="dt-21-7"><span class="marqueur">⟦dt-21-7⟧</span>21.7 Les mécanismes ajoutés par les lots L01, L05, L02 et L03</h2>
 <h3 id="dt-21-7-1"><span class="marqueur">⟦dt-21-7-1⟧</span>21.7.1 L01 — Verrou des commandes de démonstration</h3>
 <p>Les commandes <code>seed_demo*</code> créent des comptes fictifs ; elles ne doivent jamais s'exécuter sur une vraie base.</p>
-<figure><img alt="Garde de démonstration" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S12_garde_demonstration.svg" style="width:499pt"><figcaption>Garde de démonstration</figcaption></figure>
+<figure><img alt="Garde de démonstration" src="../schemas/svg/S12_garde_demonstration.svg" style="width:499pt"><figcaption>Garde de démonstration</figcaption></figure>
 <ul>
 <li><strong>Conditions cumulatives</strong> : mode DEBUG, variable <code>MATRIX_<wbr>INSTANCE_<wbr>DEMO=1</code>, base SQLite sur fichier, fichier voisin <code>&lt;base&gt;.instance_<wbr>demo</code> contenant un <strong>identifiant d'instance non vide</strong> écrit par <code>scripts/<wbr>preparer_<wbr>instance_<wbr>test.py</code>, base vide ou déjà marquée (table <code>accounts.InstanceDemo</code>). Un fichier voisin vide ou sans identifiant <strong>n'est jamais une preuve</strong>.</li>
 <li><strong>Mots de passe jamais prévisibles</strong> : fournis (<code>MATRIX_<wbr>DEMO_<wbr>PASSWORD</code>, <code>MATRIX_<wbr>DEMO_<wbr>ADMIN_<wbr>PASSWORD</code>) ou générés au hasard dans un fichier <code>&lt;base&gt;.identifiants</code> (droits 0600, jamais écrasé, lié à l'identifiant d'instance). Rien dans la sortie ni la ligne de commande.</li>
@@ -3551,7 +3551,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </table>
 <p><span class="et v">🟢</span> Fuseau et langue : <code>Europe/Paris</code>, français. Réglages métier (seuils de rôle, modules, délais) : <strong>dans l'application</strong> (Paramètres), pas dans l'environnement (<a href="#dt-16">DT §16</a>).</p>
 <h2 id="dt-22-4"><span class="marqueur">⟦dt-22-4⟧</span>22.4 Les processus à lancer</h2>
-<figure><img alt="Déploiement type" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S35_deploiement_type.svg" style="width:495pt"><figcaption>Déploiement type</figcaption></figure>
+<figure><img alt="Déploiement type" src="../schemas/svg/S35_deploiement_type.svg" style="width:495pt"><figcaption>Déploiement type</figcaption></figure>
 <table>
 <thead>
 <tr>
@@ -3587,7 +3587,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p>⚠ <strong>Sans worker ni beat, aucune alerte automatique</strong> (<a href="#dt-20">DT §20</a>). <code>start.bat</code> les lance mais <strong>échoue silencieusement si Redis est absent</strong>.</p>
 <h2 id="dt-22-5"><span class="marqueur">⟦dt-22-5⟧</span>22.5 Fonctionnement sur le réseau local du bord</h2>
 <p><span class="et v">🟢</span> <strong>Principe du projet : « Internet n'existe pas ».</strong> Polices, icônes, graphiques, calendrier et scripts sont <strong>embarqués</strong> ; aucun CDN, aucune API distante, aucune télémétrie. L'application sert un réseau <strong>fermé</strong>.</p>
-<figure><img alt="Contexte réseau" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S01_contexte_reseau.svg" style="width:499pt"><figcaption>Contexte réseau</figcaption></figure>
+<figure><img alt="Contexte réseau" src="../schemas/svg/S01_contexte_reseau.svg" style="width:499pt"><figcaption>Contexte réseau</figcaption></figure>
 <ul>
 <li><strong>Clients</strong> : navigateurs des postes fixes du réseau du bâtiment (et de l'intranet à terre) ; aucun client lourd.</li>
 <li><strong>Hôtes acceptés</strong> : <code>DJANGO_<wbr>ALLOWED_<wbr>HOSTS</code> doit contenir le nom ou l'adresse sous lesquels les postes joignent le serveur.</li>
@@ -3685,7 +3685,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </table>
 <p>Cette recette <strong>n'est pas une procédure validée</strong> : les lignes 3 à 8 attendent les décisions et moyens à fournir avec les SIC (écarts A23 et A24, proposition D7).</p>
 <h2 id="dt-22-8"><span class="marqueur">⟦dt-22-8⟧</span>22.8 L'instance de démonstration isolée</h2>
-<figure><img alt="Cycle de l'instance de démonstration" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S36_cycle_instance_demo.svg" style="width:338pt"><figcaption>Cycle de l'instance de démonstration</figcaption></figure>
+<figure><img alt="Cycle de l'instance de démonstration" src="../schemas/svg/S36_cycle_instance_demo.svg" style="width:338pt"><figcaption>Cycle de l'instance de démonstration</figcaption></figure>
 <p>Script <code>scripts/<wbr>preparer_<wbr>instance_<wbr>test.py</code> : <strong>base SQLite séparée</strong>, <strong>marqueur</strong> écrit à la création (sans marqueur, la base n'est jamais supprimée ni remplie), serveur lié à <code>127.0.0.1</code> <strong>sans option pour en changer</strong>, environnement <strong>purgé</strong> (seules quelques variables du poste sont transmises : pas de base, d'e-mail, de Redis ni de clés). Modes : <code>--reinitialiser</code> (repart de zéro et <strong>renouvelle les mots de passe</strong>), <code>--verifier</code> (contrôle sans écriture), <code>--mettre-a-jour</code> (migrations et complément sans rien supprimer), <code>--identifiants</code> (affiche les mots de passe d'un fichier réservé au propriétaire), <code>--servir [--port]</code>. Quatre générateurs de données fictives, <strong>tous idempotents</strong>, <strong>refusés</strong> hors DEBUG, sans marqueur, sur PostgreSQL ou si un compte non fictif existe (<code>seed_demo</code>, <code>seed_<wbr>demo_<wbr>mer_<wbr>quai</code>, <code>seed_demo_dense</code>, <code>seed_<wbr>demo_<wbr>metier</code>). Compte d'exemple : 12 profils fictifs (équipier, BSC, chef de secteur, chef de service, COMAEQ, commandants…).</p>
 <p><span class="et n">◯</span> <strong>Windows</strong> : la recette Windows (<code>docs/<wbr>recette/<wbr>L01_<wbr>recette_<wbr>windows.md</code>) existe ; le kit a été testé sous <strong>Linux</strong>, pas sous Windows. <strong>Safari/iPhone</strong> : exige un environnement mobile isolé approuvé, sinon « non effectué ».</p>
 <h2 id="dt-22-9"><span class="marqueur">⟦dt-22-9⟧</span>22.9 Migrations et mise à jour</h2>
@@ -3865,7 +3865,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p>Complément au démarrage : <code>matrix/<wbr>core/<wbr>checks.py</code> (migrations en attente, DEBUG actif hors développement local). <strong>Un hook qui bloque ne se contourne jamais</strong> : on corrige.</p>
 <p>⚠ Ces hooks sont des <strong>protections du poste du développeur</strong>, pas une intégration continue : <strong>aucun pipeline CI n'existe</strong> (pas de dossier <code>.github</code>). Une CI <strong>hors Internet</strong> (script local obligatoire, tests navigateur versionnés) est le lot L28 (cible).</p>
 <h2 id="dt-23-4"><span class="marqueur">⟦dt-23-4⟧</span>23.4 La chaîne de travail : PO, Développeur, Relecteur</h2>
-<figure><img alt="Chaîne d'un lot" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S41_chaine_d_un_lot.svg" style="width:206pt"><figcaption>Chaîne d'un lot</figcaption></figure>
+<figure><img alt="Chaîne d'un lot" src="../schemas/svg/S41_chaine_d_un_lot.svg" style="width:206pt"><figcaption>Chaîne d'un lot</figcaption></figure>
 <p>Trois agents spécialisés (<code>.claude/<wbr>agents/<wbr>po.md</code>, <code>dev.md</code>, <code>relecteur.md</code>), orchestrés par un « Engineering Manager » (le rôle que tient l'assistant). <strong>Chaque agent démarre sans mémoire : Notion est la seule source de vérité entre les étapes.</strong></p>
 <table>
 <thead>

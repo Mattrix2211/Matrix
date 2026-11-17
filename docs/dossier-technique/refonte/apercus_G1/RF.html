@@ -798,7 +798,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p>Presque tout dans Matrix dépend de <strong>l'endroit où se trouve une personne dans l'organisation</strong> : ses tâches, ce qu'elle voit, ce qu'elle peut modifier, les listes de quart auxquelles elle appartient. L'organisation est donc le socle commun : elle décide du <em>périmètre</em> de chacun (<a href="#rf-6">RF §6</a>).</p>
 <h2 id="rf-5-2"><span class="marqueur">⟦rf-5-2⟧</span>5.2 La hiérarchie des unités</h2>
 <p>Matrix modélise une unité en quatre niveaux emboîtés.</p>
-<figure><img alt="Hiérarchie des unités" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S03_hierarchie_unites.svg" style="width:400pt"><figcaption>Hiérarchie des unités</figcaption></figure>
+<figure><img alt="Hiérarchie des unités" src="../schemas/svg/S03_hierarchie_unites.svg" style="width:400pt"><figcaption>Hiérarchie des unités</figcaption></figure>
 <table>
 <thead>
 <tr>
@@ -850,7 +850,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p><strong>La lecture seule en pratique.</strong> Le marin de l'équipage à terre peut continuer à consulter, à modifier ses réglages personnels (thème, préférences, heure de notification), à commenter les tâches, et à gérer sa propre feuille de service ; les pages des demandes et des annonces restent ouvertes en écriture (chaque page revérifie les droits de la personne). Toute autre écriture est refusée avec le message : « Lecture seule : votre équipage est à terre, cette action est réservée à l'équipage à bord. » La règle est un <strong>refus par défaut</strong> : une nouvelle page d'écriture est protégée sans qu'il y ait quoi que ce soit à déclarer.</p>
 <h3 id="rf-5-3-1"><span class="marqueur">⟦rf-5-3-1⟧</span>5.3.1 La relève</h3>
 <p>La relève est le changement de l'équipage à bord. Elle suit le principe « proposer, valider, publier » : un équipage ne change pas l'autre de sa propre autorité.</p>
-<figure><img alt="Relève d'équipage" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S04_releve_equipage.svg" style="width:461pt"><figcaption>Relève d'équipage</figcaption></figure>
+<figure><img alt="Relève d'équipage" src="../schemas/svg/S04_releve_equipage.svg" style="width:461pt"><figcaption>Relève d'équipage</figcaption></figure>
 <ol>
 <li><strong>Proposition.</strong> Seul un commandant (ou le commandant en second, qui supplée le commandant) de l'un des deux équipages propose la relève, avec une <strong>date et une heure d'effet</strong> qui ne peuvent pas être dans le passé. Une seule relève peut être ouverte à la fois par bâtiment.</li>
 <li><strong>Validation par l'autre équipage.</strong> Le commandant (ou en second) <strong>de l'autre équipage</strong> valide ou refuse. Personne ne valide sa propre proposition.</li>
@@ -864,7 +864,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </blockquote>
 <h2 id="rf-5-4"><span class="marqueur">⟦rf-5-4⟧</span>5.4 Archiver ou supprimer une unité</h2>
 <p>Une unité (bâtiment, service, secteur, section) a trois destins possibles, à connaître pour comprendre ce qui est « perdu » ou non.</p>
-<figure><img alt="Cycle de vie d'une unité" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S05_cycle_vie_unite.svg" style="width:366pt"><figcaption>Cycle de vie d'une unité</figcaption></figure>
+<figure><img alt="Cycle de vie d'une unité" src="../schemas/svg/S05_cycle_vie_unite.svg" style="width:366pt"><figcaption>Cycle de vie d'une unité</figcaption></figure>
 <p><strong>Archiver</strong> (lot L02) — la voie normale pour retirer une unité de la vie courante :</p>
 <ul>
 <li>l'unité n'est plus proposée pour de <strong>nouveaux</strong> rattachements ; ce qui s'y rapporte déjà reste lisible (listes, annonces, documents, tâches) ;</li>
@@ -1178,7 +1178,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p>Deux désignations <strong>ne sont pas des rôles</strong> : le <strong>chef de liste</strong> (désigné dans le module quarts) et le <strong>référent de formation</strong>. Elles ouvrent des droits dans leur domaine sans toucher au rôle. De même, le responsable de spécialité et le responsable de classe sont des désignations à l'échelle de la flotte.</p>
 <h2 id="rf-6-4"><span class="marqueur">⟦rf-6-4⟧</span>6.4 Comment Matrix décide si une action est permise</h2>
 <p>À chaque action d'écriture, le serveur pose trois questions, dans cet ordre. L'écran peut masquer un bouton, mais <strong>c'est toujours le serveur qui décide</strong>, jamais l'affichage.</p>
-<figure><img alt="Décision d'une action" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S06_calcul_droits.svg" style="width:450pt"><figcaption>Décision d'une action</figcaption></figure>
+<figure><img alt="Décision d'une action" src="../schemas/svg/S06_calcul_droits.svg" style="width:450pt"><figcaption>Décision d'une action</figcaption></figure>
 <ol>
 <li><strong>Mon statut m'autorise-t-il à écrire ?</strong> L'équipage à terre et le soutien à terre sont en lecture seule, sauf quelques actions explicitement prévues (<a href="#rf-5">RF §5</a>).</li>
 <li><strong>Mon niveau est-il suffisant ?</strong> Chaque action a un <strong>seuil</strong> : le rôle minimal requis. Le seuil dépend du bâtiment (la section « Les seuils par action : la configuration plutôt que le code »).</li>
@@ -1475,7 +1475,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <ul>
 <li><strong>Qui peut gérer quel rôle.</strong> On ne gère que des rôles <strong>inférieurs ou égaux au sien</strong> selon une table unique, appliquée à l'écran comme à l'API :</li>
 </ul>
-<figure><img alt="Qui gère qui" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S07_gestion_des_roles.svg" style="width:378pt"><figcaption>Qui gère qui</figcaption></figure>
+<figure><img alt="Qui gère qui" src="../schemas/svg/S07_gestion_des_roles.svg" style="width:378pt"><figcaption>Qui gère qui</figcaption></figure>
 <p>Hors administrateur général, on n'agit que sur les comptes de <strong>son propre bâtiment</strong>, jamais sur l'administrateur général, et on peut toujours modifier <strong>son propre</strong> compte. Le commandant en second <strong>ne gère aucun compte</strong>.</p>
 <ul>
 <li><strong>Créer un compte</strong> : on choisit le rôle (dans la limite de ses droits), l'identité, la fonction, l'unité, le service, le secteur, la section et l'équipage. Les rattachements sont <strong>validés contre le périmètre de l'appelant avant toute création</strong> : on ne peut pas rattacher un marin à un bâtiment qu'on ne gère pas.</li>
@@ -2411,7 +2411,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </table>
 <p>Le marin sans responsabilité ne voit que « Mon quotidien » et « Suivi ». <span class="et v">🟢</span> Constaté sur l'instance de démonstration le 16/11/2026 (profils équipier, chef de section et chef de secteur) ; <span class="et n">◯</span> le contenu de chaque onglet pour les autres profils n'a pas été rejoué.</p>
 <p>La page « Aujourd'hui » est organisée en blocs.</p>
-<figure><img alt="Composition de la page Aujourd'hui" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S13_page_aujourdhui.svg" style="width:452pt"><figcaption>Composition de la page Aujourd'hui</figcaption></figure>
+<figure><img alt="Composition de la page Aujourd'hui" src="../schemas/svg/S13_page_aujourdhui.svg" style="width:452pt"><figcaption>Composition de la page Aujourd'hui</figcaption></figure>
 <ol>
 <li><strong>« À faire »</strong> — tout ce qui demande son intervention, <strong>trié par urgence</strong> : d'abord ce qui est en retard, puis ce qui attend une action, puis par criticité (5 = la plus critique) et par échéance. On y trouve :
    - ses <strong>tâches</strong> et leurs retards ;
@@ -2963,7 +2963,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p>Les <strong>droits sont donnés par des désignations</strong> (chef de liste, rédacteur, remplaçant), pas par le grade. Une désignation « historique » sans type (ni quarts, ni quai) <strong>ne donne aucun droit</strong> tant qu'un responsable ne l'a pas qualifiée.</p>
 <h2 id="rf-11-4"><span class="marqueur">⟦rf-11-4⟧</span>11.4 La liste de quarts à la mer</h2>
 <p>Une liste couvre une période et un <strong>périmètre</strong> (bâtiment, service, secteur ou section, un seul). Elle suit un circuit à trois états :</p>
-<figure><img alt="Cycle des listes" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S15_cycle_listes.svg" style="width:205pt"><figcaption>Cycle des listes</figcaption></figure>
+<figure><img alt="Cycle des listes" src="../schemas/svg/S15_cycle_listes.svg" style="width:205pt"><figcaption>Cycle des listes</figcaption></figure>
 <ul>
 <li><strong>Brouillon</strong> : le chef de liste construit la liste (créneaux : poste, plage horaire, marin).</li>
 <li><strong>Proposée</strong> : il la propose ; les personnes habilitées à publier sont notifiées (« Proposition à valider »).</li>
@@ -2985,7 +2985,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <blockquote>
 <p>Cette section décrit ce que fait le code de l'état B. <strong>Ce n'est pas la règle métier validée</strong> sur le point de la décision finale (voir la section « Échanges et publication — fonctionnement CIBLE <span class="et b">🔵</span> et écarts »).</p>
 </blockquote>
-<figure><img alt="Échange de tours, fonctionnement actuel" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S16_echange_reel.svg" style="width:499pt"><figcaption>Échange de tours, fonctionnement actuel</figcaption></figure>
+<figure><img alt="Échange de tours, fonctionnement actuel" src="../schemas/svg/S16_echange_reel.svg" style="width:499pt"><figcaption>Échange de tours, fonctionnement actuel</figcaption></figure>
 <p><strong>Périmètre.</strong> L'échange ne concerne que deux tours d'<strong>une même liste de services à quai</strong>, entre marins d'un <strong>même équipage</strong>. Il n'existe pas d'échange de quarts à la mer.</p>
 <p><strong>Le circuit actuel, pas à pas.</strong></p>
 <ol>
@@ -3002,7 +3002,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p>Cette section décrit la <strong>règle métier validée par le PO</strong>, qui n'est <strong>pas encore appliquée</strong> dans l'état B. Elle ne doit pas être lue comme un fonctionnement existant.</p>
 </blockquote>
 <h3 id="rf-11-7-1"><span class="marqueur">⟦rf-11-7-1⟧</span>11.7.1 Échanges de tours (<code>DEC-FDS-07</code>, <code>DEC-FDS-13</code>)</h3>
-<figure><img alt="Échange de tours, fonctionnement cible" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S17_echange_cible.svg" style="width:462pt"><figcaption>Échange de tours, fonctionnement cible</figcaption></figure>
+<figure><img alt="Échange de tours, fonctionnement cible" src="../schemas/svg/S17_echange_cible.svg" style="width:462pt"><figcaption>Échange de tours, fonctionnement cible</figcaption></figure>
 <ul>
 <li>Le marin A demande, le marin B accepte, comme aujourd'hui.</li>
 <li><strong>Le BSC ou le chef de liste instruit</strong> la demande (vérifie les contraintes, donne son avis). Il <strong>ne dispose pas automatiquement de l'autorité de décision finale</strong>.</li>
@@ -3069,7 +3069,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p><strong>Une feuille par bâtiment, par date et, sur un bâtiment à double équipage, par équipage</strong> : chaque équipage, à bord ou à terre, a <strong>sa</strong> feuille, sans validation croisée par le seul grade.</p>
 <p><strong>Ce qu'elle contient.</strong> Des <strong>rubriques d'en-tête</strong> configurables par bâtiment (certaines fixes, d'autres à saisir chaque jour) et la liste des <strong>fonctions de service</strong> (officier de garde, gradé de coupée…, ordre configurable) avec leur titulaire du jour, tiré de la liste de services à quai. La structure du bâtiment est <strong>figée</strong> sur chaque feuille à sa création ; si elle change ensuite, la divergence est signalée et le rédacteur peut <strong>resynchroniser</strong>. Une <strong>organisation d'alerte</strong> (scénarios de sécurité ou de protection-défense : postes à tenir, postes non armés) y est rattachée ; ses modifications suivent « proposer, valider, publier » avec l'autorité configurée.</p>
 <p><strong>Qui rédige.</strong> Le <strong>BSC</strong> ou une personne déléguée, <strong>désigné nominativement par le COMAEQ de l'équipage</strong> (à défaut de COMAEQ, par le commandant de l'équipage). Ni le grade, ni le rôle, ni la supervision ne suffisent : le commandement garde la lecture et les visas. Une désignation qui ne donne plus aucun droit (marin parti, compte désactivé, changement d'équipage) est signalée.</p>
-<figure><img alt="Circuit de la feuille de service" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S18_circuit_feuille.svg" style="width:499pt"><figcaption>Circuit de la feuille de service</figcaption></figure>
+<figure><img alt="Circuit de la feuille de service" src="../schemas/svg/S18_circuit_feuille.svg" style="width:499pt"><figcaption>Circuit de la feuille de service</figcaption></figure>
 <p><strong>Le circuit de visa.</strong> Le rédacteur <strong>propose</strong> ; la feuille passe par le <strong>visa du chef de secteur</strong> du rédacteur (sauté s'il est lui-même chef de secteur ou plus), le <strong>visa du chef de service</strong>, puis le <strong>visa du COMAEQ</strong>, après quoi elle est <strong>publiée</strong>. À chaque palier, un <strong>renvoi motivé</strong> la remet en brouillon : le circuit recommence entièrement. Le <strong>visa du COMAEQ</strong> n'appartient qu'au <strong>titulaire de la fonction COMAEQ de l'équipage</strong> ; <strong>seul un poste vacant</strong> ouvre ce visa, à titre exceptionnel, au <strong>commandant de cet équipage</strong> (pas au commandant en second, pas à l'administrateur), de façon visible et tracée. Un COMAEQ simplement absent n'ouvre pas cette exception. Le COMAEQ peut aussi corriger l'en-tête pendant le circuit ; une correction qui change le sens ou une information opérationnelle impose un nouveau contrôle.</p>
 <p><strong>Une version publiée est immuable.</strong> Si un échange validé ou un changement de tour fait diverger le planning effectif de la dernière version, la feuille le <strong>signale sans rien modifier</strong> ; le rédacteur ouvre un <strong>rectificatif</strong> qui suit le même circuit, et l'ancienne version n'est remplacée qu'à sa publication. La publication est <strong>refusée</strong> si le contenu a changé depuis le dernier visa.</p>
 <p><strong>À quai seulement (V1).</strong> La feuille concerne le service à quai.</p>
@@ -3356,7 +3356,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <li><strong>Le lien est affiché seulement si le marin a accès à l'objet</strong> ; jamais de lien vers un objet interdit.</li>
 <li><strong>« Ma journée »</strong> le matin et <strong>« Ma journée de demain »</strong> en fin de journée, à l'heure choisie par chacun.</li>
 </ul>
-<figure><img alt="Des événements aux notifications" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S19_notifications.svg" style="width:499pt"><figcaption>Des événements aux notifications</figcaption></figure>
+<figure><img alt="Des événements aux notifications" src="../schemas/svg/S19_notifications.svg" style="width:499pt"><figcaption>Des événements aux notifications</figcaption></figure>
 <h3 id="rf-12-4-3"><span class="marqueur">⟦rf-12-4-3⟧</span>12.4.3 Ce qui en déclenche</h3>
 <p>Attribution et blocage de tâche, relances de retard, proposition à valider, échange à valider, liste publiée ou activée, annonce, difficulté signalée, échéance de maintenance, stock bas, formation qui expire, dérive de relevé d'une installation, mention dans un fil… (voir les chapitres de chaque module).</p>
 <h3 id="rf-12-4-4"><span class="marqueur">⟦rf-12-4-4⟧</span>12.4.4 Ce que font les responsables</h3>
@@ -3476,13 +3476,13 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <li><strong>Relances.</strong> Une tâche dont l'échéance est dépassée est relancée chaque jour (réglable) : l'assigné, le chef qui l'a attribuée ; pour une tâche bloquée en retard, les chefs qui peuvent lever le blocage.</li>
 </ul>
 <h3 id="rf-13-1-4"><span class="marqueur">⟦rf-13-1-4⟧</span>13.1.4 Les états d'une tâche — actuels <span class="et v">🟢</span></h3>
-<figure><img alt="États d'une tâche : fonctionnement actuel" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S20_etats_tache_reel.svg" style="width:439pt"><figcaption>États d'une tâche : fonctionnement actuel</figcaption></figure>
+<figure><img alt="États d'une tâche : fonctionnement actuel" src="../schemas/svg/S20_etats_tache_reel.svg" style="width:439pt"><figcaption>États d'une tâche : fonctionnement actuel</figcaption></figure>
 <p>Quatre états : <strong>À faire</strong>, <strong>En cours</strong>, <strong>Bloquée</strong>, <strong>Terminée</strong>. Deux priorités : <strong>Normale</strong> et <strong>Urgente</strong>. Seul le marin assigné démarre, signale un blocage et rend compte ; seul un chef du périmètre lève un blocage ou réaffecte.</p>
 <h3 id="rf-13-1-5"><span class="marqueur">⟦rf-13-1-5⟧</span>13.1.5 Le fonctionnement cible <span class="et b">🔵</span> (décisions du PO, non développées)</h3>
 <blockquote>
 <p>Cette section décrit des règles <strong>validées mais pas encore en place</strong>. Elle ne décrit pas l'état actuel.</p>
 </blockquote>
-<figure><img alt="États d'une tâche : fonctionnement cible" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S21_etats_tache_cible.svg" style="width:499pt"><figcaption>États d'une tâche : fonctionnement cible</figcaption></figure>
+<figure><img alt="États d'une tâche : fonctionnement cible" src="../schemas/svg/S21_etats_tache_cible.svg" style="width:499pt"><figcaption>États d'une tâche : fonctionnement cible</figcaption></figure>
 <table>
 <thead>
 <tr>
@@ -3970,7 +3970,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p>Une <strong>reprise de l'existant</strong> permet de rattacher les anciens dossiers de matériel aux catégories du catalogue : elle est d'abord <strong>proposée</strong> (lecture seule), puis <strong>appliquée</strong> ; <strong>rien n'est supprimé ni déplacé</strong>, le matériel reçoit seulement son lien vers l'article.</p>
 <h2 id="rf-14-5"><span class="marqueur">⟦rf-14-5⟧</span>14.5 Les fiches de maintenance et leurs circuits de validation</h2>
 <p><strong>Le calendrier dit <em>quand</em> ; la fiche dit <em>comment</em>.</strong> Une fiche décrit une <strong>gamme</strong> (par exemple « mensuelle » ou « toutes les 2 000 h ») : ce qu'il faut préparer (outils, pièces, EPI, consignes), les étapes numérotées (avec encadré « Attention »), les lignes de contrôle et de relevé. Une fiche a des <strong>versions</strong> ; seule la <strong>version validée</strong> s'applique et alimente la génération des échéances.</p>
-<figure><img alt="Circuits de validation des fiches" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S23_circuits_fiches.svg" style="width:499pt"><figcaption>Circuits de validation des fiches</figcaption></figure>
+<figure><img alt="Circuits de validation des fiches" src="../schemas/svg/S23_circuits_fiches.svg" style="width:499pt"><figcaption>Circuits de validation des fiches</figcaption></figure>
 <p><strong>Fiche d'installation, adaptée au bord.</strong> Rédaction par un <strong>chef de section</strong> ou un <strong>chef de secteur</strong> → visa du <strong>chef de secteur</strong> (sauf s'il est le rédacteur) → visa du <strong>chef de service</strong> → visa du <strong>commandant adjoint compétent</strong>, c'est-à-dire celui dont dépend le <strong>service porteur</strong> de l'installation → version <strong>validée</strong>.</p>
 <p><strong>Fiche de matériel de la flotte</strong> (et <strong>nouvel article du catalogue</strong>, même logique). Un bord <strong>ne peut pas la publier seul</strong>. Mêmes visas du bord, puis <strong>vérification par le responsable de spécialité</strong> à terre, <strong>visa de son chef</strong>, puis publication au catalogue de la flotte. Un responsable de spécialité qui rédige directement n'a besoin que du visa de son chef.</p>
 <p>Règles communes, appliquées par la machine d'états :</p>
@@ -4286,12 +4286,12 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <li><strong>Correction après coup</strong> <span class="et v">🟢</span> : un compte rendu terminé peut être corrigé ; la <strong>saisie d'origine est conservée</strong>, la modification est enregistrée avec son auteur et son motif. Si deux personnes enregistrent en même temps, la seconde reçoit un message de conflit : rien n'est écrasé en silence.</li>
 </ul>
 <h3 id="rf-15-4-3"><span class="marqueur">⟦rf-15-4-3⟧</span>15.4.3 Le cycle de vie d'une échéance</h3>
-<figure><img alt="Schéma S25 — États d'une échéance de maintenance (vue simplifiée)" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25_etats_occurrence.svg" style="width:418pt"><figcaption>Schéma S25 — États d'une échéance de maintenance (vue simplifiée)</figcaption></figure>
+<figure><img alt="Schéma S25 — États d'une échéance de maintenance (vue simplifiée)" src="../schemas/svg/S25_etats_occurrence.svg" style="width:418pt"><figcaption>Schéma S25 — États d'une échéance de maintenance (vue simplifiée)</figcaption></figure>
 <p>États : <strong>Planifiée → Assignée → En cours → Terminée</strong> ; <strong>En retard</strong> (calculé) ; <strong>En validation</strong> (verdict non conforme) ; <strong>Annulée</strong> (uniquement par le système, quand une fiche est remplacée : aucun bouton d'annulation n'existe). Chaque changement est journalisé (ancien et nouvel état, auteur) et, pour les installations critiques, audité. La note rattachée à « En validation » renvoie à l'écart A20, décrit plus bas ; la vue détaillée de ce schéma, avec les références de code, est dans le dossier technique (<span class="renvoi">DT §11</span>).</p>
 <h3 id="rf-15-4-4"><span class="marqueur">⟦rf-15-4-4⟧</span>15.4.4 L'anomalie</h3>
 <p>Un marin signale une anomalie en quelques clics : titre, description, <strong>gravité de 1 à 5</strong>, photo, lieu, et <strong>facultativement un équipement</strong> (installation ou matériel, jamais les deux). Le périmètre est déduit de l'équipement, sinon du profil du déclarant. États : <strong>Signalée → Prise en compte → Traitée → Clôturée</strong>. La <strong>conversion en ticket</strong> garde un lien dans les deux sens. Le signalement est notifié aux chefs du périmètre.</p>
 <h3 id="rf-15-4-5"><span class="marqueur">⟦rf-15-4-5⟧</span>15.4.5 Le ticket correctif</h3>
-<figure><img alt="Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S26_ticket_et_anomalie.svg" style="width:499pt"><figcaption>Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service</figcaption></figure>
+<figure><img alt="Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service" src="../schemas/svg/S26_ticket_et_anomalie.svg" style="width:499pt"><figcaption>Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service</figcaption></figure>
 <p>Un ticket vise <strong>un matériel ou une installation</strong>, jamais les deux ; il peut mobiliser plusieurs marins et porte une gravité de 1 à 5. États : Signalé → Diagnostiqué → (En attente de pièces) → Planifié → En réparation → En test → <strong>Remis en service</strong> → <strong>Fermé</strong> ; plus Bloqué et Annulé. Deux garde-fous :</p>
 <ol>
 <li><strong>Remise en service</strong> : confirmation explicite obligatoire ; sans elle, rien n'est enregistré et le refus est tracé.</li>
@@ -4879,7 +4879,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </table>
 <p>Règle de périmètre : <strong>un référent valide les marins d'un navire précis</strong>, jamais ceux d'un autre ; on ne s'auto-valide pas (sauf administrateur général).</p>
 <h2 id="rf-17-4"><span class="marqueur">⟦rf-17-4⟧</span>17.4 Circuit A — La demande de places</h2>
-<figure><img alt="Circuits formation" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S28_circuits_formation.svg" style="width:387pt"><figcaption>Circuits formation</figcaption></figure>
+<figure><img alt="Circuits formation" src="../schemas/svg/S28_circuits_formation.svg" style="width:387pt"><figcaption>Circuits formation</figcaption></figure>
 <p>Pour une formation <strong>à quota limité</strong> (par exemple un stage sécurité), le bord demande des places :</p>
 <ol>
 <li>Un <strong>chef de section ou plus</strong> formule une <strong>demande de places</strong> (formation, nombre) <strong>pour son propre bord</strong>.</li>
@@ -5115,7 +5115,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </tr>
 </tbody>
 </table></div>
-<figure><img alt="Versions de document" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S29_versions_documentation.svg" style="width:477pt"><figcaption>Versions de document</figcaption></figure>
+<figure><img alt="Versions de document" src="../schemas/svg/S29_versions_documentation.svg" style="width:477pt"><figcaption>Versions de document</figcaption></figure>
 <ul>
 <li>Une version <strong>publiée</strong> devient la <strong>version applicable</strong> ; la précédente devient <strong>obsolète</strong> mais <strong>reste consultable</strong>. Rien n'est écrasé.</li>
 <li>Le <strong>brouillon, la proposition et le refus</strong> ne sont visibles que de leur <strong>auteur</strong> et des <strong>gestionnaires</strong>.</li>
@@ -5124,7 +5124,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <li>Un <strong>équipage à terre</strong> consulte mais ne soumet pas.</li>
 </ul>
 <h2 id="rf-18-4"><span class="marqueur">⟦rf-18-4⟧</span>18.4 Le circuit RETEX aujourd'hui <span class="et v">🟢</span></h2>
-<figure><img alt="RETEX actuel" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S30_retex_reel.svg" style="width:277pt"><figcaption>RETEX actuel</figcaption></figure>
+<figure><img alt="RETEX actuel" src="../schemas/svg/S30_retex_reel.svg" style="width:277pt"><figcaption>RETEX actuel</figcaption></figure>
 <ol>
 <li><strong>Proposition</strong> par un marin à bord : le RETEX est rattaché à un <strong>domaine du bâtiment</strong>. Les quatre domaines par défaut (modifiables par bâtiment) désignent chacun un <strong>commandant adjoint référent</strong> et un <strong>organisme destinataire habituel</strong> :</li>
 </ol>
@@ -5168,7 +5168,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </ol>
 <p>Le RETEX est <strong>limité au bâtiment</strong> : on ne propose ni ne valide pour un autre navire ; le commandement le voit en lecture ; un marin voit les siens et les RETEX <strong>validés</strong> de son bâtiment.</p>
 <h2 id="rf-18-5"><span class="marqueur">⟦rf-18-5⟧</span>18.5 Le circuit RETEX cible <span class="et b">🔵</span></h2>
-<figure><img alt="RETEX cible" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S31_retex_cible.svg" style="width:499pt"><figcaption>RETEX cible</figcaption></figure>
+<figure><img alt="RETEX cible" src="../schemas/svg/S31_retex_cible.svg" style="width:499pt"><figcaption>RETEX cible</figcaption></figure>
 <p>Décisions du PO (dossier V1.2) :</p>
 <ul>
 <li><code>DEC-RTX-01</code> : <strong>auteur → chef de section (s'il existe) → chef de secteur → chef de service</strong>. Cette décision <strong>remplace</strong> l'ancienne recommandation « COMA référent d'abord ».</li>
@@ -5337,7 +5337,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </blockquote>
 <p><strong>Matrix ne délivre pas l'autorisation opérationnelle d'appareiller</strong> (<code>DEC-APP-13</code>, décision du PO). La session d'appareillage <strong>atteste qu'une préparation a été menée et clôturée</strong>, pas que le bâtiment est apte à appareiller. Le code le précise : la signature <strong>atteste la clôture de la session</strong>, pas l'aptitude du bâtiment (<span class="et n">◯</span> l'affichage de cette précision à l'écran n'a pas été vérifié).</p>
 <h2 id="rf-19-2"><span class="marqueur">⟦rf-19-2⟧</span>19.2 Aujourd'hui <span class="et v">🟢</span> — une session datée, une liste de points</h2>
-<figure><img alt="Appareillage actuel" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S32_appareillage_reel.svg" style="width:168pt"><figcaption>Appareillage actuel</figcaption></figure>
+<figure><img alt="Appareillage actuel" src="../schemas/svg/S32_appareillage_reel.svg" style="width:168pt"><figcaption>Appareillage actuel</figcaption></figure>
 <h3 id="rf-19-2-1"><span class="marqueur">⟦rf-19-2-1⟧</span>19.2.1 Pour le marin</h3>
 <blockquote>
 <p>Exemple fictif : le matelot Durand, avant un départ.</p>
@@ -5408,7 +5408,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 <p>Une fois signée, la session est <strong>clôturée et figée</strong> : plus aucune modification. La signature enregistre <strong>le signataire et la date</strong> et est <strong>auditée</strong>. L'<strong>administrateur général</strong> n'ouvre pas de session (il n'est rattaché à aucun bâtiment) mais consulte l'historique de toute la flotte.</p>
 <p>L'équipage <strong>à terre</strong> ne voit pas les points issus des occurrences de maintenance (hors commandement).</p>
 <h2 id="rf-19-3"><span class="marqueur">⟦rf-19-3⟧</span>19.3 Ce que Matrix ne contient pas encore <span class="et b">🔵</span></h2>
-<figure><img alt="Appareillage cible" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S33_appareillage_cible.svg" style="width:499pt"><figcaption>Appareillage cible</figcaption></figure>
+<figure><img alt="Appareillage cible" src="../schemas/svg/S33_appareillage_cible.svg" style="width:499pt"><figcaption>Appareillage cible</figcaption></figure>
 <p>Décisions du PO (dossier V1.2) :</p>
 <ul>
 <li><code>DEC-APP-01</code> : chaque départ génère des <strong>contrôles à partir de fiches de référence applicables</strong>.</li>
@@ -5678,7 +5678,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </tbody>
 </table>
 <h2 id="rf-20-2"><span class="marqueur">⟦rf-20-2⟧</span>20.2 Le menu : une carte construite pour chaque personne</h2>
-<figure><img alt="Navigation par rôle" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S34_navigation_par_role.svg" style="width:499pt"><figcaption>Navigation par rôle</figcaption></figure>
+<figure><img alt="Navigation par rôle" src="../schemas/svg/S34_navigation_par_role.svg" style="width:499pt"><figcaption>Navigation par rôle</figcaption></figure>
 <p>Le menu latéral compte <strong>sept groupes</strong> : Mon quotidien, Équipements, Maintenance, Activité, Compétences, Supervision, Administration. Il est <strong>calculé pour chaque personne</strong> :</p>
 <ol>
 <li><strong>Module activé ?</strong> Une entrée dont le module est <strong>désactivé pour le bâtiment</strong> disparaît (le commandant active ou désactive un module pour son bâtiment ; aucune donnée n'est supprimée).</li>
@@ -6037,7 +6037,7 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 </table>
 <p>Principes du plan : risques critiques d'abord, puis autorisations et circuits, puis ergonomie ; chaque lot assez petit pour être testé, relu et validé seul ; <strong>aucun lot ne mélange sécurité et fonctionnalité nouvelle</strong> ; toute migration est annoncée.</p>
 <h2 id="rf-21-2"><span class="marqueur">⟦rf-21-2⟧</span>21.2 Les dépendances entre lots</h2>
-<figure><img alt="Dépendances" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S39_dependances_lots.svg" style="width:404pt"><figcaption>Dépendances</figcaption></figure>
+<figure><img alt="Dépendances" src="../schemas/svg/S39_dependances_lots.svg" style="width:404pt"><figcaption>Dépendances</figcaption></figure>
 <p>Trois lots <strong>attendent une décision ou une architecture externe</strong> : <strong>L25</strong> (mutation de personnel) attend l'<strong>architecture bord–terre</strong> ; <strong>L09b</strong> (visas par fonction) attend la décision <strong>C-1</strong> ; <strong>L23</strong> (appareillage) attend la décision <strong>C-2</strong> et la conformité aux procédures du bord.</p>
 <div class="bloc"><h2 id="rf-21-3"><span class="marqueur">⟦rf-21-3⟧</span>21.3 Phase A — Risques critiques</h2>
 <table>

@@ -65,7 +65,7 @@ Constats :
 1. 258 pages non inspectées (voir journal).
 2. RF p.11 (phrase isolée) et RF p.40 (titre en bas de page) : à corriger (saut de page ciblé ou regroupement de la section 1.5).
 3. GU p.49 : message parasite dans la capture ; 9 captures coupées en bas.
-4. `apercus_G1/*.html` versionnés contiennent encore des chemins absolus (régénérables ; à exclure ou régénérer en phase 12).
+4. (résolu) les aperçus `apercus_G1` sont convertis en chemins relatifs.
 5. C12 à rejouer sur les PDF corrigés ; DT sans budget de reconstruction.
 6. Volumes hors plan : GU 84 (cible 60–75), RF 136 (90–110), DT 94 (110–130), RE 52 (15–25, contrainte levée).
 

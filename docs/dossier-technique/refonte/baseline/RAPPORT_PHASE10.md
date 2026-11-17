@@ -69,7 +69,7 @@ L'estimation du rapport G1 (référentiel 90 à 100 pages, dossier technique 60 
 
 **Décompte des captures.** Le rapport G1 additionnait à tort 65 + 4 = 70. Le manifeste compte **70 entrées = 69 captures-images + 1 entrée sans image** (`en_validation_execution_marin`, assertion DOM seule : bouton absent côté exécutant). Sur les 69 images : **65 utilisées, 4 non utilisées** (`p_anomalie_6_chef`, `p_anomalie_9_tickets`, `p_maintenance_3_liste`, `tache_detail`). `baseline/BARRIERE_G1.md`, `inventaire_g1_synthese.md` et `outils/inventaire_g1.py` sont corrigés (erratum daté). Aucune capture n'a été modifiée, ajoutée ni retirée.
 
-**Chemins absolus.** Aucun chemin local dans les quatre PDF (texte, métadonnées, liens). Dans le dépôt, les chemins de la machine de travail (`/home/user/Matrix/...`, `/tmp/claude-0/...`) figurent dans **8 fichiers suivis** :
+**Chemins absolus.** Aucun chemin local dans les quatre PDF (texte, métadonnées, liens). Dans le dépôt, les chemins de la machine de travail (`<depot>/...`, `/tmp/claude-0/...`) figurent dans **8 fichiers suivis** :
 
 | Fichier | Occurrences | Nature |
 |---|---|---|
