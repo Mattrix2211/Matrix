@@ -32,6 +32,6 @@ for code, (d, _) in DOCS.items():
 inutilisees = sorted(m["id"] for m in ms if m.get("fichier") and m["id"] not in utilisees)
 print("\n".join(S))
 print()
-print(f"Captures : {len(ms)} au manifeste ; {len(utilisees)} utilisées ; non utilisées : {', '.join(inutilisees) or 'aucune'}")
+print(f"Captures : {len(ms)} entrées au manifeste dont {sum(1 for m in ms if m.get('fichier'))} images ({len(utilisees)} utilisées, {len(inutilisees)} non utilisées) et {sum(1 for m in ms if not m.get('fichier'))} sans image ; non utilisées : {', '.join(inutilisees) or 'aucune'}")
 (R / "baseline/inventaire_g1_fichiers.md").write_text("\n".join(L) + "\n", encoding="utf-8")
-(R / "baseline/inventaire_g1_synthese.md").write_text("\n".join(S) + f"\n\nCaptures : {len(ms)} au manifeste ; {len(utilisees)} utilisées ; non utilisées : {', '.join(inutilisees) or 'aucune'}.\n", encoding="utf-8")
+(R / "baseline/inventaire_g1_synthese.md").write_text("\n".join(S) + f"\n\nCaptures : {len(ms)} entrées au manifeste dont {sum(1 for m in ms if m.get('fichier'))} images ({len(utilisees)} utilisées, {len(inutilisees)} non utilisées) et {sum(1 for m in ms if not m.get('fichier'))} sans image ; non utilisées : {', '.join(inutilisees) or 'aucune'}.\n", encoding="utf-8")

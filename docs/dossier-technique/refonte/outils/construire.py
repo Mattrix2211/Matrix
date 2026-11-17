@@ -35,6 +35,7 @@ CORRESPONDANCE_TECHNIQUE = ("EB-2026-11-11 = état applicatif `6d6d0be` (branche
                             "Cette correspondance n'existe que dans les documents techniques à accès restreint.")
 
 
+DPI = []                                                    # résolution effective de chaque vignette (contrôle C8)
 _NUM = {}
 
 
@@ -179,6 +180,7 @@ def capture_html(args, code, captures_dir, manifeste):
                     legende_rep += f' <b>{r["n"]}</b> {html.escape(r["texte"])}'
         fichier = (captures_dir / m["fichier"]).resolve()
         echelle = W / cw
+        DPI.append((m["id"], round((780 if m.get('mobile') else 2732) / ((390 if m.get('mobile') else 1366) * echelle / 25.4))))
         img = (f'<img src="{fichier.as_uri()}" style="position:absolute;width:{(390 if m.get("mobile") else 1366) * echelle:.2f}mm;left:{-x0 * echelle:.2f}mm;top:{-y0 * echelle:.2f}mm;max-width:none">')
         bloc = (f'<div class="cap-cadre" style="width:{W:.1f}mm;height:{h:.1f}mm;overflow:hidden">{img}{reperes}</div>'
                 + (f'<div class="cap-vignette">{html.escape(leg)}</div>' if leg else ""))
@@ -359,6 +361,7 @@ def main():
     h = out / f"{a.code}.html"
     h.write_text(page, encoding="utf-8")
     (out / f"{a.code}.ancres.json").write_text(json.dumps([e[3] for e in entrees]), encoding="utf-8")
+    (out / f"{a.code}.dpi.json").write_text(json.dumps(DPI), encoding="utf-8")
     (out / f"{a.code}.refs.json").write_text(json.dumps(refs), encoding="utf-8")
     (out / f"{a.code}.couverture.json").write_text(json.dumps({"couvre": ctx["couvre"], "retire": ctx["retire"]}, ensure_ascii=False), encoding="utf-8")
     if a.sans_pdf:

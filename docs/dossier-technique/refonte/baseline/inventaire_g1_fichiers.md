@@ -64,7 +64,7 @@
 | DT | `3_dossier_technique/26_historique_branches.md` | 647 | 1 / 4 |  |
 | DT | `3_dossier_technique/30_annexes.md` | 474 | 1 / 5 |  |
 | RE | `5_registre/01_lire_ce_registre.md` | 136 | 1 / 0 |  |
-| RE | `5_registre/02_ecarts_du_logiciel_a1_a_a26.md` | 3627 | 1 / 26 |  |
+| RE | `5_registre/02_ecarts_du_logiciel_a1_a_a26.md` | 3987 | 1 / 26 |  |
 | RE | `5_registre/03_nouveaux_ecarts_du_logiciel_ne.md` | 503 | 1 / 7 |  |
 | RE | `5_registre/04_points_a_confirmer_b1_a_b8.md` | 582 | 1 / 8 |  |
 | RE | `5_registre/05_propositions_non_arbitrees_d1_.md` | 334 | 1 / 7 |  |
