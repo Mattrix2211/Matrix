@@ -561,7 +561,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Chapitres concernés** | 17, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-## D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de …
+## D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de démonstration)
 
 | Rubrique | Contenu |
 |---|---|
@@ -991,7 +991,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-030 — Chemin erroné du scan web : « assets/scan/<uuid>/ » au lieu de « /scan/<uuid>/ »
+## AUD-030 — Chemin erroné du scan web : « assets/scan/UUID/ » au lieu de « /scan/UUID/ »
 
 | Rubrique | Contenu |
 |---|---|

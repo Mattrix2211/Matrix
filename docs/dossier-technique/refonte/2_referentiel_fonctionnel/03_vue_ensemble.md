@@ -17,7 +17,7 @@
 
 Matrix est composé de **22 ensembles de code**, appelés *paquets* : 21 applications fonctionnelles et un noyau commun (`matrix.core`) qui porte les règles partagées (rôles, périmètres, modules, sécurité). Le schéma ci-dessous les regroupe par grande fonction ; le menu de l'application, lui, est organisé en sept groupes de navigation (la section « Ce que voit le marin : le menu »).
 
-**Carte des modules** (remplacé par un tableau)
+**Carte des modules** (présenté en tableau)
 
 | Élément | Contenu |
 |---|---|
@@ -40,19 +40,19 @@ Matrix est composé de **22 ensembles de code**, appelés *paquets* : 21 applica
 
 | Domaine | Ce qu'il fait | Paquets | Chapitre |
 |---|---|---|---|
-| Personnes et organisation | Comptes, rôles, grades, bâtiments, services, secteurs, sections, double équipage | `accounts`, `org` | 4, 5 |
-| Accueil et pilotage | Page « Aujourd'hui », tableaux de bord par niveau, bilans et exports | `dashboard`, `reports` | 6 |
-| Calendrier | Calendrier central du marin et du bâtiment | `calendar_app` | 7 |
-| Quarts et services | Listes de quarts et de gardes, feuille de service, échanges, absences | `quarts`, `absences` | 8 |
-| Communication | Discussions attachées aux objets, annonces, notifications, recherche | `threads`, `annonces`, `notifications` | 9 |
-| Tâches et vie du bâtiment | Tâches, difficultés signalées, programme du bâtiment, postes du bord | `taches`, `demandes`, `programme`, `postes` | 10 |
-| Matériel et maintenance | Matériels, installations, plans de maintenance, anomalies, tickets, stocks | `assets`, `maintenance`, `logistics` | 11, 12, 13 |
-| Connaissance | Formations et qualifications, documentation, retours d'expérience | `training`, `documentation`, `retex` | 14, 15 |
-| Appareillage | Préparation et signature du prêt à appareiller | `dashboard` | 16 |
-| Rondes de contrôle | Module retiré fonctionnellement ; code conservé | `rondes` | 12 |
-| Noyau | Rôles, périmètres, seuils, modules activables, double équipage, audit, sécurité | `matrix.core` | 5, 18, 22 |
+| Personnes et organisation | Comptes, rôles, grades, bâtiments, services, secteurs, sections, double équipage | `accounts`, `org` | [[RF:04_organisation]], [[RF:05_roles_et_autorisations]] |
+| Accueil et pilotage | Page « Aujourd'hui », tableaux de bord par niveau, bilans et exports | `dashboard`, `reports` | [[RF:06_fiche_accueil_pilotage]] |
+| Calendrier | Calendrier central du marin et du bâtiment | `calendar_app` | [[RF:07_fiche_calendrier]] |
+| Quarts et services | Listes de quarts et de gardes, feuille de service, échanges, absences | `quarts`, `absences` | [[RF:08_fiche_quarts_services_feuille]] |
+| Communication | Discussions attachées aux objets, annonces, notifications, recherche | `threads`, `annonces`, `notifications` | [[RF:09_fiche_communication]] |
+| Tâches et vie du bâtiment | Tâches, difficultés signalées, programme du bâtiment, postes du bord | `taches`, `demandes`, `programme`, `postes` | [[RF:10_fiche_taches_demandes_programme_postes]] |
+| Matériel et maintenance | Matériels, installations, plans de maintenance, anomalies, tickets, stocks | `assets`, `maintenance`, `logistics` | [[RF:11_fiche_materiel_installations]], [[RF:12_fiche_maintenance]], [[RF:13_fiche_logistique]] |
+| Connaissance | Formations et qualifications, documentation, retours d'expérience | `training`, `documentation`, `retex` | [[RF:14_fiche_formations]], [[RF:15_fiche_documentation_retex]] |
+| Appareillage | Préparation et signature du prêt à appareiller | `dashboard` | [[RF:16_fiche_preparation_appareillage]] |
+| Rondes de contrôle | Module retiré fonctionnellement ; code conservé | `rondes` | [[RF:12_fiche_maintenance]] |
+| Noyau | Rôles, périmètres, seuils, modules activables, double équipage, audit, sécurité | `matrix.core` | [[RF:05_roles_et_autorisations]], [[DT:18_architecture]], [[DT:22_securite]] |
 
-**Mesures de l'état B** (inventaire généré, `couverture/etat_B/INVENTAIRE.md`) : {{fait:n_modeles}} modèles de données, {{fait:n_routes}} routes (pages et points d'API), {{fait:n_taches_planifiees}} tâches planifiées, {{fait:n_commandes}} commandes de gestion.
+**Mesures de l'état B** (inventaire généré depuis le code) : {{fait:n_modeles}} modèles de données, {{fait:n_routes}} routes (pages et points d'API), {{fait:n_taches_planifiees}} tâches planifiées, {{fait:n_commandes}} commandes de gestion.
 
 ## Ce que voit le marin : le menu
 
@@ -132,4 +132,4 @@ Matrix n'est pas une juxtaposition de silos : une donnée créée dans un module
 - ⚪ La correspondance « responsable de classe ≈ IRB » et « responsable de spécialité ≈ ALFAN Exploitation » vient de la page Notion « 13 — Décisions » ; elle n'est pas modélisée dans le code au-delà des deux désignations `ResponsableClasseNavire` et `ResponsableSpecialite`.
 - 🔵 Les échanges entre le bord et la terre (chat contextuel, procédures officielles de type PÉPIN/CRAT) sont des orientations validées, non développées, et dont les circuits exacts ne sont pas encore validés.
 
-**Sources (état B).** Code de l'état B : navigation, modules activables, page « Aujourd'hui », bâtiments suivis à terre, soutien à terre, chaîne de contrôle des requêtes (références de code dans le dossier technique à accès restreint.). Notion : « Organigramme et rôles », « 13 — Décisions Matrix et gouvernance fonctionnelle ».
+**Sources (état B).** Code de l'état B : navigation, modules activables, page « Aujourd'hui », bâtiments suivis à terre, soutien à terre, chaîne de contrôle des requêtes (références de code dans le dossier technique à accès restreint). Notion : « Organigramme et rôles », « 13 — Décisions Matrix et gouvernance fonctionnelle ».

@@ -46,7 +46,7 @@
 | **Chapitres concernés** | 17, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-## D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de …
+## D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de démonstration)
 
 | Rubrique | Contenu |
 |---|---|

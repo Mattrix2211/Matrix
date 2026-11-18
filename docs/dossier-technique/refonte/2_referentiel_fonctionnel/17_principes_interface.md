@@ -140,7 +140,7 @@ Les pages Notion de recette consignent des **observations** d'un seul passage, s
 - ⚪ Les observations PO-xx sont des constats d'un seul passage, non reproduits.
 - 🟢 Tests de l'interface de l'état B : tests Django de la navigation, des composants, des contrastes, de l'inactivité, des brouillons, de la grille et du manifeste, plus quatre tests JavaScript exécutables avec Node (grille, brouillon, compte rendu, inactivité) ; non rejoués dans cette édition.
 
-**Sources (état B).**, ; ; Notion « Cap UX/UI », « Recette UX V1.1 ». Références dans la partie restreinte du dossier.
+**Sources (état B).** Notion « Cap UX/UI », « Recette UX V1.1 ». Références dans la partie restreinte du dossier.
 
 ## Écarts et décisions du registre
 

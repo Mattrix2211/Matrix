@@ -100,12 +100,12 @@ Décisions du PO (dossier V1.2) :
 
 | Module | Lien |
 |---|---|
-| Tickets, anomalies (ch. 12) | Source d'un RETEX ; le ticket fermé porte déjà un **retour d'expérience** (diagnostic et solution) |
-| Tâches (ch. 10) | Les actions décidées sont des tâches |
-| Formations (ch. 14) | Un RETEX peut déboucher sur une formation (cible : reboucle formation, maintenance, exploitation) |
-| Installations, matériel (ch. 11) | Documents liés à l'objet |
+| Tickets, anomalies ([[RF:12_fiche_maintenance]]) | Source d'un RETEX ; le ticket fermé porte déjà un **retour d'expérience** (diagnostic et solution) |
+| Tâches ([[RF:10_fiche_taches_demandes_programme_postes]]) | Les actions décidées sont des tâches |
+| Formations ([[RF:14_fiche_formations]]) | Un RETEX peut déboucher sur une formation (cible : reboucle formation, maintenance, exploitation) |
+| Installations, matériel ([[RF:11_fiche_materiel_installations]]) | Documents liés à l'objet |
 | Recherche globale | Documents trouvés, bornés au public visé |
-| Annonces (ch. 9) | ⚪ Pas de lien automatique |
+| Annonces ([[RF:09_fiche_communication]]) | ⚪ Pas de lien automatique |
 
 ## Cas particuliers
 
@@ -119,7 +119,7 @@ Décisions du PO (dossier V1.2) :
 - ⚪ Le modèle documentaire **cible** (bibliothèque unifiée, droits de lecture fins par document) n'est pas décrit : aucune décision correspondante n'a été lue.
 - 🟢 Les écrans de documentation et de RETEX ont été rejoués (liste) sur l'instance de démonstration le 16/11/2026 ; ⚪ le circuit de validation et la proposition d'un RETEX n'ont pas été rejoués.
 
-**Sources (état B).**, ; décisions `DEC-RTX-01`, `DEC-RTX-02`, `DEC-RTX-03`, `DEC-RTX-04` (dossier V1.2). Références dans la partie restreinte du dossier.
+**Sources (état B).** Décisions `DEC-RTX-01`, `DEC-RTX-02`, `DEC-RTX-03`, `DEC-RTX-04` (dossier V1.2). Références dans la partie restreinte du dossier.
 
 ## Écarts et décisions du registre
 

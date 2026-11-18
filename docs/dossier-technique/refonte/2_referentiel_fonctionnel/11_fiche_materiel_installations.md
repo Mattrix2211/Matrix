@@ -13,7 +13,7 @@
 <!-- partie: Modules -->
 # Matériel et installations
 
-<div class="ligne-public"><b>Public :</b> marins, responsables, développeurs · <b>Ce que vous y trouverez :</b> ce que Matrix sait des équipements du bord, comment un marin les consulte et les contrôle, comment un responsable les crée, les équipe depuis le catalogue de la flotte et les relie à leurs fiches de maintenance, et comment une fiche est validée. Les circuits de maintenance qui s'appuient sur ces objets sont au chapitre 12</div>
+<div class="ligne-public"><b>Public :</b> marins, responsables, développeurs · <b>Ce que vous y trouverez :</b> ce que Matrix sait des équipements du bord, comment un marin les consulte et les contrôle, comment un responsable les crée, les équipe depuis le catalogue de la flotte et les relie à leurs fiches de maintenance, et comment une fiche est validée. Les circuits de maintenance qui s'appuient sur ces objets sont dans [[RF:12_fiche_maintenance]]</div>
 
 **Écran de référence :** [[GU:14_ecrans_materiel_stock]] (captures de l'état B sur une instance de démonstration).
 
@@ -59,7 +59,7 @@ Les seuils sont réglables par bâtiment ([[RF:05_roles_et_autorisations]]). Cha
 
 Le **catalogue** est commun à toute la flotte, organisé en **catégories** et **sous-catégories**, chacune rattachée à une **spécialité**. Il est tenu à terre par les responsables de spécialité.
 
-**Équiper depuis le catalogue** (remplacé par un tableau)
+**Équiper depuis le catalogue** (présenté en tableau)
 
 | Élément | Contenu |
 |---|---|
@@ -128,13 +128,13 @@ Les relevés saisis dans un compte rendu de maintenance **alimentent ces mesures
 
 | Module | Lien |
 |---|---|
-| Maintenance (ch. 12) | Les fiches alimentent les échéances ; l'exécution produit comptes rendus, relevés, tickets |
-| Logistique (ch. 12 et 13) | Un ticket vise un matériel **ou** une installation ; les pièces consomment le stock |
-| Formations (ch. 14) | Les qualifications requises ; documents et fiches |
-| Documentation (ch. 15) | Documents liés à une installation ou un matériel |
-| Calendrier, accueil (ch. 6, 7) | Échéances, retards, indicateurs |
-| Organisation (ch. 4) | Périmètre ; **une unité occupée par du matériel ne s'archive pas** |
-| Appareillage (ch. 16) | Les installations **critiques** alimentent la préparation |
+| Maintenance ([[RF:12_fiche_maintenance]]) | Les fiches alimentent les échéances ; l'exécution produit comptes rendus, relevés, tickets |
+| Logistique ([[RF:12_fiche_maintenance]], [[RF:13_fiche_logistique]]) | Un ticket vise un matériel **ou** une installation ; les pièces consomment le stock |
+| Formations ([[RF:14_fiche_formations]]) | Les qualifications requises ; documents et fiches |
+| Documentation ([[RF:15_fiche_documentation_retex]]) | Documents liés à une installation ou un matériel |
+| Calendrier, accueil ([[RF:06_fiche_accueil_pilotage]], [[RF:07_fiche_calendrier]]) | Échéances, retards, indicateurs |
+| Organisation ([[RF:04_organisation]]) | Périmètre ; **une unité occupée par du matériel ne s'archive pas** |
+| Appareillage ([[RF:16_fiche_preparation_appareillage]]) | Les installations **critiques** alimentent la préparation |
 
 ## Cas particuliers
 
@@ -160,7 +160,7 @@ Les relevés saisis dans un compte rendu de maintenance **alimentent ces mesures
 - ⚪ Le circuit de transfert n'existe pas : le comportement au moment d'une réaffectation en masse n'est pas décrit comme un circuit.
 - ⚪ Les pages Notion « 04 — Maintenance… » décrivent des objets cibles (composants, potentiels, configuration) **non développés** ; ils ne sont pas présentés comme existants.
 
-**Sources (état B).** ; références de code dans le dossier technique à accès restreint. Décisions : `DEC-MAT-01`, `DEC-MAT-02`, `DEC-MAT-03`, `DEC-MAT-04` (dossier V1.2) ; Notion « 13 — Décisions » (fiches, catalogue), « 04 — Maintenance, installations, SSF… » (lue).
+**Sources (état B).** Les références de code dans le dossier technique à accès restreint. Décisions : `DEC-MAT-01`, `DEC-MAT-02`, `DEC-MAT-03`, `DEC-MAT-04` (dossier V1.2) ; Notion « 13 — Décisions » (fiches, catalogue), « 04 — Maintenance, installations, SSF… » (lue).
 
 ## Écarts et décisions du registre
 

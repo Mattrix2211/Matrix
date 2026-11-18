@@ -197,7 +197,7 @@ TITRES_AUD = {
     "AUD-027": "Lignes de la liste des tickets cliquables à la souris seulement, non accessibles au clavier",
     "AUD-028": "Rapports précédents aux chiffres d'origine contradictoires ; 11 fichiers de pilotage à la racine",
     "AUD-029": "Deux personnages différents portent le nom « Durand » dans le chapitre 6 ; noms des captures non repris",
-    "AUD-030": "Chemin erroné du scan web : « assets/scan/<uuid>/ » au lieu de « /scan/<uuid>/ »",
+    "AUD-030": "Chemin erroné du scan web : « assets/scan/UUID/ » au lieu de « /scan/UUID/ »",
     "AUD-031": "Annexe générée : lignes tronquées, fragments de tableau et symboles Markdown bruts",
     "AUD-032": "Tableaux Markdown non rendus (barres verticales brutes) dans le PDF restreint",
     "AUD-033": "Des plages de décisions présentées comme « cible, non développée » alors que certaines sont réalisées",
@@ -369,7 +369,7 @@ registre = {"meta": {"serie": "Matrix — G0, révision 2", "date": DATE, "etat_
 
 # ---------------- vues Markdown (alimentent le PDF du registre) ----------------
 def fiche(e, champs):
-    L = [f"## {e['id']} — {court(e.get('titre',''), 100)}", "", "| Rubrique | Contenu |", "|---|---|"]
+    L = [f"## {e['id']} — {court(e.get('titre',''), 220)}", "", "| Rubrique | Contenu |", "|---|---|"]
     for k, lab in champs:
         v = e.get(k)
         if isinstance(v, list):

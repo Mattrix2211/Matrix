@@ -7,7 +7,9 @@
 
 À partir du **chef de secteur**, l'accueil ajoute un bloc « Supervision » : retards, validations en attente, tickets ouverts. Les **vues d'ensemble** (secteur, service) donnent les mêmes indicateurs sous forme de jauges et de graphiques. Chacun ne voit que **son périmètre**.
 
-@capture h2="Accueil du chef" titre="L'accueil du chef de secteur" texte="Un bandeau d'alerte signale les maintenances en retard du secteur. Le chef retrouve ensuite ses actions, sa journée et ses tours, comme tout marin." c1="accueil_chef_secteur" nav="Mon quotidien › Aujourd'hui" renvoi="Profil chef de secteur"
+@capture h2="Accueil du chef" titre="Le haut de l'accueil du chef de secteur" texte="Un bandeau d'alerte signale les maintenances en retard du secteur. Le chef retrouve ensuite ses actions, sa journée et ses tours, comme tout marin." c1="accueil_chef_secteur" nav="Mon quotidien › Aujourd'hui" renvoi="Profil chef de secteur"
+
+@capture section="Accueil du chef" titre="Le milieu de l'accueil : actions, journée et tours" texte="Entre le bandeau d'alerte et le bloc Supervision, la page reprend les actions à faire, la journée et les prochains tours du chef, comme pour tout marin." c1="accueil_chef_secteur_milieu" nav="Mon quotidien › Aujourd'hui (faire défiler)" renvoi="Profil chef de secteur"
 
 @capture section="Accueil du chef" titre="Le bas de l'accueil : le bloc Supervision" texte="En bas de page : échanges de service à valider, qualifications à renouveler, puis les quatre indicateurs de maintenance et de correctif du secteur, et le bilan du secteur exportable en PDF, Excel ou CSV." c1="accueil_chef_secteur_bas" nav="Mon quotidien › Aujourd'hui (faire défiler)" renvoi="Profil chef de secteur"
 

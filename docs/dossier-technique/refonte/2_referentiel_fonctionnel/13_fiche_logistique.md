@@ -46,7 +46,7 @@ Le seuil est **réglable par bâtiment** ([[RF:05_roles_et_autorisations]]). Tou
 
 ## Le stock : un solde qui se justifie
 
-**Stock et pièces** (remplacé par un tableau)
+**Stock et pièces** (présenté en tableau)
 
 | Élément | Contenu |
 |---|---|
@@ -113,11 +113,11 @@ Une tâche planifiée quotidienne contrôle le stock :
 
 | Module | Lien |
 |---|---|
-| Tickets (ch. 12) | Une demande de pièces appartient à un ticket ; la consommation sort du stock |
-| Installations (ch. 11) | Les pièces d'une installation (avec NNO) sont listées sur sa fiche ; elles sont **distinctes** du stock |
+| Tickets ([[RF:12_fiche_maintenance]]) | Une demande de pièces appartient à un ticket ; la consommation sort du stock |
+| Installations ([[RF:11_fiche_materiel_installations]]) | Les pièces d'une installation (avec NNO) sont listées sur sa fiche ; elles sont **distinctes** du stock |
 | Notifications | Alertes de stock bas / critique |
-| Accueil (ch. 6) | Indicateur « pièces sous le seuil » (vue flotte, dashboard de classe) |
-| Préparation à l'appareillage (ch. 16) | Pièces critiques manquantes |
+| Accueil ([[RF:06_fiche_accueil_pilotage]]) | Indicateur « pièces sous le seuil » (vue flotte, dashboard de classe) |
+| Préparation à l'appareillage ([[RF:16_fiche_preparation_appareillage]]) | Pièces critiques manquantes |
 
 ## Cas particuliers
 
@@ -149,7 +149,7 @@ Le dossier V1.2 ne contient **aucune décision du PO** sur le stock ni sur la co
 - ⚪ Les envois de notifications n'ont pas été rejoués.
 - 🟢 La liste du stock a été rejouée sur l'instance de démonstration le 16/11/2026 ; ⚪ pas de page de détail rejouée.
 
-**Sources (état B).**, . Références dans la partie restreinte du dossier.
+**Sources (état B).** Code de l'état B (stock et demandes de pièces) ; références de code dans le dossier technique à accès restreint.
 
 ## Écarts et décisions du registre
 

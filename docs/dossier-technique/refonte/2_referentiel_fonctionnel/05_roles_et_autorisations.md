@@ -244,7 +244,7 @@ Les quatre écarts suivants opposent une **décision du PO** à un **comportemen
 - ⚪ L'ordre exact des grades et la liste des brevets ne sont pas dans le code ; ils sont à fournir par le PO (informations manquantes IM-01 et IM-02 du dossier V1.2).
 - ⚪ Le détail action par action de ce que peut faire un administrateur d'unité est établi dans les chapitres qui traitent chaque circuit.
 
-**Sources (état B).** Code de l'état B : rôles, profils, périmètres, journal d'audit, seuils de rôle configurables, contrôle d'écriture, déconnexion automatique (références de code dans le dossier technique à accès restreint.). Notion : « Organigramme et rôles », « 13 — Décisions », « 02 — RH, postes… ». Décisions : `DEC-DRT-*`, `DEC-SUP-*`, `DEC-ORG-04` (dossier V1.2, ). Tests : .
+**Sources (état B).** Code de l'état B : rôles, profils, périmètres, journal d'audit, seuils de rôle configurables, contrôle d'écriture, déconnexion automatique (références de code dans le dossier technique à accès restreint). Notion : « Organigramme et rôles », « 13 — Décisions », « 02 — RH, postes… ». Décisions : `DEC-DRT-*`, `DEC-SUP-*`, `DEC-ORG-04` (dossier V1.2).
 
 ## Écarts et décisions du registre
 

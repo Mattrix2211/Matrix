@@ -17,7 +17,7 @@
 
 ## Le plan en un coup d'œil
 
-**Feuille de route** (remplacé par un tableau)
+**Feuille de route** (présenté en tableau)
 
 | Élément | Contenu |
 |---|---|

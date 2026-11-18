@@ -170,12 +170,12 @@ Un compteur **en lecture seule** par marin sur les services de garde **publiés*
 
 | Avec | Ce qui circule |
 |---|---|
-| Calendrier (ch. 7) | Quarts et gardes publiés, absences, apparaissent dans le calendrier du marin |
-| Notifications (ch. 9) | Publication, proposition à valider, échange à valider, activation, alertes (régimes « à quai », « à la mer ») |
-| Formations (ch. 14) | Habilitations exigées pour tenir un service, contrôlées lors d'un échange |
-| Organisation (ch. 4) | Périmètre de la liste, équipage, commandant adjoint rattaché au service |
-| Accueil (ch. 6) | « Mes tours de service », frise « Ma journée », bloc Supervision (échanges à valider) |
-| Tâches (ch. 10) | Aucune dépendance directe |
+| Calendrier ([[RF:07_fiche_calendrier]]) | Quarts et gardes publiés, absences, apparaissent dans le calendrier du marin |
+| Notifications ([[RF:09_fiche_communication]]) | Publication, proposition à valider, échange à valider, activation, alertes (régimes « à quai », « à la mer ») |
+| Formations ([[RF:14_fiche_formations]]) | Habilitations exigées pour tenir un service, contrôlées lors d'un échange |
+| Organisation ([[RF:04_organisation]]) | Périmètre de la liste, équipage, commandant adjoint rattaché au service |
+| Accueil ([[RF:06_fiche_accueil_pilotage]]) | « Mes tours de service », frise « Ma journée », bloc Supervision (échanges à valider) |
+| Tâches ([[RF:10_fiche_taches_demandes_programme_postes]]) | Aucune dépendance directe |
 
 ## Cas particuliers
 
@@ -194,7 +194,7 @@ Un compteur **en lecture seule** par marin sur les services de garde **publiés*
 - 🟢 L'écran d'entrée (vues par jour et par marin) et la feuille de service ont été rejoués sur l'instance de démonstration le 16/11/2026 ; ⚪ leur description détaillée vient du code pour le reste.
 - 🔵 Non développés : suppléance explicite (L08), visas par fonction et listes publiées (L09), échanges décidés par le COMAEQ (L10), impression et réimpression de la feuille (L27), composition-type d'une fraction à quai.
 
-**Sources (état B).**, ; références de code dans le dossier technique à accès restreint. Décisions : `DEC-FDS-01`, `DEC-FDS-02`, `DEC-FDS-03`, `DEC-FDS-04`, `DEC-FDS-05`, `DEC-FDS-06`, `DEC-FDS-07`, `DEC-FDS-08`, `DEC-FDS-09`, `DEC-FDS-10`, `DEC-FDS-11`, `DEC-FDS-12`, `DEC-FDS-13`, `DEC-FDS-14`, `DEC-SUP-01`, `DEC-PRE-01` (dossier V1.2, ) ; propositions, ; Notion « 06 — Service courant, BSC, feuille de service et commissariat » (31/10/2026), « 13 — Décisions ». Écarts : le registre des écarts (partie restreinte du dossier) (A1 à A3, A12, B1 à B5).
+**Sources (état B).** Les références de code dans le dossier technique à accès restreint. Décisions : `DEC-FDS-01`, `DEC-FDS-02`, `DEC-FDS-03`, `DEC-FDS-04`, `DEC-FDS-05`, `DEC-FDS-06`, `DEC-FDS-07`, `DEC-FDS-08`, `DEC-FDS-09`, `DEC-FDS-10`, `DEC-FDS-11`, `DEC-FDS-12`, `DEC-FDS-13`, `DEC-FDS-14`, `DEC-SUP-01`, `DEC-PRE-01` (dossier V1.2) ; propositions, ; Notion « 06 — Service courant, BSC, feuille de service et commissariat » (31/10/2026), « 13 — Décisions ». Écarts : le registre des écarts (partie restreinte du dossier) (A1 à A3, A12, B1 à B5).
 
 ## Écarts et décisions du registre
 

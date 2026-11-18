@@ -123,7 +123,7 @@ Un administrateur général, un responsable de spécialité ou de classe peut su
 
 Sur `main`, l'archivage d'une unité est un simple indicateur : le module de règles d'archivage  n'existe pas, donc aucune vérification d'occupation. La suppression d'une unité n'est pas refusée : le rattachement des marins est simplement remis à vide (les profils perdent alors leur périmètre) et les sous-unités sont supprimées avec elle. Les lots L02 et L03 changent ces deux comportements ; ils ne sont pas dans `main`. Le double équipage et la relève sont présents dans les deux états.
 
-**Sources (état B).** Code de l'état B : unités, relèves, périodes d'équipage, activation des modules, archivage, protections contre la suppression, contexte de bâtiment (références de code dans le dossier technique à accès restreint.). Tests : . Notion : « 13 — Décisions Matrix et gouvernance fonctionnelle », « Organigramme et rôles ». Comptes rendus L02 (`P`) et L03 (`Q`).
+**Sources (état B).** Code de l'état B : unités, relèves, périodes d'équipage, activation des modules, archivage, protections contre la suppression, contexte de bâtiment (références de code dans le dossier technique à accès restreint). Notion : « 13 — Décisions Matrix et gouvernance fonctionnelle », « Organigramme et rôles ». Comptes rendus L02 (`P`) et L03 (`Q`).
 
 ## Écarts et décisions du registre
 

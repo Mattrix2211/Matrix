@@ -88,12 +88,12 @@ Décisions du PO (dossier V1.2) :
 
 | Module | Lien |
 |---|---|
-| Installations critiques (ch. 11) | Source des points : relevés, critique |
-| Maintenance (ch. 12) | Occurrences non terminées, dérives |
-| Logistique (ch. 13) | Pièces sous seuil |
-| Formations (ch. 14) | Cible : qualifications des postes critiques |
-| Accueil, pilotage (ch. 6) | Entrée « Prêt à appareiller » |
-| Quarts (ch. 8) | ⚪ Le mode du bâtiment (mer/quai) n'intervient pas dans l'ouverture d'une session |
+| Installations critiques ([[RF:11_fiche_materiel_installations]]) | Source des points : relevés, critique |
+| Maintenance ([[RF:12_fiche_maintenance]]) | Occurrences non terminées, dérives |
+| Logistique ([[RF:13_fiche_logistique]]) | Pièces sous seuil |
+| Formations ([[RF:14_fiche_formations]]) | Cible : qualifications des postes critiques |
+| Accueil, pilotage ([[RF:06_fiche_accueil_pilotage]]) | Entrée « Prêt à appareiller » |
+| Quarts ([[RF:08_fiche_quarts_services_feuille]]) | ⚪ Le mode du bâtiment (mer/quai) n'intervient pas dans l'ouverture d'une session |
 
 ## Cas particuliers
 
@@ -109,7 +109,7 @@ Décisions du PO (dossier V1.2) :
 - ⚪ Aucune fiche de référence d'appareillage n'existe dans le code ; le cahier des charges et les pages Notion de procédures opérationnelles ne sont pas décrits comme existants.
 - ⚪ Le lien entre le mode MER/QUAI et la préparation n'est pas établi.
 
-**Sources (état B).**, ; décisions `DEC-APP-01`, `DEC-APP-02`, `DEC-APP-03`, `DEC-APP-04`, `DEC-APP-05`, `DEC-APP-06`, `DEC-APP-07`, `DEC-APP-08`, `DEC-APP-09`, `DEC-APP-10`, `DEC-APP-11`, `DEC-APP-12`, `DEC-APP-13`, `DEC-APP-14` (dossier V1.2). Références dans la partie restreinte du dossier.
+**Sources (état B).** Décisions `DEC-APP-01`, `DEC-APP-02`, `DEC-APP-03`, `DEC-APP-04`, `DEC-APP-05`, `DEC-APP-06`, `DEC-APP-07`, `DEC-APP-08`, `DEC-APP-09`, `DEC-APP-10`, `DEC-APP-11`, `DEC-APP-12`, `DEC-APP-13`, `DEC-APP-14` (dossier V1.2). Références dans la partie restreinte du dossier.
 
 ## Écarts et décisions du registre
 

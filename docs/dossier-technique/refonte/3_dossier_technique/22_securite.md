@@ -15,7 +15,7 @@
 <!-- partie: Architecture et exploitation -->
 # Sécurité
 
-<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> les mécanismes par lesquels Matrix protège l'accès, les données et la traçabilité — décrits comme des **mécanismes**, pas comme une liste de défauts. Les règles d'autorisation sont au chapitre 5 ; la mise en production au chapitre 23. **Rappel de cadre.** Matrix n'est ni un système officiel ni homologué. Ce chapitre décrit des protections techniques, pas une conformité</div>
+<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> les mécanismes par lesquels Matrix protège l'accès, les données et la traçabilité — décrits comme des **mécanismes**, pas comme une liste de défauts. Les règles d'autorisation sont dans [[DT:05_comptes_autorisations_technique]] ; la mise en production dans [[DT:23_configuration_deploiement_exploitation]]. **Rappel de cadre.** Matrix n'est ni un système officiel ni homologué. Ce chapitre décrit des protections techniques, pas une conformité</div>
 
 ## La démarche : plusieurs barrières successives
 

@@ -24,7 +24,7 @@ Le calendrier est la **colonne vertébrale** de Matrix : **tout ce qui a une dat
 > Exemple fictif : le matelot Durand ouvre « Calendrier » un lundi.
 
 1. Il choisit une **vue jour, semaine ou mois** et navigue de date en date.
-**Sources du calendrier** (remplacé par un tableau)
+**Sources du calendrier** (présenté en tableau)
 
 | Élément | Contenu |
 |---|---|
@@ -89,11 +89,11 @@ Le calendrier est un **agrégateur** : il **lit** presque tous les modules (il i
 
 | Module | Rôle |
 |---|---|
-| Quarts, absences (ch. 8) | Créneaux et indisponibilités |
-| Tâches, programme (ch. 10) | Échéances et événements |
-| Maintenance, tickets (ch. 12) | Occurrences et planification |
-| Formations (ch. 14) | Sessions |
-| Discussions (ch. 9) | Fil du panneau de détail |
+| Quarts, absences ([[RF:08_fiche_quarts_services_feuille]]) | Créneaux et indisponibilités |
+| Tâches, programme ([[RF:10_fiche_taches_demandes_programme_postes]]) | Échéances et événements |
+| Maintenance, tickets ([[RF:12_fiche_maintenance]]) | Occurrences et planification |
+| Formations ([[RF:14_fiche_formations]]) | Sessions |
+| Discussions ([[RF:09_fiche_communication]]) | Fil du panneau de détail |
 
 ## Cas particuliers
 
@@ -113,7 +113,7 @@ Le calendrier est un **agrégateur** : il **lit** presque tous les modules (il i
 - ⚪ Les événements du calendrier ne portent pas tous la même règle de déplacement : ce chapitre en donne la liste exhaustive ; une évolution la modifierait.
 - ⚪ Le flux iCal n'inclut pas les tâches ni le programme : constat issu de la lecture du code, non confronté à un usage réel.
 
-**Sources (état B).** ; références de code dans le dossier technique à accès restreint. Décision : `DEC-UX-11` (le calendrier reste un élément central) ; cahier des charges §15.
+**Sources (état B).** Les références de code dans le dossier technique à accès restreint. Décision : `DEC-UX-11` (le calendrier reste un élément central) ; cahier des charges §15.
 
 ## Écarts et décisions du registre
 

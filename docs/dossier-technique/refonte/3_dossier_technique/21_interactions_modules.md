@@ -10,7 +10,7 @@
 <!-- partie: Architecture et exploitation -->
 # Interactions entre modules
 
-<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> comment les modules se parlent — signaux, services partagés, notifications, tâches planifiées —, les enchaînements métier (anomalie → ticket, maintenance → ticket, RETEX → document et tâche…) et les couplages à connaître avant de modifier un module. La matrice des dépendances par paquet est au chapitre 18 (la section « Les dépendances entre paquets » ([[DT:18_architecture]])) ; les circuits métier détaillés sont aux chapitres 6 à 16</div>
+<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> comment les modules se parlent — signaux, services partagés, notifications, tâches planifiées —, les enchaînements métier (anomalie → ticket, maintenance → ticket, RETEX → document et tâche…) et les couplages à connaître avant de modifier un module. La matrice des dépendances par paquet est dans [[DT:18_architecture]] (section « Les dépendances entre paquets ») ; les circuits métier détaillés sont aux chapitres 6 à 16</div>
 
 ## Quatre mécanismes d'interaction
 

@@ -410,7 +410,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-030 — Chemin erroné du scan web : « assets/scan/<uuid>/ » au lieu de « /scan/<uuid>/ »
+## AUD-030 — Chemin erroné du scan web : « assets/scan/UUID/ » au lieu de « /scan/UUID/ »
 
 | Rubrique | Contenu |
 |---|---|

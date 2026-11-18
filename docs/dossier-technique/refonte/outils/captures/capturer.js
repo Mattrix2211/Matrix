@@ -45,7 +45,7 @@ cap('03_quarts_services', 'listes', 'chef_secteur_a', 'Listes de quarts et de se
 cap('03_quarts_services', 'feuille_service', 'equipier_a', 'Feuille de service du jour', '/quarts/feuille-service/');
 cap('03_quarts_services', 'echanges', 'chef_secteur_a', "Échanges de service à traiter", '/quarts/echanges/');
 cap('03_quarts_services', 'echange_marin', 'equipier_a', "Échange de tour : vue du marin", '/quarts/echanges/');
-cap('03_quarts_services', 'absences', 'chef_service_a', "Absences de l'équipe", '/absences/');
+cap('03_quarts_services', 'absences', 'chef_service_a', "Absences de l'équipe", '/absences/', { pleine: true });
 
 // 04 — Maintenance
 cap('04_maintenance', 'occurrences', 'equipier_a', 'Gestion de la maintenance : occurrences', '/maintenance/gestion/occurrences/', { assertions: [present('text=Exécuter', 'NE-01 : bouton affiché même sans droit sur la ligne')] });
@@ -58,20 +58,21 @@ cap('05_anomalies_tickets', 'anomalie_detail', 'chef_secteur_a', "Détail d'une 
 cap('05_anomalies_tickets', 'tickets_liste', 'chef_secteur_a', 'Tickets correctifs du secteur', '/logistics/tickets/', { avant: cliquer('text=Tout le secteur') });
 
 // 06 — Matériel, installations, stock
-cap('06_materiel_stock', 'materiels', 'chef_secteur_a', 'Matériels', '/assets/');
+cap('06_materiel_stock', 'materiels', 'chef_secteur_a', 'Matériels', '/assets/', { pleine: true });
 cap('06_materiel_stock', 'materiel_detail', 'chef_secteur_a', "Fiche d'un matériel", '/assets/', { avant: cliquer('text=Extincteur CO2 5 kg', 600) });
 cap('06_materiel_stock', 'installations', 'equipier_a', 'Installations', '/installations/');
 cap('06_materiel_stock', 'installation_detail', 'equipier_a', "Fiche d'une installation (relevés et entretien)", '/installations/', { avant: cliquer('text=Pompe de refroidissement', 600) });
 cap('06_materiel_stock', 'catalogue', 'equipier_a', 'Catalogue du matériel de la flotte', '/catalogue/');
 cap('06_materiel_stock', 'plan_navire', 'chef_secteur_a', 'Plan du navire et épingles', '/assets/plan-navire/', { avant: async p => { try { await p.click('text=Pont principal', { timeout: 3000 }); } catch (e) {} await p.waitForTimeout(800); } });
-cap('06_materiel_stock', 'stock', 'chef_secteur_a', 'Stock de pièces', '/logistics/stock/');
+cap('06_materiel_stock', 'stock', 'chef_secteur_a', 'Stock de pièces', '/logistics/stock/', { pleine: true });
 
 // 07 — Supervision
 cap('07_supervision', 'accueil_chef_secteur', 'chef_secteur_a', 'Accueil du chef de secteur', '/');
+cap('07_supervision', 'accueil_chef_secteur_milieu', 'chef_secteur_a', "Milieu de l'accueil du chef : actions, journée et tours", '/', { avant: async p => { await p.evaluate(() => window.scrollTo(0, Math.round((document.documentElement.scrollHeight - 768) / 2))); await p.waitForTimeout(500); } });
 cap('07_supervision', 'accueil_chef_secteur_bas', 'chef_secteur_a', "Bas de l'accueil du chef : bloc Supervision", '/', { avant: async p => { await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await p.waitForTimeout(500); } });
-cap('07_supervision', 'equipe_calendrier', 'chef_section_a', "Calendrier de l'équipe", '/calendar/?user=equipe');
-cap('07_supervision', 'vue_secteur', 'chef_secteur_a', "Vue d'ensemble du secteur", '/dashboard/flotte/');
-cap('07_supervision', 'vue_unite', 'chef_service_a', "Vue d'ensemble du service", '/dashboard/flotte/');
+cap('07_supervision', 'equipe_calendrier', 'chef_section_a', "Calendrier de l'équipe", '/calendar/?user=equipe', { pleine: true });
+cap('07_supervision', 'vue_secteur', 'chef_secteur_a', "Vue d'ensemble du secteur", '/dashboard/flotte/', { pleine: true });
+cap('07_supervision', 'vue_unite', 'chef_service_a', "Vue d'ensemble du service", '/dashboard/flotte/', { pleine: true });
 cap('07_supervision', 'difficultes', 'chef_secteur_a', 'Difficultés signalées à traiter', '/demandes/');
 
 // 08 — Compétences, documentation, programme
@@ -177,7 +178,14 @@ const MOTIFS_SENSIBLES = [/[\w.+-]+@[\w-]+\.[\w.]+/, /password|mot de passe\s*:/
       };
       if (!c.sansImage) {
         const fichier = path.join(dossier, c.id + '.png');
-        await p.screenshot({ path: fichier });
+        // Une page qui tient en 960 px est capturée en entier ; plus longue, la capture montre la partie haute (dite en légende).
+        const hp = await p.evaluate(() => document.documentElement.scrollHeight);
+        const defile = /_(bas|milieu)$/.test(c.id);
+        const pleine = !c.mobile && !defile && hp <= 960;
+        await p.screenshot({ path: fichier, fullPage: pleine });
+        m.hauteur = pleine ? hp : (c.mobile ? 844 : 768);
+        m.hauteurPage = hp;
+        m.partieHaute = !c.mobile && !defile && !pleine;
         m.fichier = path.relative(OUT, fichier);
         m.sha256 = crypto.createHash('sha256').update(fs.readFileSync(fichier)).digest('hex');
       }

@@ -164,7 +164,8 @@ def capture_html(args, code, captures_dir, manifeste):
         m = manifeste.get(ident_)
         if m is None:
             sys.exit(f"capture inconnue du manifeste : {ident_}")
-        rect = {"utile": "239,58,1366,768", "plein": "0,0,1366,768"}.get(rect, rect)        # « utile » : sans menu latéral ni barre du haut
+        h_img = m.get("hauteur", 768)
+        rect = {"utile": f"239,58,1366,{h_img}", "plein": f"0,0,1366,{h_img}"}.get(rect, rect)        # « utile » : sans menu latéral ni barre du haut
         x0, y0, x1, y1 = [float(v) for v in rect.split(",")]
         if m.get("mobile"):
             x0, y0, x1, y1 = 0.0, 0.0, 390.0, 844.0
@@ -180,7 +181,7 @@ def capture_html(args, code, captures_dir, manifeste):
                 leg_rep += f' {r["n"]} {r["texte"]}'
     # hauteur utile d'une page paysage (174 mm) moins titre, texte et légende estimés ligne par ligne : jamais de légende orpheline
     n_texte = -(-len(d.get("texte", "")) // 150)
-    n_leg = -(-(len(d.get("nav", "")) + len(d.get("renvoi", "")) + len(leg_rep) + 110) // 160)
+    n_leg = -(-(len(d.get("nav", "")) + len(d.get("renvoi", "")) + len(leg_rep) + 180) // 160)
     reserve = (8.0 if d.get("h2") else 4.5) + 9.5 + 5.0 * n_texte + 2.5 + 4.6 * n_leg + 6.0
     dispo = min(dispo, 174.0 - reserve)
     maxw = float(d.get("largeur", 256))
@@ -199,7 +200,7 @@ def capture_html(args, code, captures_dir, manifeste):
         reperes = ""
         if len(vignettes) == 1:
             for r in m.get("reperes") or []:
-                rx, ry = r["x"] * 1366 - x0, r["y"] * 768 - y0
+                rx, ry = r["x"] * 1366 - x0, r["y"] * 768 - y0      # repères : captures de 768 px de haut seulement
                 if 0 <= rx <= cw and 0 <= ry <= ch:
                     reperes += f'<div class="rep" style="left:{rx / cw * 100:.2f}%;top:{ry / ch * 100:.2f}%">{r["n"]}</div>'
                     legende_rep += f' <b>{r["n"]}</b> {html.escape(r["texte"])}'
@@ -215,6 +216,8 @@ def capture_html(args, code, captures_dir, manifeste):
     nav = f" · Navigation : {html.escape(d['nav'])}" if d.get("nav") else ""
     entete = (f'<h2>{html.escape(d["h2"])}</h2>' if d.get("h2") else f'<div class="cap-sec">{html.escape(d.get("section", ""))}</div>')
     profils = sorted({v[0]["profil"] for v in vignettes})
+    if any(v[0].get("partieHaute") for v in vignettes):
+        nav += " · Partie haute de l'écran : la page se poursuit en dessous" 
     return (f'<section class="paysage capture">{entete}<div class="cap-titre">{html.escape(d["titre"])}</div>'
             f'<p class="cap-texte">{html.escape(d.get("texte", ""))}</p><div class="cap-bloc{" ligne" if mobiles else ""}">{"".join(blocs)}</div>'
             f'<p class="cap-legende"><b>{"Émulation d'un écran de téléphone ⚪ (aucun appareil réel)" if mobiles else "Écran réel 🟢"} · profil de démonstration : {html.escape(", ".join(profils))}</b>{nav}{renvoi}'

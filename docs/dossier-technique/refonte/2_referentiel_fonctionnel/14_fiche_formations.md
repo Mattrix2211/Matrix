@@ -100,14 +100,14 @@ Décision du PO (`DEC-QUA-01`, `DEC-QUA-02`, `DEC-QUA-03`) : une qualification m
 
 | Module | Lien |
 |---|---|
-| Organisation (ch. 4) | Exigences par périmètre ; spécialité du marin ; mutation |
-| Droits (ch. 5) | Référents, BRH, supervision, seuils |
-| Calendrier (ch. 6, 8) | Sessions des stagiaires et formateurs |
-| Accueil (ch. 6) | Formations du jour, qualifications à renouveler, candidatures à approuver |
-| Quarts (ch. 8) | Habilitations requises par une liste de service, contrôlées lors d'un échange de tours |
-| Discussions (ch. 9) | Fil par dossier (cible : systématique) |
-| Appareillage (ch. 16) | Qualifications des postes critiques |
-| Passation (ch. 6) | Qualifications figées dans la synthèse |
+| Organisation ([[RF:04_organisation]]) | Exigences par périmètre ; spécialité du marin ; mutation |
+| Droits ([[RF:05_roles_et_autorisations]]) | Référents, BRH, supervision, seuils |
+| Calendrier ([[RF:06_fiche_accueil_pilotage]], [[RF:08_fiche_quarts_services_feuille]]) | Sessions des stagiaires et formateurs |
+| Accueil ([[RF:06_fiche_accueil_pilotage]]) | Formations du jour, qualifications à renouveler, candidatures à approuver |
+| Quarts ([[RF:08_fiche_quarts_services_feuille]]) | Habilitations requises par une liste de service, contrôlées lors d'un échange de tours |
+| Discussions ([[RF:09_fiche_communication]]) | Fil par dossier (cible : systématique) |
+| Appareillage ([[RF:16_fiche_preparation_appareillage]]) | Qualifications des postes critiques |
+| Passation ([[RF:06_fiche_accueil_pilotage]]) | Qualifications figées dans la synthèse |
 
 ## Fonctionnement cible 🔵
 
@@ -125,7 +125,7 @@ Selon la page Notion « 03 » (orientation, **non développée** sauf mention) :
 - ⚪ Le détail de la visibilité des dossiers de formation par rôle est dans le code (`dossiers_formation_visibles_q`) ; il n'est pas reproduit ici cas par cas.
 - ⚪ Le fonctionnement avec un organisme **réel hors Matrix** (sans unité créée) reste à préciser par le PO.
 
-**Sources (état B).** ; Notion « 03 — Formation… » ; décisions `DEC-QUA-01`, `DEC-QUA-02`, `DEC-QUA-03`, `DEC-QUA-04`, `DEC-ORG-04`, `DEC-ORG-05` (dossier V1.2). Références dans la partie restreinte du dossier.
+**Sources (état B).** Notion « 03 — Formation… » ; décisions `DEC-QUA-01`, `DEC-QUA-02`, `DEC-QUA-03`, `DEC-QUA-04`, `DEC-ORG-04`, `DEC-ORG-05` (dossier V1.2). Références dans la partie restreinte du dossier.
 
 ## Écarts et décisions du registre
 

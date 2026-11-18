@@ -89,3 +89,4 @@ section.paysage .cap-titre { font-size: 12.5pt; }
 .cap-col .cap-vignette { margin-top: 0; }
 .chapitre.suite h1 { margin-top: 10mm; }
 .ligne-public b, .ligne-public strong { font-weight: 700; }
+.ligne-public { break-after: avoid; }

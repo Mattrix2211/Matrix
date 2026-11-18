@@ -9,12 +9,12 @@
 | GU | `1_guide_utilisateur/12_maintenance.md` | 1430 | 1 / 3 | 11 |
 | GU | `1_guide_utilisateur/13_parcours_appareillage.md` | 260 | 1 / 1 | 2 |
 | GU | `1_guide_utilisateur/14_ecrans_materiel_stock.md` | 489 | 1 / 1 | 7 |
-| GU | `1_guide_utilisateur/15_ecrans_supervision.md` | 611 | 1 / 1 | 10 |
+| GU | `1_guide_utilisateur/15_ecrans_supervision.md` | 672 | 1 / 1 | 11 |
 | GU | `1_guide_utilisateur/16_ecrans_competences.md` | 513 | 1 / 1 | 8 |
 | GU | `1_guide_utilisateur/17_vues_mobiles.md` | 141 | 1 / 0 | 1 |
 | GU | `1_guide_utilisateur/18_limites_visibles.md` | 499 | 1 / 0 | 2 |
 | GU | `1_guide_utilisateur/19_glossaire_et_index.md` | 369 | 1 / 2 |  |
-| RF | `2_referentiel_fonctionnel/00_resume_decideur.md` | 726 | 1 / 5 |  |
+| RF | `2_referentiel_fonctionnel/00_resume_decideur.md` | 723 | 1 / 5 |  |
 | RF | `2_referentiel_fonctionnel/01_lire_ce_document.md` | 1011 | 1 / 7 |  |
 | RF | `2_referentiel_fonctionnel/02_vision.md` | 1188 | 1 / 6 |  |
 | RF | `2_referentiel_fonctionnel/03_vue_ensemble.md` | 1550 | 1 / 6 |  |
@@ -57,7 +57,7 @@
 | DT | `3_dossier_technique/18_architecture.md` | 1757 | 1 / 10 |  |
 | DT | `3_dossier_technique/19_modeles_donnees.md` | 1488 | 1 / 9 |  |
 | DT | `3_dossier_technique/20_api_interfaces.md` | 1140 | 1 / 8 |  |
-| DT | `3_dossier_technique/21_interactions_modules.md` | 1046 | 1 / 8 |  |
+| DT | `3_dossier_technique/21_interactions_modules.md` | 1043 | 1 / 8 |  |
 | DT | `3_dossier_technique/22_securite.md` | 1906 | 1 / 10 |  |
 | DT | `3_dossier_technique/23_configuration_deploiement_exploitation.md` | 2290 | 1 / 13 |  |
 | DT | `3_dossier_technique/24_qualite_contribution.md` | 1087 | 1 / 8 |  |
@@ -67,6 +67,6 @@
 | RE | `5_registre/02_ecarts_du_logiciel_a1_a_a26.md` | 3987 | 1 / 26 |  |
 | RE | `5_registre/03_nouveaux_ecarts_du_logiciel_ne.md` | 503 | 1 / 7 |  |
 | RE | `5_registre/04_points_a_confirmer_b1_a_b8.md` | 582 | 1 / 8 |  |
-| RE | `5_registre/05_propositions_non_arbitrees_d1_.md` | 334 | 1 / 7 |  |
+| RE | `5_registre/05_propositions_non_arbitrees_d1_.md` | 335 | 1 / 7 |  |
 | RE | `5_registre/06_anomalies_du_dossier_audit.md` | 4297 | 1 / 38 |  |
 | RE | `5_registre/07_decisions_du_po_et_etat_dans_l.md` | 3797 | 1 / 1 |  |

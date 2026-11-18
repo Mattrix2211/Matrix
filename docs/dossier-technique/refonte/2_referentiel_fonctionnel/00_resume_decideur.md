@@ -17,7 +17,7 @@ Matrix est la plateforme quotidienne du marin de la Marine nationale : chacun y 
 
 ## Maturité par module
 
-Les étiquettes sont celles du dossier : 🟢 existe et vérifié dans l'état B du 11/11/2026 ; 🔵 cible validée par le PO, pas développée ; 🟣 proposition non arbitrée ; ⚪ non vérifié. « Écart » renvoie au registre des écarts et décisions ([[RE:01_lire_ce_registre]]).
+Les étiquettes sont celles du dossier : 🟢 existe et vérifié dans l'état B du 11/11/2026 ; 🔵 cible validée par le PO, pas développée ; 🟣 proposition non arbitrée, jamais une décision (elle ne le devient que sur mention expresse du PO) ; ⚪ non vérifié. « Écart » renvoie au registre des écarts et décisions ([[RE:01_lire_ce_registre]]).
 
 | Module | Disponible 🟢 | Manque, à décider ou à confirmer |
 |---|---|---|
@@ -52,5 +52,3 @@ Les étiquettes sont celles du dossier : 🟢 existe et vérifié dans l'état B
 | Autorité de classification « critique » d'un contrôle d'appareillage | 🟣 proposition D4 | Fiche Préparation à l'appareillage |
 | Procédures de suppléance, ordre des grades, conservation des journaux | Points à confirmer B1 à B8 | Registre |
 | Sauvegarde, restauration, supervision | 🟣 proposition D7 et écart A24 | Registre |
-
-Une proposition 🟣 n'est **pas** une décision : elle devient décision seulement sur mention expresse du PO.

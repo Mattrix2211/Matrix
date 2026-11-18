@@ -144,7 +144,7 @@ L'orientation validée par le PO (21/10/2026) est de remplacer à terme certains
 - ⚪ La décision « Tâches périodiques générées à partir des fiches de maintenance » relève du [[RF:12_fiche_maintenance]].
 - 🔵 Non développés : L14 (priorités), L15 (validation facultative), L16 (tâche collective), L17 (non réalisée), L18 (qualifications informatives), L08 (suppléance).
 
-**Sources (état B).**, ; références de code dans le dossier technique à accès restreint. Décisions : `DEC-TAC-01`, `DEC-TAC-02`, `DEC-TAC-03`, `DEC-TAC-04`, `DEC-TAC-05`, `DEC-TAC-06`, `DEC-COL-01`, `DEC-COL-02`, `DEC-COL-03`, `DEC-COL-04`, `DEC-COL-05`, `DEC-CLO-01`, `DEC-CLO-02`, `DEC-CLO-03`, `DEC-CLO-04`, `DEC-CLO-05`, `DEC-BLQ-01`, `DEC-BLQ-02`, `DEC-BLQ-03`, `DEC-BLQ-04`, `DEC-BLQ-05`, `DEC-QUA-01`, `DEC-QUA-02`, `DEC-QUA-03`, `DEC-QUA-04`, `DEC-UX-08` (dossier V1.2) ; Notion « 13 — Décisions » (21/10/2026), « 12 — Glossaire ». Écarts : le registre des écarts (partie restreinte du dossier) (A11, A13, partie C).
+**Sources (état B).** Les références de code dans le dossier technique à accès restreint. Décisions : `DEC-TAC-01`, `DEC-TAC-02`, `DEC-TAC-03`, `DEC-TAC-04`, `DEC-TAC-05`, `DEC-TAC-06`, `DEC-COL-01`, `DEC-COL-02`, `DEC-COL-03`, `DEC-COL-04`, `DEC-COL-05`, `DEC-CLO-01`, `DEC-CLO-02`, `DEC-CLO-03`, `DEC-CLO-04`, `DEC-CLO-05`, `DEC-BLQ-01`, `DEC-BLQ-02`, `DEC-BLQ-03`, `DEC-BLQ-04`, `DEC-BLQ-05`, `DEC-QUA-01`, `DEC-QUA-02`, `DEC-QUA-03`, `DEC-QUA-04`, `DEC-UX-08` (dossier V1.2) ; Notion « 13 — Décisions » (21/10/2026), « 12 — Glossaire ». Écarts : le registre des écarts (partie restreinte du dossier) (A11, A13, partie C).
 
 ## Écarts et décisions du registre
 

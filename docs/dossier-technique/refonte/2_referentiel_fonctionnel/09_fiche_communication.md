@@ -93,10 +93,10 @@ Une **recherche globale** unique permet de retrouver, par **catégorie** : insta
 
 | Module | Lien |
 |---|---|
-| Tâches, demandes (ch. 10), maintenance, tickets (ch. 12), formations (ch. 14) | Portent des fils ; émettent des notifications |
-| Quarts (ch. 8) | Notifications de publication, d'échange, d'activation (régimes) |
-| Organisation (ch. 4) | Ciblage des annonces par périmètre et équipage |
-| Accueil (ch. 6) | Annonces à lire, réponses attendues, compteur |
+| Tâches, demandes ([[RF:10_fiche_taches_demandes_programme_postes]]), maintenance, tickets ([[RF:12_fiche_maintenance]]), formations ([[RF:14_fiche_formations]]) | Portent des fils ; émettent des notifications |
+| Quarts ([[RF:08_fiche_quarts_services_feuille]]) | Notifications de publication, d'échange, d'activation (régimes) |
+| Organisation ([[RF:04_organisation]]) | Ciblage des annonces par périmètre et équipage |
+| Accueil ([[RF:06_fiche_accueil_pilotage]]) | Annonces à lire, réponses attendues, compteur |
 | Planification (Celery) | Rappels, relances, « Ma journée » ([[DT:21_interactions_modules]]) |
 
 ## Cas particuliers
@@ -119,10 +119,10 @@ Décisions du PO et du cahier des charges, **non développées** :
 
 - 🟢 Couverture de tests de l'état B : `notifications` 165 fonctions de test, `annonces` 46, `threads` 30. 🟢 Les annonces, les notifications et la recherche ont été rejouées sur l'instance de démonstration le 16/11/2026 ; ⚪ le Web Push n'a pas été éprouvé sur un appareil réel.
 - ⚪ **Relations génériques** (discussions, notifications) : elles désignent leur objet sans clé étrangère protégée ; leur comportement face à la suppression de l'objet visé, notamment une unité, n'est pas vérifié ([[DT:19_modeles_donnees]], §19.6).
-- ⚪ Le détail de chaque catégorie de notification et de chaque icône n'est pas inventorié ici (propositions `notifications_par_regime.md`, état B).
+- ⚪ Le détail de chaque catégorie de notification et de chaque icône n'est pas inventorié ici (documents de proposition de l'état B).
 - ⚪ L'API REST des fils expose seulement les fils de **tickets** et d'**occurrences de maintenance** ; les fils des autres objets passent par les vues web de leurs modules.
 
-**Sources (état B).**, ; références de code dans le dossier technique à accès restreint. Décisions : `DEC-UX-06`, `DEC-UX-09` (dossier V1.2) ; cahier des charges §16 à §19, §23, §37, §38 ; propositions et ; Notion « 13 — Décisions » (circuits PÉPIN, CRAT).
+**Sources (état B).** Les références de code dans le dossier technique à accès restreint. Décisions : `DEC-UX-06`, `DEC-UX-09` (dossier V1.2) ; cahier des charges §16 à §19, §23, §37, §38 ; propositions et ; Notion « 13 — Décisions » (circuits PÉPIN, CRAT).
 
 ## Écarts et décisions du registre
 

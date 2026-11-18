@@ -8,7 +8,7 @@
 | C5 | 0 | 0 |  |
 | C6 | 0 | 0 |  |
 | C7 | 0 | 0 |  |
-| C9 | 0 | 0 | 70 captures au manifeste, 2 émulées, 6 assertions DOM |
+| C9 | 0 | 0 | 72 captures au manifeste, 2 émulées, 6 assertions DOM |
 | C11 | 0 | 0 | matrice des droits : 35 actions identiques à l'inventaire (référentiel et annexes); 14 identifiants étiquetés comparés entre documents |
 | C13 | 0 | 0 | 0 fichier(s) hors documentation modifié(s) depuis 637de94; tête distante de main : 6ef16adcfe8e |
 | C14 | 0 | 0 |  |

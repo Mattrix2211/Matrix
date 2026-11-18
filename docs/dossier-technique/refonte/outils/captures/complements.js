@@ -19,14 +19,23 @@ const MDP = process.env.MDP;
   await p.fill('input[name=password]', MDP);
   await Promise.all([p.waitForNavigation(), p.click('button[type=submit]')]);
   await p.goto(B + '/dashboard/pret-appareillage/');
-  await p.click('button:has-text("Ouvrir une session")');
+  if (await p.locator('button:has-text("Ouvrir une session")').count()) await p.click('button:has-text("Ouvrir une session")');   // idempotent : session déjà ouverte lors d'un rejeu
+  await p.waitForLoadState('networkidle').catch(() => {});
+  await p.goto(B + '/dashboard/pret-appareillage/');   // recharge : le message vert « Session ouverte » ne doit pas figurer sur la capture
   await p.waitForLoadState('networkidle').catch(() => {});
   await p.waitForTimeout(600);
-  const f = path.join(OUT, '08_autres_ecrans', 'appareillage_session_ouverte.png');
-  await p.screenshot({ path: f });
-  const texte = await p.evaluate(() => document.body.innerText);
-  const m = [{ id: 'appareillage_session_ouverte', dossier: '08_autres_ecrans', profil: 'chef_secteur_a', titre: 'Prêt à appareiller : session ouverte', url: '/dashboard/pret-appareillage/', urlFinale: p.url().replace(B, ''), statutHttp: 200, assertions: [], localeProblemes: [], motifsSensibles: [], mobile: false, emulation: false, texteVisible: texte.slice(0, 20000), fichier: path.relative(OUT, f), sha256: crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex'), statut: 'ok' }];
-  fs.writeFileSync(path.join(OUT, 'manifeste_complements.json'), JSON.stringify(m, null, 1));
+  const hp = await p.evaluate(() => document.documentElement.scrollHeight);
+  const sortie = [];
+  const prendre = async (id, titre, defile) => {
+    if (defile) { await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await p.waitForTimeout(400); }
+    const f = path.join(OUT, '08_autres_ecrans', id + '.png');
+    await p.screenshot({ path: f });
+    const texte = await p.evaluate(() => document.body.innerText);
+    sortie.push({ id, dossier: '08_autres_ecrans', profil: 'chef_secteur_a', titre, url: '/dashboard/pret-appareillage/', urlFinale: p.url().replace(B, ''), statutHttp: 200, assertions: [], localeProblemes: [], motifsSensibles: [], mobile: false, emulation: false, hauteur: 768, hauteurPage: hp, partieHaute: !defile && hp > 800, texteVisible: texte.slice(0, 20000), fichier: path.relative(OUT, f), sha256: crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex'), statut: 'ok' });
+  };
+  await prendre('appareillage_session_ouverte', 'Prêt à appareiller : session ouverte (haut)', false);
+  await prendre('appareillage_session_ouverte_bas', 'Prêt à appareiller : session ouverte (bas, validation)', true);
+  fs.writeFileSync(path.join(OUT, 'manifeste_complements.json'), JSON.stringify(sortie, null, 1));
   console.log('ok appareillage_session_ouverte');
   await b.close();
 })();

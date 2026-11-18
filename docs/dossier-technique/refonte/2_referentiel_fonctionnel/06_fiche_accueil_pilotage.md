@@ -99,12 +99,12 @@ L'accueil et les tableaux de pilotage **ne contiennent aucun moteur propre** : i
 
 | Module source | Ce qu'il alimente |
 |---|---|
-| Tâches, demandes (ch. 10) | « À faire », supervision |
-| Maintenance, tickets, stock, matériel (ch. 11 à 13) | « À faire », indicateurs, Vue flotte, COMANAV |
-| Quarts, échanges (ch. 8) | « Ma journée », tours de service, échanges à valider |
-| Formations (ch. 14) | Qualifications, formations du jour et à valider |
-| Annonces, discussions (ch. 9) | Annonces à lire, réponses attendues |
-| Organisation (ch. 4) | Périmètres, équipage, relève et passation |
+| Tâches, demandes ([[RF:10_fiche_taches_demandes_programme_postes]]) | « À faire », supervision |
+| Maintenance, tickets, stock, matériel ([[RF:11_fiche_materiel_installations]], [[RF:12_fiche_maintenance]], [[RF:13_fiche_logistique]]) | « À faire », indicateurs, Vue flotte, COMANAV |
+| Quarts, échanges ([[RF:08_fiche_quarts_services_feuille]]) | « Ma journée », tours de service, échanges à valider |
+| Formations ([[RF:14_fiche_formations]]) | Qualifications, formations du jour et à valider |
+| Annonces, discussions ([[RF:09_fiche_communication]]) | Annonces à lire, réponses attendues |
+| Organisation ([[RF:04_organisation]]) | Périmètres, équipage, relève et passation |
 
 ## Cas particuliers
 
@@ -126,7 +126,7 @@ L'accueil et les tableaux de pilotage **ne contiennent aucun moteur propre** : i
 - ⚪ Le PDF exige des bibliothèques natives non installées dans l'environnement de rédaction : l'export PDF n'a pas été rejoué.
 - ⚪ La page Notion « Recette UX V1.1 » a été consultée lors de la rédaction du [[RF:17_principes_interface]] ; les observations de recette n'ont toutefois pas été rapprochées une à une du comportement du code ni rejouées sur un poste réel.
 
-**Sources (état B).**, ; références de code dans le dossier technique à accès restreint. Décisions : `DEC-UX-01`, `DEC-UX-05`, `DEC-UX-08`, `DEC-PRE-02`, `DEC-PRE-03` (dossier V1.2) ; Notion « 13 — Décisions » (vues à terre, passation).
+**Sources (état B).** Les références de code dans le dossier technique à accès restreint. Décisions : `DEC-UX-01`, `DEC-UX-05`, `DEC-UX-08`, `DEC-PRE-02`, `DEC-PRE-03` (dossier V1.2) ; Notion « 13 — Décisions » (vues à terre, passation).
 
 ## Écarts et décisions du registre
 

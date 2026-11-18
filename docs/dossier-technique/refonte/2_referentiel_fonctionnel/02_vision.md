@@ -37,7 +37,7 @@ Ces limites sont des décisions du Product Owner (PO), reprises telles quelles :
 
 ## Les principes qui gouvernent le produit
 
-Dix principes figurent dans les règles du projet (`CLAUDE.md`) ; le cahier des charges en retient sept « non négociables ». Les voici regroupés par ce qu'ils changent concrètement.
+Dix principes figurent dans les règles du projet ; le cahier des charges en retient sept « non négociables ». Les voici regroupés par ce qu'ils changent concrètement.
 
 **Pour le marin**
 1. **Tout est en français**, vocabulaire de la Marine (COMAEQ, COMOPS, COMANAV, COMAVIA, commandant en second…). Interface, messages, notifications, documentation.
@@ -59,12 +59,12 @@ Dix principes figurent dans les règles du projet (`CLAUDE.md`) ; le cahier des 
 
 | Principe | Où on le voit dans l'état B | Chapitre |
 |---|---|---|
-| Configuration plutôt que code | 35 actions dont le niveau de rôle minimal se règle par bâtiment ; {{fait:n_modules_activables}} modules activables ; double équipage activable | 4, 5 |
-| Administration distribuée | Écran Réglages (onglets Sécurité, Modules, Équipage, Journal…) ; l'administrateur d'unité règle son bâtiment | 5 |
-| Proposer, valider, publier | Relève d'équipage (proposée par un commandant, validée par l'autre équipage) ; listes et feuilles de service | 4, 8 |
-| Traçabilité | Journal d'audit alimenté par une vingtaine de modules du code | 22 |
-| Internet n'existe pas | Bibliothèques Bootstrap, HTMX, bibliothèque de graphiques, FullCalendar servies localement | 18 |
-| Ne rien supprimer en silence | Archivage des unités, suppression refusée tant que quelque chose les référence | 4 |
+| Configuration plutôt que code | 35 actions dont le niveau de rôle minimal se règle par bâtiment ; {{fait:n_modules_activables}} modules activables ; double équipage activable | [[RF:04_organisation]], [[RF:05_roles_et_autorisations]] |
+| Administration distribuée | Écran Réglages (onglets Sécurité, Modules, Équipage, Journal…) ; l'administrateur d'unité règle son bâtiment | [[RF:05_roles_et_autorisations]] |
+| Proposer, valider, publier | Relève d'équipage (proposée par un commandant, validée par l'autre équipage) ; listes et feuilles de service | [[RF:04_organisation]], [[RF:08_fiche_quarts_services_feuille]] |
+| Traçabilité | Journal d'audit alimenté par une vingtaine de modules du code | [[DT:22_securite]] |
+| Internet n'existe pas | Bibliothèques Bootstrap, HTMX, bibliothèque de graphiques, FullCalendar servies localement | [[DT:18_architecture]] |
+| Ne rien supprimer en silence | Archivage des unités, suppression refusée tant que quelque chose les référence | [[RF:04_organisation]] |
 
 ## Fonctionnement cible : l'ambition à terme
 
@@ -82,4 +82,4 @@ Le PO a aussi fixé une directive de méthode (31/10/2026) : Matrix doit être p
 - ⚪ La page Notion « Cahier des charges » porte l'état « non vérifié » ; elle n'est pas une recette.
 - ⚪ Le *Guide du marin 2023* n'a jamais été disponible : le dossier ne s'appuie sur lui pour aucune règle.
 
-**Sources (état B).**, registres des actions et des modules du code de l'état B (références de code dans le dossier technique à accès restreint.). Notion : « Cahier des charges » (10/10/2026), « 13 — Décisions Matrix et gouvernance fonctionnelle » (directive du 31/10/2026).
+**Sources (état B).** Registres des actions et des modules du code de l'état B (références de code dans le dossier technique à accès restreint). Notion : « Cahier des charges » (10/10/2026), « 13 — Décisions Matrix et gouvernance fonctionnelle » (directive du 31/10/2026).
