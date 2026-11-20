@@ -104,7 +104,7 @@ Décisions du PO (dossier V1.2) :
 
 ## Limites et éléments non vérifiés
 
-- 🟢 Tests de l'état B : `dashboard` (rejoués sur l'état B avec les six autres paquets de l'ensemble 3 : 1 491 tests OK, 1 ignoré ; rapport de lot conservé dans les archives).
+- ⚪ **Preuve historique, non rejouée pour la révision 2** : le compte rendu de lot de l'édition initiale (11/11/2026) rapporte, pour sept paquets dont `dashboard`, **1 491 tests OK, 1 ignoré** sur l'état B ; ce résultat n'a pas été rejoué pour cette révision.
 - 🟢 L'écran « Prêt à appareiller » (sans session puis avec session ouverte) a été rejoué sur l'instance de démonstration le 16/11/2026 ; ⚪ le renseignement des contrôles et la signature n'ont pas été rejoués.
 - ⚪ Aucune fiche de référence d'appareillage n'existe dans le code ; le cahier des charges et les pages Notion de procédures opérationnelles ne sont pas décrits comme existants.
 - ⚪ Le lien entre le mode MER/QUAI et la préparation n'est pas établi.

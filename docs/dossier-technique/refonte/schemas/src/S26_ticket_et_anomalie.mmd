@@ -8,7 +8,7 @@ flowchart TB
   RS["Remis en service : confirmation explicite"]
   CL["Fermé : diagnostic final et solution obligatoires"]
   AN -->|"un chef traite et convertit, si un équipement est identifié"| TI
-  MX["Maintenance non conforme sur un matériel"] -->|"création automatique"| TI
+  MX["Maintenance non conforme<br/>sur un matériel mobile"] -->|"création automatique"| TI
   TI --> DI --> RE
   DI --> PI --> RE
   RE --> TE --> RS --> CL

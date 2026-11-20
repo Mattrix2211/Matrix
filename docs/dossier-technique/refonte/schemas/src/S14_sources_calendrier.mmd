@@ -1,7 +1,16 @@
-flowchart TB
-  SRC["Neuf sources : maintenance, ticket correctif,<br/>formation, quart, garde à quai, tâche, absence,<br/>programme du bâtiment, événement personnel"]
-  FIL["Filtres de périmètre et de droits<br/>: chacun voit sa journée, un chef<br/>voit aussi son équipe"]
-  CAL["Calendrier central : vue jour,<br/>semaine, mois, panneau de détail<br/>avec discussion"]
-  ICAL["Flux iCal personnel : session<br/>requise"]
-  SRC --> FIL --> CAL
-  FIL --> ICAL
+flowchart LR
+  S1["Maintenance"]
+  S2["Ticket correctif"]
+  S3["Formation"]
+  S4["Quart"]
+  S5["Garde à quai"]
+  S6["Tâche"]
+  S7["Absence"]
+  S8["Programme du bâtiment"]
+  S9["Événement personnel"]
+  FIL["Filtres de périmètre<br/>et de droits : chacun voit<br/>sa journée, un chef voit<br/>aussi son équipe"]
+  CAL["Calendrier central :<br/>vue jour, semaine, mois,<br/>panneau de détail<br/>avec discussion"]
+  ICAL["Flux iCal personnel :<br/>session requise"]
+  S1 & S2 & S3 & S4 & S5 & S6 & S7 & S8 & S9 --> FIL
+  FIL --> CAL
+  FIL -->|"tâches et programme<br/>absents du flux"| ICAL

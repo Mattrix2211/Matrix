@@ -54,7 +54,7 @@ Les quatre lots sont **empilés** (chacun construit sur le précédent) et **auc
 | **L02** — archivage effectif | AUD-028 | Les unités s'archivent et se réactivent ; les sélecteurs d'affectation ignorent les unités archivées ; refus de rattacher du matériel à une unité archivée ; correction des contournements restants (stock, listes de quarts, exigences de formation, catalogue, Paramètres) | Oui (champ d'archivage) |
 | **L03** — suppression sûre | AUD-020 | Une unité référencée ne se supprime plus : refus avec le détail, en web comme en API (409) ; protections contre les suppressions en cascade | Non (voir [[RF:04_organisation]]) |
 
-Chaque lot a donné lieu à un **compte rendu** dans le dossier V1.2 , à une **relecture** et à des **tests** (suite complète : 3 963 tests OK, 20 ignorés, sur SQLite, au dernier lot).
+Chaque lot a donné lieu à un **compte rendu** dans le dossier V1.2, à une **relecture** et à des **tests** (suite complète : 3 963 tests OK, 20 ignorés, sur SQLite, au dernier lot, selon les comptes rendus de lots : preuve historique, non rejouée pour la révision 2).
 
 ## Ce que le dossier V1.2 n'a pas changé
 

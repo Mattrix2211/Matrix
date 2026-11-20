@@ -46,15 +46,9 @@ Le seuil est **réglable par bâtiment** ([[RF:05_roles_et_autorisations]]). Tou
 
 ## Le stock : un solde qui se justifie
 
-**Stock et pièces** (présenté en tableau)
+![Schéma S27 — Mouvements de stock et demandes de pièces](../schemas/svg/S27_stock_et_pieces.svg)
 
-| Élément | Contenu |
-|---|---|
-| `MV` | Mouvement de stock : entrée, sortie, inventaire, correction |
-| `SO` | Quantité de la pièce : somme des mouvements |
-| `AL` | Seuil minimal : alerte « avertissement » ; seuil critique : alerte « danger », avec Web Push |
-| `TK` | Ticket correctif |
-| `DP` | Demande de pièces : lignes à commander, commandée, expédiée, reçue, consommée |
+**Relations représentées** (une ligne par flèche du schéma ci-dessus)
 
 | De | Condition ou passage | Vers |
 |---|---|---|
@@ -144,7 +138,7 @@ Le dossier V1.2 ne contient **aucune décision du PO** sur le stock ni sur la co
 
 ## Limites et éléments non vérifiés
 
-- 🟢 Tests de l'état B : `logistics` (rejoués sur l'état B avec les six autres paquets de l'ensemble 3 : 1 491 tests OK, 1 ignoré ; rapport de lot conservé dans les archives).
+- ⚪ **Preuve historique, non rejouée pour la révision 2** : le compte rendu de lot de l'édition initiale (11/11/2026) rapporte, pour sept paquets dont `logistics`, **1 491 tests OK, 1 ignoré** sur l'état B ; ce résultat n'a pas été rejoué pour cette révision.
 - ⚪ Absence de circuit d'approbation pour les demandes de pièces : constatée au code, non confirmée comme voulue.
 - ⚪ Les envois de notifications n'ont pas été rejoués.
 - 🟢 La liste du stock a été rejouée sur l'instance de démonstration le 16/11/2026 ; ⚪ pas de page de détail rejouée.

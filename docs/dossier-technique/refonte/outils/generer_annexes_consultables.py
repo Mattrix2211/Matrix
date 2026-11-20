@@ -149,12 +149,10 @@ for titre, cols, rows in tables_md(DT / "restreint/annexes/G_matrice_couverture.
 
 # ---------- H : index des schémas ----------
 SCH = []
-for f in sorted((R / "schemas/src").glob("S*.mmd")):
-    m = re.match(r"(S\d+[a-z]?)_(.+)\.mmd", f.name)
-    en = next(((R / "schemas/tableaux").glob(f"{m.group(1)}_*.md")), None)
-    ent = f.read_text(encoding="utf-8")[:300]
-    titre = re.search(r"%%\s*(.+)", ent)
-    SCH.append([m.group(1), m.group(2).replace("_", " "), f"schemas/src/{f.name}", f"schemas/svg/{m.group(1)}_{m.group(2)}.svg", "remplacé par un tableau dans le référentiel" if en else "figure"])
+for f in sorted((R / "schemas/svg").glob("S*.svg"), key=lambda p: (int(re.match(r"S(\d+)", p.name).group(1)), p.name)):
+    m = re.match(r"(S\d+[a-z]?)_(.+)\.svg", f.name)
+    src = R / "schemas/src" / (f.stem + ".mmd")
+    SCH.append([m.group(1), m.group(2).replace("_", " "), f"schemas/src/{src.name}" if src.exists() else "outils/dessiner_s02.py (dessin généré)", f"schemas/svg/{f.name}", "figure CIBLE" if m.group(1) in {"S17", "S21", "S31", "S33"} else "figure"])
 ajouter("H1", "Index des schémas", "dossier refonte/schemas", ["N°", "Sujet", "Source Mermaid", "Export SVG", "Présentation"], SCH)
 
 

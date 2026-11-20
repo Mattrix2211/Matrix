@@ -17,7 +17,7 @@
 | Mécanisme | Principe | Exemples |
 |---|---|---|
 | **Services partagés** | Un module appelle une fonction d'un autre | Droits et périmètres (`matrix/core`), stock (`logistics/stock.py`), notifications (`notifications/services.py`) |
-| **Signaux Django** | Un événement de base déclenche une réaction | Ticket créé quand une exécution est non conforme ; Web Push quand une notification critique est créée |
+| **Signaux Django** | Un événement de base déclenche une réaction | Ticket créé quand une exécution **sur un matériel mobile** est non conforme (aucun ticket pour une installation) ; Web Push quand une notification critique est créée |
 | **Relations génériques** | Un objet se rattache à n'importe quel autre | Discussions (`threads`), notifications, points d'appareillage, liens de documents |
 | **Tâches planifiées (Celery beat)** | Un calcul périodique crée des alertes ou des échéances | 20 tâches (la section « Tâches planifiées (annexe E : détail) ») |
 

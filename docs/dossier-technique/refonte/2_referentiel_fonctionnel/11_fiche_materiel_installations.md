@@ -59,16 +59,9 @@ Les seuils sont réglables par bâtiment ([[RF:05_roles_et_autorisations]]). Cha
 
 Le **catalogue** est commun à toute la flotte, organisé en **catégories** et **sous-catégories**, chacune rattachée à une **spécialité**. Il est tenu à terre par les responsables de spécialité.
 
-**Équiper depuis le catalogue** (présenté en tableau)
+![Schéma S22 — Du catalogue de la flotte au matériel placé sur le plan du navire](../schemas/svg/S22_equiper_depuis_catalogue.svg)
 
-| Élément | Contenu |
-|---|---|
-| `CAT` | Catalogue de la flotte : catégories et articles, géré à terre par les responsables de spécialité |
-| `EQ` | Le bord choisit un article et indique combien il en a |
-| `FI` | Matrix crée autant de fiches de matériel pré-remplies, rattachées à l'article |
-| `GR` | Saisie en grille : numéro de série, numéro de bord, emplacement, dates |
-| `PL` | Matériel placé sur le plan du navire, relié aux plans de maintenance de sa catégorie |
-| `PR` | Article absent du catalogue : le bord propose, circuit de visas |
+**Relations représentées** (une ligne par flèche du schéma ci-dessus)
 
 | De | Condition ou passage | Vers |
 |---|---|---|

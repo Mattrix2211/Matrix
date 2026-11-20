@@ -115,7 +115,7 @@ Décisions du PO (dossier V1.2) :
 
 ## Limites et éléments non vérifiés
 
-- ⚪ **Couverture de tests faible** : `documentation` 9 fonctions de test, `retex` 5 fonctions (contre 493 pour `assets`). Les règles décrites viennent surtout de la lecture du code ; la suite des 7 paquets de l'ensemble 3 passe (1 491 tests), mais elle ne protège presque pas ces deux modules.
+- ⚪ **Couverture de tests faible** : `documentation` 9 fonctions de test, `retex` 5 fonctions (contre 493 pour `assets`). Les règles décrites viennent surtout de la lecture du code ; le compte rendu de lot de l'édition initiale (11/11/2026) rapporte 1 491 tests OK pour sept paquets dont ces deux-là, résultat **historique non rejoué pour la révision 2**, qui ne protège presque pas ces deux modules.
 - ⚪ Le modèle documentaire **cible** (bibliothèque unifiée, droits de lecture fins par document) n'est pas décrit : aucune décision correspondante n'a été lue.
 - 🟢 Les écrans de documentation et de RETEX ont été rejoués (liste) sur l'instance de démonstration le 16/11/2026 ; ⚪ le circuit de validation et la proposition d'un RETEX n'ont pas été rejoués.
 

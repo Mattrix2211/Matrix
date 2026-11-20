@@ -14,7 +14,7 @@
 
 ## Les tests
 
-🟢 **Suite de l'état B (comptes rendus de lots)** : **3 963 tests, OK, 20 ignorés, sur SQLite**. Cette suite complète **n'a pas été rejouée pour ce dossier** : seuls des sous-ensembles ont été rejoués (ensemble 1 : 360 tests ; ensemble 2 : 1 464 ; ensemble 3 : 1 491, sept paquets, tous OK).
+🟢 **Suite de l'état B (comptes rendus de lots)** : **3 963 tests, OK, 20 ignorés, sur SQLite**. Cette suite complète **n'a pas été rejouée pour ce dossier** : seuls des sous-ensembles avaient été rejoués **lors de l'édition initiale (11/11/2026)** : 360 tests (premier lot de chapitres), 1 464 (deuxième) et 1 491 (troisième, sept paquets), tous OK. Ces chiffres sont des **preuves historiques, non rejouées pour la révision 2** ; les seuls tests exécutés pour la révision 2 sont ceux du journal de la prise en main développeur (`retex` et `postes` : 12 tests ; cohérence de configuration : 24 ; modules activables : 16).
 
 **Répartition des fonctions de test par paquet (lecture du code, état B)** :
 
@@ -102,7 +102,7 @@ Le Relecteur vérifie notamment : aucun **système parallèle** aux existants (r
 
 ## Limites et éléments non vérifiés
 
-- ⚪ La suite complète n'a pas été rejouée ; les chiffres viennent des comptes rendus de lots.
+- ⚪ La suite complète n'a pas été rejouée ; les chiffres viennent des comptes rendus de lots de l'édition initiale (historiques).
 - ⚪ Le nombre de **fonctions de test** (≈ 3 950) compté par lecture ne coïncide pas exactement avec le nombre de **tests** exécutés (3 963) : les tests paramétrés ou hérités expliquent l'écart.
 - ⚪ Le fonctionnement réel des agents (PO, Développeur, Relecteur) est décrit d'après leurs fichiers de configuration, non observé dans ce dossier.
 

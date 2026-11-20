@@ -17,19 +17,13 @@
 
 ## Le plan en un coup d'œil
 
-**Feuille de route** (présenté en tableau)
+![Schéma S38 — Cinq phases et lots livrés sur l'état B](../schemas/svg/S38_feuille_de_route.svg)
 
-| Élément | Contenu |
-|---|---|
-| `A` | Phase A — Risques critiques : L01 à L05 |
-| `B` | Phase B — Autorisations et circuits : L06 à L13, L21 |
-| `C` | Phase C — Circuits des tâches : L14 à L18 |
-| `D` | Phase D — Maintenance, appareillage, feuille de service : L19, L20, L22, L23, L26, L27 |
-| `E` | Phase E — Ergonomie, mutation, dette : L24, L25, L28 |
-| `L` | Livrés sur l'état B : L01, L05, L02, L03 — L04 non lancé |
+**Relations représentées** (une ligne par flèche du schéma ci-dessus)
 
 | De | Condition ou passage | Vers |
 |---|---|---|
+| Livrés sur l'état B : L01, L05, L02, L03 ; L04 non lancé | avancement de la phase A | Phase A — Risques critiques : L01 à L05 |
 | Phase A — Risques critiques : L01 à L05 | — | Phase B — Autorisations et circuits : L06 à L13, L21 |
 | Phase B — Autorisations et circuits : L06 à L13, L21 | — | Phase C — Circuits des tâches : L14 à L18 |
 | Phase C — Circuits des tâches : L14 à L18 | — | Phase D — Maintenance, appareillage, feuille de service : L19, L20, L22, L23, L26, L27 |
@@ -137,7 +131,7 @@ Ces points ont été **proposés** ou **relevés**, pas décidés ; ils ne sont 
 ## Limites
 
 - ⚪ Le plan en 28 lots **est une proposition** ; ni l'ordre ni la taille ne sont engagés. Seules les décisions `DEC-…` citées sont validées par le PO.
-- ⚪ Les décisions et lots ont été relevés dans le dossier V1.2 ({{fait:n_decisions_v12}} décisions) et dans les comptes rendus L01, L05, L02, L03 ; l'état des autres lots est « non lancé ».
+- ⚪ Les décisions et lots ont été relevés dans le dossier V1.2 ({{fait:n_decisions_v12}} décisions) et dans les comptes rendus des lots L01, L05, L02 et L03 ; l'état des autres lots est « non lancé ».
 - 🟣 Les propositions de la section « Propositions à valider par le PO » ne sont pas des décisions.
 
-**Sources.** Dossier V1.2 (, comptes rendus L01, L05, L02, L03) ; Notion « Feuille de route », « Cahier des charges », « 03 — Formation », « 07 — SIC », « Cap UX/UI » ; le registre des écarts (partie restreinte du dossier).
+**Sources.** Dossier V1.2 (comptes rendus des lots L01, L05, L02 et L03) ; Notion « Feuille de route », « Cahier des charges », « 03 — Formation », « 07 — SIC », « Cap UX/UI » ; le registre des écarts (partie restreinte du dossier).

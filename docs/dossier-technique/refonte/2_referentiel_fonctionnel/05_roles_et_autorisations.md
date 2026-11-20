@@ -239,7 +239,7 @@ Les quatre écarts suivants opposent une **décision du PO** à un **comportemen
 
 ## Limites et éléments non vérifiés
 
-- 🟢 Les contrôles décrits sont couverts par des tests de l'état B (`accounts/tests/`, dont la matrice des droits, les fuites de périmètre et la réinitialisation de mot de passe). La suite complète passe sur SQLite ; ⚪ PostgreSQL, Windows et navigateur n'ont pas été rejoués.
+- 🟢 Les contrôles décrits sont couverts par des tests de l'état B (`accounts/tests/`, dont la matrice des droits, les fuites de périmètre et la réinitialisation de mot de passe). La suite complète a passé sur SQLite selon les comptes rendus de lots de l'édition initiale (preuve historique, non rejouée pour la révision 2) ; ⚪ PostgreSQL, Windows et navigateur n'ont pas été rejoués.
 - ⚪ Les pages Notion « 02 — RH, postes, qualifications » et « 03 — Formation, stages » décrivent des objets cibles (poste, aptitudes, profondeur de relève, couverture de fonctions) qui **ne sont pas des fonctions actuelles**.
 - ⚪ L'ordre exact des grades et la liste des brevets ne sont pas dans le code ; ils sont à fournir par le PO (informations manquantes IM-01 et IM-02 du dossier V1.2).
 - ⚪ Le détail action par action de ce que peut faire un administrateur d'unité est établi dans les chapitres qui traitent chaque circuit.

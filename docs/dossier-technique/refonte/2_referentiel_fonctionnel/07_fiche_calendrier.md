@@ -24,20 +24,15 @@ Le calendrier est la **colonne vertébrale** de Matrix : **tout ce qui a une dat
 > Exemple fictif : le matelot Durand ouvre « Calendrier » un lundi.
 
 1. Il choisit une **vue jour, semaine ou mois** et navigue de date en date.
-**Sources du calendrier** (présenté en tableau)
+![Schéma S14 — Les neuf sources du calendrier central](../schemas/svg/S14_sources_calendrier.svg)
 
-| Élément | Contenu |
-|---|---|
-| `SRC` | Neuf sources : maintenance, ticket correctif, formation, quart, garde à quai, tâche, absence, programme du bâtiment, événement personnel |
-| `FIL` | Filtres de périmètre et de droits : chacun voit sa journée, un chef voit aussi son équipe |
-| `CAL` | Calendrier central : vue jour, semaine, mois, panneau de détail avec discussion |
-| `ICAL` | Flux iCal personnel : session requise |
+**Relations représentées** (une ligne par flèche du schéma ci-dessus)
 
 | De | Condition ou passage | Vers |
 |---|---|---|
 | Neuf sources : maintenance, ticket correctif, formation, quart, garde à quai, tâche, absence, programme du bâtiment, événement personnel | — | Filtres de périmètre et de droits : chacun voit sa journée, un chef voit aussi son équipe |
 | Filtres de périmètre et de droits : chacun voit sa journée, un chef voit aussi son équipe | — | Calendrier central : vue jour, semaine, mois, panneau de détail avec discussion |
-| Filtres de périmètre et de droits : chacun voit sa journée, un chef voit aussi son équipe | — | Flux iCal personnel : session requise |
+| Filtres de périmètre et de droits : chacun voit sa journée, un chef voit aussi son équipe | tâches et programme absents du flux | Flux iCal personnel : session requise |
 
 2. Il voit **ses événements**, de couleurs différentes selon la **source** (légende et filtre par type) :
 

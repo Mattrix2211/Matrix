@@ -120,7 +120,7 @@ Selon la page Notion « 03 » (orientation, **non développée** sauf mention) :
 
 ## Limites et éléments non vérifiés
 
-- 🟢 Tests de l'état B : `training` (rejoués sur l'état B avec les six autres paquets de l'ensemble 3 : 1 491 tests OK, 1 ignoré ; rapport de lot conservé dans les archives).
+- ⚪ **Preuve historique, non rejouée pour la révision 2** : le compte rendu de lot de l'édition initiale (11/11/2026) rapporte, pour sept paquets dont `training`, **1 491 tests OK, 1 ignoré** sur l'état B ; ce résultat n'a pas été rejoué pour cette révision.
 - ⚪ Les envois de notifications (expiration, place libérée) n'ont pas été rejoués ; seules leurs conditions sont décrites.
 - ⚪ Le détail de la visibilité des dossiers de formation par rôle est dans le code (`dossiers_formation_visibles_q`) ; il n'est pas reproduit ici cas par cas.
 - ⚪ Le fonctionnement avec un organisme **réel hors Matrix** (sans unité créée) reste à préciser par le PO.

@@ -113,7 +113,7 @@ Un administrateur général, un responsable de spécialité ou de classe peut su
 
 ## Limites et éléments non vérifiés
 
-- 🟢 Le comportement décrit pour la relève, l'archivage et la suppression est couvert par des tests de l'état B ; la suite complète (3 963 tests, SQLite) passe. ⚪ **Non vérifié** : PostgreSQL (20 tests propres à ce moteur sont ignorés sur SQLite), Windows, navigateur réel.
+- 🟢 Le comportement décrit pour la relève, l'archivage et la suppression est couvert par des tests de l'état B ; la suite complète (3 963 tests, SQLite) a passé selon les comptes rendus de lots de l'édition initiale (**preuve historique, non rejouée pour la révision 2**). ⚪ **Non vérifié** : PostgreSQL (20 tests propres à ce moteur sont ignorés sur SQLite), Windows, navigateur réel.
 - ⚪ Relations génériques (fils de discussion, notifications) attachées à une unité : non vérifiées lors de L03 (à contrôler avant production, [[DT:23_configuration_deploiement_exploitation]]).
 - ⚪ En l'absence de circuit de transfert de matériel (lot L13), un secteur équipé ne peut pas encore être archivé ; le matériel se réaffecte entre-temps par l'affectation en masse.
 - ⚪ L'archivage d'un **bâtiment** passe par l'API ou l'administration, pas par l'écran Réglages.

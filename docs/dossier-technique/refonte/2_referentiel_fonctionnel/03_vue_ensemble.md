@@ -17,26 +17,22 @@
 
 Matrix est composé de **22 ensembles de code**, appelés *paquets* : 21 applications fonctionnelles et un noyau commun (`matrix.core`) qui porte les règles partagées (rôles, périmètres, modules, sécurité). Le schéma ci-dessous les regroupe par grande fonction ; le menu de l'application, lui, est organisé en sept groupes de navigation (la section « Ce que voit le marin : le menu »).
 
-**Carte des modules** (présenté en tableau)
+![Schéma S02 — Carte des modules : trois sortes de liens (calendrier, notifications, noyau commun) et discussions](../schemas/svg/S02_carte_modules.svg)
 
-| Élément | Contenu |
-|---|---|
-| `PERS` | Personnes et organisation : accounts, org |
-| `VIE` | Vie quotidienne : dashboard, calendar_app, quarts, absences, taches, demandes, programme, postes |
-| `COM` | Communication : threads, annonces, notifications |
-| `TECH` | Technique et logistique : assets, maintenance, logistics, rondes (retiré) |
-| `SAV` | Connaissance : training, documentation, retex |
-| `PIL` | Pilotage : reports |
-| `CORE` | matrix.core : rôles, périmètres, modules, audit, sécurité |
+**Relations représentées** (une ligne par type de flèche du schéma ci-dessus ; les flèches fonctionnelles — calendrier, notifications, discussions, ticket — décrivent ce que les modules font les uns pour les autres, la dernière série décrit la dépendance technique au noyau commun)
 
 | De | Condition ou passage | Vers |
 |---|---|---|
-| Personnes et organisation : accounts, org | — | matrix.core : rôles, périmètres, modules, audit, sécurité |
-| Vie quotidienne : dashboard, calendar_app, quarts, absences, taches, demandes, programme, postes | — | matrix.core : rôles, périmètres, modules, audit, sécurité |
-| Communication : threads, annonces, notifications | — | matrix.core : rôles, périmètres, modules, audit, sécurité |
-| Technique et logistique : assets, maintenance, logistics, rondes (retiré) | — | matrix.core : rôles, périmètres, modules, audit, sécurité |
-| Connaissance : training, documentation, retex | — | matrix.core : rôles, périmètres, modules, audit, sécurité |
-| Pilotage : reports | — | matrix.core : rôles, périmètres, modules, audit, sécurité |
+| `maintenance` | un contrôle est non conforme sur un **matériel mobile** (pas sur une installation : NE-07 ; 🟣 proposition D1) | `logistics` : ticket correctif créé automatiquement |
+| `absences`, `logistics`, `maintenance`, `programme`, `quarts`, `taches`, `training` | leurs événements ont une date | `calendar_app` : calendrier central du marin |
+| `absences`, `annonces`, `assets`, `demandes`, `documentation`, `logistics`, `maintenance`, `programme`, `quarts`, `retex`, `taches`, `training` | un événement du module appelle une alerte, un rappel ou une validation | `notifications` : notifications (« presque tous les modules ») |
+| `threads` : discussions | une discussion s'attache à un objet | un objet de n'importe quel module (tâche, équipement, ticket, formation…) |
+| Personnes et organisation : accounts, org | s'appuie sur (dépendance technique) | matrix.core : rôles, périmètres, modules, audit, sécurité |
+| Vie quotidienne : dashboard, calendar_app, quarts, absences, taches, demandes, programme, postes | s'appuie sur (dépendance technique) | matrix.core : rôles, périmètres, modules, audit, sécurité |
+| Communication : threads, annonces, notifications | s'appuie sur (dépendance technique) | matrix.core : rôles, périmètres, modules, audit, sécurité |
+| Technique et logistique : assets, maintenance, logistics, rondes (retiré) | s'appuie sur (dépendance technique) | matrix.core : rôles, périmètres, modules, audit, sécurité |
+| Connaissance : training, documentation, retex | s'appuie sur (dépendance technique) | matrix.core : rôles, périmètres, modules, audit, sécurité |
+| Pilotage : reports | s'appuie sur (dépendance technique) | matrix.core : rôles, périmètres, modules, audit, sécurité |
 
 | Domaine | Ce qu'il fait | Paquets | Chapitre |
 |---|---|---|---|
@@ -100,7 +96,7 @@ Matrix distingue cinq notions qu'il ne faut pas confondre : le **grade** (rang d
 
 1. Il ouvre **Aujourd'hui**. La page lui présente un « À faire » trié par urgence (retard, attente de validation, le reste), une frise « Ma journée » avec ses quarts, services, tâches et formations, et ses notifications.
 2. Il ouvre sa **tâche** de la matinée : il y trouve la consigne, la checklist, le fil de discussion attaché. Il pose une question à un collègue dans ce fil ; la discussion reste liée à la tâche.
-3. Il **exécute** une maintenance guidée. Un relevé sort de la normale : un **ticket correctif** est créé et notifié au chef.
+3. Il **exécute** une maintenance guidée. Si un contrôle sur un **matériel mobile** est non conforme, un **ticket correctif** est créé automatiquement et les chefs sont alertés ; sur une **installation**, aucun ticket n'est créé (le marin signale lui-même une anomalie ; 🟣 un ticket automatique pour une installation est la proposition D1, non arbitrée). Un relevé chiffré hors plage propose un lien pré-rempli « signaler une anomalie ».
 4. Il consulte son **calendrier** : un quart demain à 06 h. Un collègue lui propose un **échange de tour** : il accepte, puis la demande est validée par la personne qui gère la liste. 🔵 Règle cible validée par le PO : le chef de liste ou le BSC instruit, et le COMAEQ (ou son suppléant) décide ; elle n'est pas encore en place ([[RF:08_fiche_quarts_services_feuille]] et [[RF:25_cible_et_feuille_de_route]]). ⚪ L'effet de l'échange sur les deux calendriers est décrit au [[RF:08_fiche_quarts_services_feuille]].
 5. Le soir, il reçoit le récapitulatif « Ma journée de demain ».
 
@@ -121,7 +117,7 @@ Matrix distingue cinq notions qu'il ne faut pas confondre : le **grade** (rang d
 
 Matrix n'est pas une juxtaposition de silos : une donnée créée dans un module alimente les autres. Quelques enchaînements concrets (détail au [[DT:21_interactions_modules]]) :
 
-- une **exécution de maintenance** non conforme crée un **ticket correctif** (maintenance → logistique) ;
+- une **exécution de maintenance non conforme sur un matériel mobile** crée un **ticket correctif** (maintenance → logistique) ; pour une installation, aucun ticket automatique n'est créé (NE-07 ; 🟣 proposition D1) ;
 - les **quarts, services, tâches, formations et absences** alimentent le **calendrier** unique du marin ;
 - presque tous les modules émettent des **notifications** (rappels, validations attendues, alertes de stock) ;
 - une **discussion** s'attache à un objet de n'importe quel module (tâche, équipement, ticket, formation…).

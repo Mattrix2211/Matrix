@@ -121,4 +121,4 @@ Tâches planifiées : `signaler_divergences_feuilles_15min` et `traiter_echeance
 - ⚪ Le détail des écrans (vue quotidienne, vue responsable) n'a pas été rejoué dans un navigateur.
 - 🔵 L06, L08, L09, L10, L27 non développés ; voir `ECARTS_DECISIONS_CODE.md`.
 
-**Sources (état B).** Références en ligne ; `couverture/etat_B/MODELES.md` (22 modèles `quarts`, 1 `absences`) ; comptes rendus de lots compte rendu du lot L02 du dossier V1.2 (listes de quarts et désignations vis-à-vis de l'archivage) ; propositions `docs/propositions/mer_quai_*.md`.
+**Sources (état B).** Références en ligne ; `couverture/etat_B/MODELES.md` (22 modèles `quarts`, 1 `absences`) ; compte rendu du lot L02 du dossier V1.2 (listes de quarts et désignations vis-à-vis de l'archivage) ; propositions `docs/propositions/mer_quai_*.md`.
