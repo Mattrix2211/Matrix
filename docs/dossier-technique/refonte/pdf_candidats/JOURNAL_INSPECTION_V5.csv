@@ -1,0 +1,9 @@
+document,pages,methode,resultat
+GU,1-86,identité binaire avec la V2 (SHA-256 identique),conforme (inspection V2 conservée)
+RE,1-52,identité binaire avec le PDF du commit 636bf6b (SHA-256 identique) ; A25 relu aux p.16-17 lors de la passe précédente,conforme
+RF,116 pages,preuve d'identité pixel à 100 ppp (pied exclu) avec une page déjà inspectée dans la passe précédente,conforme
+RF,"7 8 115 à 122 127 à 138",relecture visuelle de planches de 3 pages à 100 ppp,conforme ; p.116 ouvre le chapitre 20 avec son encadré « Public » entier ; p.7-8 sommaire et p.115 tableau cohérents avec la pagination
+RF,"17 57 83 96 123",relecture à 140 ppp des schémas S02 S14 S22 S27 S38 et tableaux « Relations représentées »,conforme ; étiquettes lisibles
+DT,87 pages,preuve d'identité pixel à 100 ppp (pied exclu) avec une page déjà inspectée dans la passe précédente,conforme
+DT,"3 5 33 34 35 36 37 70 71",relecture visuelle de planches de 3 pages à 100 ppp,conforme ; chapitre 8 entier p.34 ; chapitre 9 entier p.37 (titre sur deux lignes sans coupure de page) ; chapitre 20 entier p.71 ; sommaire p.3 et p.5 cohérent
+DT,"44 79",relecture à 140 ppp des schémas S25d et garde de démonstration,conforme ; étiquettes lisibles

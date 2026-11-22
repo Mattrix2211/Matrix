@@ -6,7 +6,7 @@
 | C5 | 0 | 0 | 86 pages PDF contrôlées pour la mention |
 | C6 | 0 | 0 | 37 entrées de sommaire vérifiées, 0 écart(s) |
 | C7 | 0 | 0 |  |
-| C8 | 0 | 5 | 86 pages ; 5 pages < 40 % ; 0 titres orphelins ; 0 légendes en haut ; 0 pages à texte petit ; 0 syntaxes visibles |
+| C8 | 0 | 5 | 86 pages ; 5 pages < 40 % ; 0 titres orphelins ; 0 légendes en haut ; 0 pages à texte petit ; 0 syntaxes visibles ; 0 titres ou encadrés « Public » coupés |
 | C13 | 0 | 0 | 0 fichier(s) hors documentation modifié(s) depuis 637de94; tête distante de main : 6ef16adcfe8e |
 | C14 | 0 | 0 |  |
 

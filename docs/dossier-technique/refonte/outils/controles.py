@@ -76,7 +76,7 @@ def c5(code, textes, pages_pdf, technique):
 
 
 # ---------- C8 mise en page (automatique) ----------
-def c8(pdf_path, souple=False, exempt=()):
+def c8(pdf_path, souple=False, exempt=(), html=None):
     textes, pdf = texte_pdf(pdf_path)
     n = len(pdf)
     faibles, orphelins, legendes, petites, syntaxe, residuels = [], [], [], [], [], []
@@ -144,6 +144,9 @@ def c8(pdf_path, souple=False, exempt=()):
                 syntaxe.append((i + 1, nom))
         if re.search(r"\.{2,}\s*000\b|\s000\s*$", tt, re.M):
             residuels.append((i + 1, "numéro de page 000"))
+    coupures = coupures_chapitres(textes, html) if html and Path(html).exists() else []
+    for p, msg in coupures:
+        noter("C8", "bloquant", f"p.{p} {msg}")
     cible = "avertissement" if souple else "bloquant"
     for p, r in faibles:
         noter("C8", "avertissement", f"p.{p} remplie à {int(r*100)} % (< 40 %)")
@@ -157,7 +160,41 @@ def c8(pdf_path, souple=False, exempt=()):
         noter("C8", "bloquant", f"p.{p} syntaxe visible : {s}")
     for p, s in residuels:
         noter("C8", "bloquant", f"p.{p} {s}")
-    noter("C8", "info", f"{n} pages ; {len(faibles)} pages < 40 % ; {len(orphelins)} titres orphelins ; {len(legendes)} légendes en haut ; {len(petites)} pages à texte petit ; {len(syntaxe)} syntaxes visibles")
+    noter("C8", "info", f"{n} pages ; {len(faibles)} pages < 40 % ; {len(orphelins)} titres orphelins ; {len(legendes)} légendes en haut ; {len(petites)} pages à texte petit ; {len(syntaxe)} syntaxes visibles ; {len(coupures)} titres ou encadrés « Public » coupés")
+
+def _norm(t):
+    return re.sub(r"\W+", "", re.sub(r"⟦[^⟧]*⟧", "", t).lower())
+
+
+def coupures_chapitres(textes, html):
+    """Non-régression C8 : titre de chapitre coupé, encadré « Public » coupé, titre séparé de son encadré.
+    Renvoie une liste (page, message)."""
+    from bs4 import BeautifulSoup
+    soupe = BeautifulSoup(Path(html).read_text(encoding="utf-8"), "html.parser")
+    pages = [_norm(t) for t in textes]
+    brut = list(textes)
+    res = []
+    for h1 in soupe.find_all("h1", id=True):
+        m = h1.find("span", class_="marqueur")
+        if not m or not re.fullmatch(r"[a-z]+-\d+", h1["id"]):
+            continue
+        marq = m.get_text()
+        titre = _norm(h1.get_text().replace(marq, ""))
+        boite = h1.find_next_sibling()
+        boite = _norm(boite.get_text()) if boite is not None and "ligne-public" in (boite.get("class") or []) else None
+        ou = [i for i, t in enumerate(brut) if marq in t]
+        if not ou:
+            continue
+        i = ou[0]
+        if titre and titre not in pages[i]:
+            res.append((i + 1, f"titre de chapitre coupé entre deux pages ({h1['id']})"))
+            continue
+        if boite:
+            if boite in pages[i]:
+                continue
+            debut = boite[:40] in pages[i]
+            res.append((i + 1, f"encadré « Public » coupé entre deux pages ({h1['id']})" if debut else f"titre séparé de son encadré « Public » ({h1['id']})"))
+    return res
 
 
 # ---------- C6 liens, renvois, sommaire ----------
@@ -491,7 +528,7 @@ def main():
     c14(textes, pages_pdf)
     c6(code, a.apercus, a.pdf)
     if a.pdf:
-        c8(a.pdf)
+        c8(a.pdf, html=Path(a.pdf).parent / f"{code}.html")
     anciens = set(a.anciens)
     if anciens:
         c1(a.apercus, anciens)
