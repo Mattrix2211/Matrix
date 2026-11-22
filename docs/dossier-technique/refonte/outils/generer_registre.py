@@ -116,6 +116,9 @@ ecarts["A12"]["revision"] = "Texte révisé : l'ancien énoncé « aucune page i
 ecarts["A14"]["verifications"] = ["test 12/11/2026 (8 tests, comptes fictifs)", "navigateur 12/11/2026 : chef de section de l'équipage sortant lit 28 tâches dont 12 hors de sa section ; équipier et chef d'un autre bâtiment : 404"]
 ecarts["A20"]["verifications"] = ["test 12/11/2026 (18 tests)", "navigateur 12/11/2026 : bouton « Enregistrer la correction » visible du seul chef de secteur et au-delà"]
 ecarts["A25"]["verifications"] = ["test 12/11/2026 (3 tests de constat)"]
+_ancien = "ticket créé depuis une maintenance non conforme"
+assert _ancien in ecarts["A25"]["constat"]
+ecarts["A25"]["constat"] = ecarts["A25"]["constat"].replace(_ancien, "ticket correctif créé depuis un contrôle non conforme sur un matériel mobile (aucun ticket automatique pour une installation, NE-07)")      # précision de portée ; le reste du constat est inchangé
 PROFILS = {
     "A1": "administrateur d'unité ; commandement", "A2": "marins ; chefs de liste ; COMAEQ", "A3": "chefs de liste ; chefs de service ; COMAEQ ; commandement",
     "A4": "commandant en second", "A5": "développeurs ; intégrateurs", "A6": "développeurs", "A7": "responsables ; développeurs", "A8": "PO",

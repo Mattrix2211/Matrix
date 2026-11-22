@@ -1,0 +1,13 @@
+document;pages;methode;resultat
+GU;1-86;identité binaire du fichier avec la V2 (SHA-256 identique) ; inspection V2 conservée;conforme
+RF;18 pages (preuve d'identité pixel à 100 ppp, pied exclu, mêmes dimensions);comparaison d'images avec pages déjà inspectées;conforme
+RF;119 autres pages (1-137 hors les 18);relecture visuelle de planches de 3 pages à 100 ppp (grossissement 1,25 pour les schémas S02, S14, S22, S27, S38, tableaux denses, petites étiquettes);conforme sauf réserve cosmétique p.115-116 (encadré « Public » du chapitre 20 coupé entre deux pages)
+RF;69-70;relecture visuelle;correction demandée constatée : titre 12.2.2 ouvre la p.70 avec ses puces
+DT;23 pages (preuve d'identité pixel);comparaison d'images;conforme
+DT;73 autres pages;relecture visuelle de planches de 3 pages à 100 ppp;conforme sauf défauts ci-dessous
+DT;33-34;relecture visuelle;réserve cosmétique : encadré « Public » du chapitre 8 coupé entre p.33 et p.34 (la V2 avait des coupures comparables : p.25 et p.36)
+DT;36-37;relecture visuelle;DÉFAUT IMPORTANT NOUVEAU : titre du chapitre 9 coupé (« 9 Tâches, demandes, programme, postes : » en bas de p.36, « mécanismes » en haut de p.37) ; non détecté par C8
+DT;70-71;relecture visuelle;réserve cosmétique : encadré « Public » du chapitre 20 coupé entre p.70 et p.71
+DT;89-90;relecture visuelle;correction demandée constatée : titre 23.2 suivi de ses puces en p.90
+RE;16-17;relecture visuelle;constat A25 corrigé (contrôle non conforme sur un matériel mobile, aucun ticket automatique pour une installation) ; état « documenté, non arbitré » inchangé
+RE;50 autres pages;comparaison d'images avec la V2;conforme (identiques)
