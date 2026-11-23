@@ -1,7 +1,7 @@
 # Plan du basculement V3 (phase 13) — pour validation du PO
 
 > **DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE.** Précaution documentaire, non une classification officielle.
-> **Statut : plan seulement. Aucun fichier n'est déplacé, aucun ancien PDF n'est retiré, aucune reconstruction, aucune diffusion.** Le basculement n'est pas fait : il attend l'arbitrage du PO (22/11/2026).
+> **Statut : plan arbitré par le PO le 23/11/2026 et exécuté (option A ; PDF dans `refonte/pdf/` ; anciens PDF archivés sans suppression ; maquettes V1 dans `refonte/archives/apercus_V1/` ; attestation séparée).** Texte d'origine conservé ci-dessous ; compte rendu : `RAPPORT_BASCULEMENT_V3.md`.
 
 Branche `claude/fervent-wright-kl6gtx` · PDF de référence du commit `63e9be2` · inventaire exact de 268 fichiers : `inventaire_anciens_documents.csv` (chemin, taille, SHA-256, catégorie, destination proposée dans chaque option, citation par les documents de la révision 2). Les chemins sont donnés depuis `docs/dossier-technique/`.
 

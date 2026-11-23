@@ -16,6 +16,8 @@ import sys
 from pathlib import Path
 
 import pypdfium2 as pdfium
+
+from chemins import ancien, cle, glob_ancien
 import pypdfium2.raw as pdfium_c
 import yaml
 
@@ -473,7 +475,7 @@ def mode_global(a):
     lignes = list(csv.DictReader((RACINE / "MAPPING_ANCIEN_NOUVEAU.csv").open(encoding="utf-8"), delimiter=";"))
     anciens = sorted({l["ancien_fichier"] for l in lignes if l["type"] != "schéma" and not l["ancien_fichier"].startswith("schemas/")})
     c1(a.apercus, set(anciens))
-    an = {x: (DT / x).read_text(encoding="utf-8") for x in anciens if x.startswith(("diffusable/", "restreint/")) and "annexes/" not in x}
+    an = {x: ancien(x).read_text(encoding="utf-8") for x in anciens if x.startswith(("diffusable/", "restreint/")) and "annexes/" not in x}
     c2(an, tous)
     utilisees = []
     for t in tous.values():
@@ -503,9 +505,9 @@ def main():
     if a.mode == "ancien":
         # calibrage : mêmes contrôles sur l'existant (ancien PDF « diffusable » traité comme non technique)
         anc = {}
-        for p in list(DT.glob("diffusable/[0-9]*.md")):
-            anc[str(p.relative_to(DT))] = p.read_text(encoding="utf-8")
-        pdfs = {"diffusable": DT / "pdf/Matrix_Dossier_technique_G0_DIFFUSABLE.pdf", "restreint": DT / "pdf/Matrix_Dossier_technique_G0_RESTREINT.pdf"}
+        for p in glob_ancien("diffusable/[0-9]*.md"):
+            anc[cle(p)] = p.read_text(encoding="utf-8")
+        pdfs = {"diffusable": ancien("pdf/Matrix_Dossier_technique_G0_DIFFUSABLE.pdf"), "restreint": ancien("pdf/Matrix_Dossier_technique_G0_RESTREINT.pdf")}
         t_dif, _ = texte_pdf(pdfs["diffusable"])
         c5("ancien", {k: v for k, v in anc.items()}, t_dif, False)
         c3(anc)
@@ -532,7 +534,7 @@ def main():
     anciens = set(a.anciens)
     if anciens:
         c1(a.apercus, anciens)
-        an = {x: (DT / x).read_text(encoding="utf-8") for x in anciens}
+        an = {x: ancien(x).read_text(encoding="utf-8") for x in anciens}
         c2(an, textes)
     c13()
     tot = rapport(a.rapport, f"Contrôles {code} — {', '.join(sorted(R))}")

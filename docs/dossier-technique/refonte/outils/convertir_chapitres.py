@@ -10,6 +10,8 @@ import re
 import sys
 from pathlib import Path
 
+from chemins import ancien as chemin_ancien
+
 R = Path(__file__).resolve().parent.parent
 DT = R.parent
 
@@ -107,7 +109,7 @@ def renvois(texte, cible):
 
 
 def convertir(ancien, nouveau, doc, partie, dest):
-    src = (DT / ancien).read_text(encoding="utf-8")
+    src = chemin_ancien(ancien).read_text(encoding="utf-8")
     ligne = src.split("\n")
     titres = [t["titre"] for t in titres_mapping() if t["ancien_fichier"] == ancien]
     # cartouche : tout ce qui précède le premier « --- » ou le premier titre de niveau 2

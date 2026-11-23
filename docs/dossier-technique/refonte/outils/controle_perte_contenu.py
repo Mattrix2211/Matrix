@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import convertir_chapitres as C
+from chemins import ancien as chemin_ancien
 
 R, DT = C.R, C.DT
 
@@ -36,7 +37,7 @@ def main():
     L, total, perdues = [], 0, 0
     for ancien in [x[0] for x in C.RF + C.DTX] + ["diffusable/01_vision.md", "diffusable/03_lire_ce_dossier.md", "restreint/12_maintenance_anomalies_tickets_technique.md", "diffusable/12_maintenance_anomalies_tickets.md"]:
         manque = []
-        for l in (DT / ancien).read_text(encoding="utf-8").split("\n"):
+        for l in chemin_ancien(ancien).read_text(encoding="utf-8").split("\n"):
             if re.match(r"^\s*(#|>|\*Schéma|!\[|---|\*\*Sources)", l):
                 continue                      # titres (couverts par les directives), cartouche, légendes de schémas, pieds de sources
             n = norm(l)

@@ -15,15 +15,15 @@ ETAT_B = os.environ.get("MATRIX_ETAT_B") or (sys.argv[1] if len(sys.argv) > 1 el
 if not ETAT_B:
     sys.exit("Indiquer la copie isolée de l'état B : variable MATRIX_ETAT_B ou premier argument")
 for code, (dossier, pdf, anciens) in CFG.items():
-    subprocess.run([sys.executable, str(R / "outils/construire.py"), code, "--pilote", "--sortie", str(R / "apercus_V1")], check=True)
+    subprocess.run([sys.executable, str(R / "outils/construire.py"), code, "--pilote", "--sortie", str(R / "archives/apercus_V1")], check=True)
     sources = [str(p) for p in sorted((R / dossier).glob("[0-9][0-9]_*.md"))]
-    cmd = [sys.executable, str(R / "outils/controles.py"), "doc", "--code", code, "--apercus", str(R / "apercus_V1"), "--sources", *sources,
-           "--pdf", str(R / "apercus_V1" / pdf), "--rapport", str(R / f"apercus_V1/controles_{code}.md")]
+    cmd = [sys.executable, str(R / "outils/controles.py"), "doc", "--code", code, "--apercus", str(R / "archives/apercus_V1"), "--sources", *sources,
+           "--pdf", str(R / "archives/apercus_V1" / pdf), "--rapport", str(R / f"archives/apercus_V1/controles_{code}.md")]
     if anciens:
         cmd += ["--anciens", *anciens]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if code == "DT":
-        c4 = subprocess.run([sys.executable, str(R / "outils/verifier_references_refonte.py"), ETAT_B, *sources, "--rapport", str(R / "apercus_V1/controle_C4_DT.md")], capture_output=True, text=True)
+        c4 = subprocess.run([sys.executable, str(R / "outils/verifier_references_refonte.py"), ETAT_B, *sources, "--rapport", str(R / "archives/apercus_V1/controle_C4_DT.md")], capture_output=True, text=True)
         print(f"--- C4 (code retour {c4.returncode})\n" + c4.stdout[-420:])
     print(f"=== {code} (code retour {r.returncode})")
     print(r.stdout[-900:] or r.stderr[-900:])

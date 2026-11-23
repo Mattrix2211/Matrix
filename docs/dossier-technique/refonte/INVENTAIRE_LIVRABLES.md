@@ -1,10 +1,10 @@
 # Inventaire des livrables — Matrix G0 révision 2
 
-> **DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE.** Précaution documentaire, non une classification officielle. Jalon V2 validé sur le plan documentaire (22/11/2026) ; aucune validation du logiciel, aucune autorisation de diffusion.
+> **DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE.** Précaution documentaire, non une classification officielle. Jalon V2 validé sur le plan documentaire (22/11/2026), basculement V3 exécuté (23/11/2026) ; aucune validation du logiciel, aucune autorisation de diffusion.
 
 Branche `claude/fervent-wright-kl6gtx` · état applicatif B `6d6d0be` · base d'audit `637de94` · PDF produits au commit `63e9be2`.
 
-## Les quatre PDF de référence (dossier `pdf_candidats/`)
+## Les quatre PDF de référence (dossier `pdf/`)
 
 | Livrable | Fichier | Pages | Taille (octets) | SHA-256 |
 |---|---|---|---|---|
@@ -31,14 +31,15 @@ Total : 372 pages. Le D4 (annexes consultables) n'est pas un PDF : `4_annexes_co
 
 | Élément | Emplacement |
 |---|---|
-| Journal d'inspection final, une ligne par page (372) | `pdf_candidats/JOURNAL_INSPECTION_FINAL.csv` ; pages relues par passe : `pdf_candidats/inspections_directes_par_passe.json` |
-| Journaux intermédiaires V2 à V5 (historiques) | `pdf_candidats/JOURNAL_INSPECTION_V2.csv` à `V5.csv` |
-| Contrôles des PDF (C8 renforcé compris) | `pdf_candidats/controles_GU.md`, `_RF.md`, `_DT.md`, `_RE.md`, `controles_transversaux.md`, `controle_C4.md` |
-| Lisibilité des schémas | `pdf_candidats/schemas_lisibilite.csv` |
+| Journal d'inspection final, une ligne par page (372) | `pdf/JOURNAL_INSPECTION_FINAL.csv` ; pages relues par passe : `pdf/inspections_directes_par_passe.json` |
+| Journaux intermédiaires V2 à V5 (historiques) | `pdf/JOURNAL_INSPECTION_V2.csv` à `V5.csv` |
+| Contrôles des PDF (C8 renforcé compris) | `pdf/controles_GU.md`, `_RF.md`, `_DT.md`, `_RE.md`, `controles_transversaux.md`, `controle_C4.md` |
+| Lisibilité des schémas | `pdf/schemas_lisibilite.csv` |
 | Rapport final de recette | `RAPPORT_RECETTE_REFONTE.md` |
+| Attestation de validation de V2 (empreintes, réserves, mentions historiques) | `pdf/ATTESTATION_VALIDATION_V2.md` |
 | Rapports de barrière et de passe (instantanés datés) | `baseline/` |
-| Plan du basculement V3 et inventaire des anciens documents | `baseline/PLAN_BASCULEMENT_V3.md`, `baseline/inventaire_anciens_documents.csv` |
+| Plan du basculement V3, inventaire des anciens documents, compte rendu | `baseline/PLAN_BASCULEMENT_V3.md`, `baseline/inventaire_anciens_documents.csv`, `baseline/RAPPORT_BASCULEMENT_V3.md` |
 
-## Anciens documents (conservés, non modifiés)
+## Anciens documents (archivés, non modifiés)
 
-`diffusable/`, `restreint/`, `schemas/`, `guide-visuel/`, `pdf/` (deux PDF « diffusable » et « restreint » de la première édition) et les rapports de la première édition restent en place jusqu'à l'arbitrage du PO. Inventaire exact : `baseline/inventaire_anciens_documents.csv`.
+Première édition archivée par `git mv` dans `../archive_G0_initial/` (`diffusable/`, `restreint/` sauf `ECARTS_DECISIONS_CODE.md` et `annexes/` restés en place car cités par les PDF figés, `schemas/`, `guide-visuel/`, `pdf/` avec les deux anciens PDF, `rapports/`). Le troisième ancien PDF (guide visuel) suit `guide-visuel/`. Maquettes PDF de la V1 : `archives/apercus_V1/`. Inventaire exact (268 fichiers, SHA-256) : `baseline/inventaire_anciens_documents.csv`.

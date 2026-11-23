@@ -70,6 +70,8 @@ def main():
                     continue
                 if fichier.startswith(PREFIXES_PREUVE):
                     cible = DT / fichier
+                    if not cible.is_file():
+                        cible = DT / "archive_G0_initial" / fichier      # ancienne édition archivée au basculement V3
                     if cible.is_file():
                         ok["PREUVE"] += 1
                     else:

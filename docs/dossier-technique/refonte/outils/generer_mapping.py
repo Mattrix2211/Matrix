@@ -10,6 +10,8 @@ import re
 import sys
 from pathlib import Path
 
+from chemins import ancien, cle, glob_ancien
+
 D = Path(sys.argv[1]).resolve()
 SORTIE = Path(sys.argv[2])
 
@@ -51,21 +53,21 @@ def titres(chemin, doc, rub, kind):
     for l in chemin.read_text(encoding="utf-8").split("\n"):
         m = re.match(r"^(#{1,3}) (.+)$", l)
         if m:
-            lignes.append([str(chemin.relative_to(D)), kind, len(m.group(1)), m.group(2).strip(), doc, rub, "planifié", ""])
+            lignes.append([cle(chemin), kind, len(m.group(1)), m.group(2).strip(), doc, rub, "planifié", ""])
 
-for p in sorted(D.glob("diffusable/[0-9]*.md")):
+for p in glob_ancien("diffusable/[0-9]*.md"):
     doc, rub = CHAPITRES[p.name[:2]]; titres(p, doc, rub, "chapitre")
-for p in sorted(D.glob("restreint/[0-9]*.md")):
+for p in glob_ancien("restreint/[0-9]*.md"):
     nn = p.name[:2]
     doc, rub = CHAPITRES[nn]
     if "_technique" in p.name or nn == "26":
         doc = "DT"; rub = "Chapitre technique de module (fusion)" if "_technique" in p.name else "Historique et branches"
     titres(p, doc, rub, "complément technique" if "_technique" in p.name else "chapitre technique")
-titres(D / "restreint/ECARTS_DECISIONS_CODE.md", "RE", "Registre vivant", "registre")
-for p in sorted(list(D.glob("diffusable/annexes/*.md")) + list(D.glob("restreint/annexes/*.md"))):
+titres(ancien("restreint/ECARTS_DECISIONS_CODE.md"), "RE", "Registre vivant", "registre")
+for p in glob_ancien("diffusable/annexes/*.md") + glob_ancien("restreint/annexes/*.md"):
     doc, rub = ANNEXES[p.stem]; titres(p, doc, rub, "annexe")
-for p in sorted((D / "schemas/src").glob("S*.mmd")):
-    lignes.append([str(p.relative_to(D)), "schéma", 0, p.stem, "voir décision", SCHEMAS[p.stem[:3]], "planifié", ""])
+for p in sorted(ancien("schemas/src").glob("S*.mmd")):
+    lignes.append([cle(p), "schéma", 0, p.stem, "voir décision", SCHEMAS[p.stem[:3]], "planifié", ""])
 
 with SORTIE.open("w", newline="", encoding="utf-8") as f:
     w = csv.writer(f, delimiter=";")

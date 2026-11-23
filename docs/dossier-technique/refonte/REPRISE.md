@@ -2,7 +2,7 @@
 
 > Document de travail. Plan : `../PLAN_EXECUTION_REFONTE_G0.md`. Rapport de recette : `RAPPORT_RECETTE_REFONTE.md`. Inventaire : `INVENTAIRE_LIVRABLES.md`.
 
-**État au 22/11/2026 : phases 0 à 12 terminées ; jalon V2 validé par le PO sur le plan documentaire** (quatre PDF acceptés comme versions de référence, avec réserves connues et documentées ; ni validation fonctionnelle du logiciel, ni autorisation de diffusion). **Phase 13 : préparation engagée, basculement non exécuté.** Le plan V3 (`baseline/PLAN_BASCULEMENT_V3.md`) attend l'arbitrage du PO : aucun fichier n'est déplacé, aucun ancien PDF n'est retiré, aucune reconstruction n'est autorisée.
+**État au 23/11/2026 : phases 0 à 13 terminées ; jalon V2 validé par le PO sur le plan documentaire le 22/11/2026 ; basculement V3 exécuté le 23/11/2026** (quatre PDF acceptés comme versions de référence, avec réserves connues et documentées ; ni validation fonctionnelle du logiciel, ni autorisation de diffusion). **Phase 13 : exécutée** selon le plan V3 (`baseline/PLAN_BASCULEMENT_V3.md`) arbitré par le PO : anciennes arborescences et trois anciens PDF archivés dans `../archive_G0_initial/` sans suppression, maquettes V1 dans `archives/apercus_V1/`, PDF de référence dans `pdf/` avec `pdf/ATTESTATION_VALIDATION_V2.md`. Compte rendu : `baseline/RAPPORT_BASCULEMENT_V3.md`. Aucune reconstruction.
 
 | Phase | État |
 |---|---|
@@ -17,13 +17,13 @@
 | 8 Annexes consultables | fait (`4_annexes_consultables/`) |
 | 9 Contrôles sur sources | fait ; barrière G1 atteinte le 16/11/2026 |
 | 10 Construction des PDF candidats | fait |
-| 11 Inspection à taille réelle | fait ; journal par page `pdf_candidats/JOURNAL_INSPECTION_FINAL.csv` (372 pages) |
+| 11 Inspection à taille réelle | fait ; journal par page `pdf/JOURNAL_INSPECTION_FINAL.csv` (372 pages) |
 | 12 Corrections et cohérence | fait ; rapport `RAPPORT_RECETTE_REFONTE.md` ; jalon V2 validé |
-| 13 Basculement | **préparation seulement** : plan V3 en attente de validation du PO |
+| 13 Basculement | fait le 23/11/2026 (V3) ; rien n'est supprimé |
 
 Reconstructions réelles après la première construction candidate (jamais remises à zéro) : guide 5, référentiel 9, dossier technique 5, registre 3. Le PO ne demande plus de reconstruction.
 
 Rejouer les contrôles : `python3 outils/lancer_controles_sources.py` (rapports dans `apercus_G1/`), puis `python3 outils/verifier_suivi.py` (cohérence des documents de suivi et des empreintes des PDF).
 Régénérer les annexes : `python3 outils/generer_annexes_consultables.py` ; les vérifier : `node outils/verifier_annexes.js 4_annexes_consultables/index.html apercus_G1`.
 Instance de démonstration et captures : `outils/captures/` (copie isolée de l'état B hors dépôt, `git archive 6d6d0be`).
-Contraintes permanentes : sources initiales et anciens PDF conservés jusqu'à l'arbitrage du PO ; aucun code applicatif touché ; tests A14/A20/A25 dans `../audit_preuves/` ; pas de PR, pas de fusion, pas de modification de `main` ; aucune diffusion externe.
+Contraintes permanentes : première édition et anciens PDF conservés dans l'archive (aucune suppression sans ordre explicite du PO) ; aucun code applicatif touché ; tests A14/A20/A25 dans `../audit_preuves/` ; pas de PR, pas de fusion, pas de modification de `main` ; aucune diffusion externe.

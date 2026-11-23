@@ -1,7 +1,7 @@
 # Rapport final de recette — refonte documentaire G0 révision 2
 
 > **DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE.** Précaution documentaire, non une classification officielle.
-> Jalon V2 validé par le PO sur le plan documentaire le 22/11/2026. Ce rapport ne valide ni le logiciel Matrix ni sa diffusion. Il décrit les PDF du commit `63e9be2` (empreintes dans `INVENTAIRE_LIVRABLES.md`).
+> Jalon V2 validé par le PO sur le plan documentaire le 22/11/2026 ; basculement V3 exécuté le 23/11/2026. Ce rapport ne valide ni le logiciel Matrix ni sa diffusion. Il décrit les PDF du commit `63e9be2` (empreintes dans `INVENTAIRE_LIVRABLES.md`).
 
 Branche `claude/fervent-wright-kl6gtx` · état applicatif B `6d6d0be` · base d'audit `637de94`.
 
@@ -35,11 +35,11 @@ Aucune modification du code applicatif depuis `637de94` (C13 : différence vide)
 | C13 aucun changement applicatif | 0 fichier hors documentation modifié |
 | C14 données sensibles | 0 mot de passe, secret ni chemin local |
 
-Lisibilité des schémas : 46 schémas, 46 « OK » (corps de police ≥ 8 pt à la largeur de la page, `pdf_candidats/schemas_lisibilite.csv`).
+Lisibilité des schémas : 46 schémas, 46 « OK » (corps de police ≥ 8 pt à la largeur de la page, `pdf/schemas_lisibilite.csv`).
 
 ## 3. Inspection (journal final par page)
 
-`pdf_candidats/JOURNAL_INSPECTION_FINAL.csv` : une ligne par page des quatre PDF (372). Aucune inspection nouvelle n'y est déclarée ; chaque page est rattachée à une inspection réellement effectuée.
+`pdf/JOURNAL_INSPECTION_FINAL.csv` : une ligne par page des quatre PDF (372). Aucune inspection nouvelle n'y est déclarée ; chaque page est rattachée à une inspection réellement effectuée.
 
 | Méthode | Pages |
 |---|---|
@@ -73,8 +73,9 @@ Après la première construction candidate (phase 10) et jamais remises à zéro
 | `3481fce`, `5a9885e` | Passe finale : tickets, schémas de flux, index des 46 schémas |
 | `636bf6b` | Règle de titres, constat A25 précisé |
 | `63e9be2` | Coupures de titres et d'encadrés « Public » corrigées, C8 renforcé ; clôture V2 |
-| (ce commit) | Documents de suivi, journal final par page, plan du basculement V3 |
+| `6d555b3` | Documents de suivi, journal final par page, plan du basculement V3 |
+| (commit de basculement) | Basculement V3 : archivage de la première édition, renommage `pdf_candidats` → `pdf`, attestation de validation de V2 |
 
 ## 7. Ce que ce rapport ne dit pas
 
-Il ne dit pas que le logiciel est validé, ni qu'une diffusion est autorisée, ni que le basculement V3 est fait : les anciennes arborescences et les trois anciens PDF sont conservés jusqu'à l'arbitrage du PO.
+Il ne dit pas que le logiciel est validé ni qu'une diffusion est autorisée. Le basculement V3 a archivé la première édition sans rien supprimer ; le retrait irréversible des trois anciens PDF n'est pas autorisé. Les mentions « non validé » des PDF figés sont historiques (`pdf/ATTESTATION_VALIDATION_V2.md`).

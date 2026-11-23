@@ -1,5 +1,5 @@
 """Dossier de présentation du pilote V1 : pages représentatives des trois documents, choix graphiques, points à arbitrer.
-Usage : python dossier_presentation.py   (lit apercus_V1/*.pdf, écrit apercus_V1/DOSSIER_PRESENTATION_PILOTE_V1.pdf)"""
+Usage : python dossier_presentation.py   (lit archives/apercus_V1/*.pdf, écrit archives/apercus_V1/DOSSIER_PRESENTATION_PILOTE_V1.pdf)"""
 import html
 import json
 import re
@@ -10,7 +10,7 @@ import pypdfium2 as pdfium
 import yaml
 
 R = Path(__file__).resolve().parent.parent
-A = R / "apercus_V1"
+A = R / "archives/apercus_V1"
 IMG = A / "presentation_img"
 IMG.mkdir(exist_ok=True)
 ident = yaml.safe_load((R / "config/identite.yaml").read_text(encoding="utf-8"))
@@ -76,7 +76,7 @@ P.append(f"""<section class="page"><div class="mention">{html.escape(ident['ment
 <h1>Dossier de présentation du pilote — jalon V1</h1>
 <p><b>{ident['serie']}</b> · {ident['reference_documentaire']} · édition {ident['date_edition']} · état décrit {ident['etat_reference']}</p>
 <p>Ce dossier aide à relire <b>les trois PDF pilotes dans leur forme réelle</b>. Il ne remplace pas leur lecture : il montre des pages représentatives, explique les choix graphiques et liste les points qui restent à arbitrer. Seul le chapitre « Maintenance » est rédigé ; aucune rédaction complète n'est engagée.</p>
-<table><tr><th>À examiner (dossier <code>refonte/apercus_V1/</code>)</th><th>Pages</th><th>Public</th></tr>
+<table><tr><th>À examiner (dossier <code>refonte/archives/apercus_V1/</code>)</th><th>Pages</th><th>Public</th></tr>
 <tr><td>Guide utilisateur illustré (GU)</td><td>{vignettes[2][2]}</td><td>marins, chefs</td></tr>
 <tr><td>Référentiel fonctionnel et de gouvernance (RF)</td><td>{vignettes[0][2]}</td><td>responsables, commandement, décideurs</td></tr>
 <tr><td>Dossier technique de reprise (DT)</td><td>{vignettes[5][2]}</td><td>développeurs, mainteneurs (accès restreint)</td></tr>

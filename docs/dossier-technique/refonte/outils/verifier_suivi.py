@@ -9,7 +9,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 
 R = Path(__file__).resolve().parent.parent
-PDFS = R / "pdf_candidats"
+PDFS = R / "pdf"
 NOMS = {"GU": "1_Guide_utilisateur", "RF": "2_Referentiel_fonctionnel", "DT": "3_Dossier_technique_reprise", "RE": "5_Registre_ecarts_decisions"}
 SUIVI = [R / "README_DOSSIER.md", R / "REPRISE.md", R / "RAPPORT_RECETTE_REFONTE.md", R / "INVENTAIRE_LIVRABLES.md", R / "baseline/PLAN_BASCULEMENT_V3.md", R / "baseline/RAPPORT_V2_FINAL.md"]
 textes = {p: p.read_text(encoding="utf-8") for p in SUIVI}
@@ -37,16 +37,26 @@ if len(lignes) != total:
     erreurs.append(f"JOURNAL_INSPECTION_FINAL.csv : {len(lignes)} lignes pour {total} pages")
 if any(not l["methode"] for l in lignes):
     erreurs.append("JOURNAL_INSPECTION_FINAL.csv : page sans méthode")
-# état annoncé partout
+# état annoncé partout : V2 validé le 22/11/2026, basculement V3 exécuté le 23/11/2026
 for p in (R / "README_DOSSIER.md", R / "REPRISE.md", R / "RAPPORT_RECETTE_REFONTE.md"):
     t = textes[p]
-    if re.search(r"ne sont pas encore construits|phases? 10 à 13[^.]*non (commenc|engag)", t):
-        erreurs.append(f"{p.name} : état obsolète (PDF non construits ou phases 10 à 13 non commencées)")
-    if "22/11/2026" not in t:
-        erreurs.append(f"{p.name} : date de validation de V2 absente")
-for p in (R / "README_DOSSIER.md", R / "REPRISE.md", R / "baseline/PLAN_BASCULEMENT_V3.md"):
-    if not re.search(r"basculement[^.]*n'est pas fait|non exécuté|rien n'est déplacé|aucun fichier n'est déplacé", textes[p], re.I):
-        erreurs.append(f"{p.name} : n'indique pas que le basculement n'est pas fait")
+    if re.search(r"ne sont pas encore construits|n'est pas fait|non exécuté|préparation seulement", t):
+        erreurs.append(f"{p.name} : état obsolète (PDF non construits ou basculement non exécuté)")
+    if "22/11/2026" not in t or "23/11/2026" not in t:
+        erreurs.append(f"{p.name} : dates de validation de V2 (22/11/2026) ou de basculement (23/11/2026) absentes")
+for p in (R / "README_DOSSIER.md", R / "REPRISE.md"):
+    if "V3" not in textes[p] or "exécuté" not in textes[p]:
+        erreurs.append(f"{p.name} : n'indique pas que le basculement V3 est exécuté")
+# attestation : empreintes, nombre de pages, 16 réserves
+att = (PDFS / "ATTESTATION_VALIDATION_V2.md").read_text(encoding="utf-8")
+for n in NOMS.values():
+    h = hashlib.sha256((PDFS / f"Matrix_G0R2_{n}_PROVISOIRE_RESTREINT.pdf").read_bytes()).hexdigest()
+    if h not in att:
+        erreurs.append(f"ATTESTATION_VALIDATION_V2.md : empreinte de {n} absente ou différente")
+reserves = sum(1 for l in lignes if l["verdict"] != "conforme")
+lignes_res = [l for l in att.split("\n") if re.match(r"\| (Guide|Référentiel|Dossier|Registre)[^|]*\| \d+ \|", l)]
+if reserves != 16 or len(lignes_res) != 16 or "22/11/2026" not in att or "RAPPORT_RECETTE_REFONTE.md" not in att:
+    erreurs.append(f"ATTESTATION_VALIDATION_V2.md : {len(lignes_res)} réserves listées pour {reserves} au journal, date ou référence au rapport de recette manquante")
 # compteurs de reconstruction identiques
 for p in (R / "REPRISE.md", R / "RAPPORT_RECETTE_REFONTE.md", R / "baseline/RAPPORT_V2_FINAL.md"):
     t = textes[p]

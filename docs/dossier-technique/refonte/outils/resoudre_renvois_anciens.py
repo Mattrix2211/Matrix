@@ -6,12 +6,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import convertir_chapitres as C
+from chemins import glob_ancien
 
 R, DT = C.R, C.DT
 # titres de l'ancienne édition : clé (famille, « N.M ») -> titre ; famille : "F" fonctionnel (diffusable), "T" technique (restreint)
 TITRES = {}
 for fam, glob in (("F", "diffusable/[0-9]*.md"), ("T", "restreint/[0-9]*.md")):
-    for f in sorted(DT.glob(glob)):
+    for f in glob_ancien(glob):
         for l in f.read_text(encoding="utf-8").split("\n"):
             m = re.match(r"^#{2,3} (\d+)(T)?\.(\d+)(?: bis)? (.+)$", l)
             if m:
