@@ -1,5 +1,7 @@
 # Matrice de permissions — modules sans service
 
+> **Partiellement remplacé le 24/11/2026 (ARB-06, `docs/DECISIONS_PO.md`).** Les recommandations R1 à R5 et le choix des options de délégation (§4 à §6) sont remplacés par la généralisation du bornage d'écriture à tout Matrix et par des délégations configurables et expirantes. Le texte est conservé pour l'historique ; le bornage du calendrier (R1) est déjà appliqué.
+
 Statut : **proposition pour arbitrage**. Aucun droit n'est modifié par ce document ni par le code de cette étape.
 Sources : code de Matrix (seuils du registre `matrix/core/role_thresholds.py`, services de chaque module),
 Notion « Organigramme et rôles » (fait foi sur les responsabilités). Le Guide du marin 2023 n'est pas disponible

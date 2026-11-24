@@ -1,5 +1,7 @@
 # Audit de reprise V1.1 — phase 1
 
+> **§4 (Rondes) remplacé le 24/11/2026 (ARB-09, `docs/DECISIONS_PO.md`).** Le plan « conserver l'application réduite à ses modèles » est remplacé par la suppression définitive ; la suppression des données reste soumise à une autorisation distincte. L'inventaire des dépendances reste valable.
+
 Statut : **audit et propositions**. Les correctifs déjà appliqués sont signalés ; rien n'est mergé ni déployé.
 Les données de démonstration ne sont pas modifiées avant validation du §3.
 

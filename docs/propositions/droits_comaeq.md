@@ -1,5 +1,7 @@
 # Droits du COMAEQ — état des lieux et matrice à arbitrer
 
+> **Précisé le 24/11/2026 (ARB-04, ARB-05, `docs/DECISIONS_PO.md`)** : validation finale des échanges de garde par le COMAEQ ou un chef de liste délégué ; désignation du BSC par le COMAEQ ou son suppléant habilité, recours au commandant. En cas de divergence, `docs/DECISIONS_PO.md` prévaut.
+
 Statut : **proposition pour arbitrage**. Aucun droit n'est modifié par ce document.
 Sources : Notion « Organigramme et rôles » (fait foi), code de Matrix, mesures sur la base de démonstration.
 Le Guide du marin 2023 n'est pas disponible dans mon environnement : les responsabilités ci-dessous sont

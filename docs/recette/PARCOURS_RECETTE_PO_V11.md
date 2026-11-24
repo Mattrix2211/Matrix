@@ -66,6 +66,20 @@ Les identifiants sont ceux de `docs/recette/01_COMPTES.md` ; les mots de passe v
 
 **S9 — Modules et anciens écrans (5 min).** Vérifier que les Rondes n'apparaissent plus (arbitrage n° 9) et qu'un module désactivé disparaît du menu (arbitrage n° 3).
 
+## 3 bis. Parcours à ajouter au fur et à mesure des lots (décisions du 24/11/2026)
+
+Ces scénarios ne sont **pas jouables avant la livraison du lot indiqué** ; aucun n'a été exécuté. Détail et critères : `docs/PLAN_LOTS_REPRISE.md`.
+
+| Scénario | Lot | À vérifier |
+|---|---|---|
+| S10 — Administrateur sans autorité métier | L06 | L'administrateur ne peut ni valider un échange, ni publier une liste, ni se donner une fonction ; cumul avec une vraie fonction possible |
+| S11 — Passation par échelon | L30 | Chef de section, de secteur, de service, adjoint, second et commandant lisent chacun leur périmètre ; équipage à terre consulte son périmètre ; partage ciblé |
+| S12 — Délégation et suppléance | L08, L33 | Délégation limitée dans le temps, le module et les actions ; expiration et révocation ; suppléant du COMAEQ |
+| S13 — Échange de garde complet | L10 | Demande, acceptation, contrôles, instruction par le chef de liste, validation COMAEQ ou délégué ; aucun effet avant validation |
+| S14 — Module désactivé | L34 | Menu, recherche, accueil, calendrier, API, notifications fermés ; données intactes à la réactivation ; dépendances |
+| S15 — Notifications à quai et à la mer | L35 | Table de classement, feuilles de service communes, jamais repliées : urgences, sécurité, actions, échéances, prochain quart, transition |
+| S16 — Quarts et tours : vues personnelles | L24-Q | Vue personnelle par défaut au premier usage, préférence mémorisée, bascule collective soumise aux habilitations ; poste et iPhone |
+
 ## 4. Grille de résultat
 
 Pour chaque scénario : ✅ conforme / ⚠️ gêne (décrire) / ❌ bloquant (décrire), environnement (Windows + navigateur, iPhone + Safari, simulation), profil utilisé, capture si utile. Un défaut observé n'est corrigé qu'après qualification ; toute remarque de droit ou de visibilité renvoie au sujet d'arbitrage correspondant.

@@ -1,5 +1,8 @@
 # Séance d'arbitrage métier — dossier de préparation
 
+> **Statut (24/11/2026) : arbitré.** Les neuf sujets ci-dessous ont été tranchés par le PO ; les décisions font foi dans `docs/DECISIONS_PO.md` (ARB-01 à ARB-09) et remplacent les recommandations de ce dossier de préparation, conservé pour l'historique.
+> **Correction :** au sujet 6, le bornage du déplacement calendrier (R1) est **déjà appliqué** dans l'état B (commit `ec5fa87`) ; le dossier le présentait à tort comme restant à décider. Les tâches, formations, absences, documents et RETEX restent à borner (lot L32).
+
 Établi sur l'état B (`6d6d0be`). Aucune règle n'est modifiée ; aucune question n'est tranchée. Chaque sujet suit le même ordre : fonctionnement actuel, décision antérieure, problème, exemple, solutions et conséquences, recommandation, question à trancher.
 Ordre proposé : d'abord ce qui conditionne toute utilisation avec des données réelles (sujets 1 à 3), puis les règles de travail quotidiennes (4 à 6), puis l'ergonomie (7 à 9). Les références techniques (A1, R1…) ne sont là que pour retrouver les sources.
 

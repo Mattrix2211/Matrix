@@ -1,5 +1,7 @@
 # Mer / Quai — passe de consolidation après la recette indépendante
 
+> **Étiquetage des notifications remplacé le 24/11/2026 (ARB-07, `docs/DECISIONS_PO.md`).** La table de classification du §8 (`D7-NOT`) est remplacée, notamment : les feuilles de service sont COMMUN et non QUAI. Le reste du document est inchangé.
+
 Statut : **corrections techniques faites dans le périmètre validé ; règles métier non tranchées présentées en options, rien d'implémenté sur ces points.**
 Aucun merge dans `main`, aucun déploiement, aucune suppression.
 

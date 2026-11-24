@@ -8,10 +8,10 @@
 | ANO-004 | Anomalies : historique | Moyenne | CORRIGÉE |
 | ANO-005 | Démonstration : cas particuliers | Moyenne | CORRIGÉE |
 | ANO-006 | Démonstration : double affectation | Moyenne | CORRIGÉE (précédent lot) |
-| ANO-007 | Barre latérale | Mineure | OUVERTE (décision UX) |
-| ANO-008 | Quarts et tours : vue « Par jour » (PC) | Mineure | OUVERTE (décision UX) |
-| ANO-009 | Calendrier (mois) | Mineure | OUVERTE (décision UX) |
-| ANO-010 | Anomalie : assistant de signalement | Mineure | OUVERTE |
+| ANO-007 | Barre latérale | Mineure | DÉCIDÉE (ARB-08) : à corriger, lot L24-Q |
+| ANO-008 | Quarts et tours : vue « Par jour » (PC) | Mineure | DÉCIDÉE (ARB-08) : à corriger, lot L24-Q |
+| ANO-009 | Calendrier (mois) | Mineure | DÉCIDÉE (ARB-08) : à corriger, lot L24-Q |
+| ANO-010 | Anomalie : assistant de signalement | Mineure | DÉCIDÉE (ARB-08) : à corriger, lot L24-Q |
 | ANO-011 | Échanges : avertissement de recouvrement | Information | OUVERTE (à confirmer) |
 | ANO-012 | Notifications | Limitation | OUVERTE |
 | ANO-013 | Rappels d'activation | Limitation | OUVERTE |
