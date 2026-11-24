@@ -121,6 +121,8 @@ Aucune entrée n'est effacée : les sources antérieures restent en place ; ce t
 | Recommandations R1 à R5 et options de délégation 1 et 2 | `docs/propositions/matrice_modules_sans_service.md` §4 à §6 | **Remplacées** : généralisation, délégation configurable | ARB-06 |
 | « Pas de nouveau système de délégation en V1 » | `DEC-SUP-07` | **Calendrier levé** (la décision fonctionnelle `DEC-SUP-01` à `-06` s'applique) | ARB-06 |
 | Étiquetage des régimes (feuille de service en QUAI) | `docs/propositions/mer_quai_consolidation.md` §8 | **Remplacé** par la table validée | ARB-07 |
+| B3 « échanges et quarts à la mer : ne pas généraliser sans validation » | registre | **Tranché** : mécanisme unique mer et quai | AC-05 |
+| Points §8.1 à §8.8 « à confirmer » | ce document | **Tranchés** (voir §9) | AC-01 à AC-08 |
 | ANO-007 à ANO-010 « ouvertes, décision UX » | `docs/recette/04_REGISTRE_ANOMALIES.*` | **Tranchées** (statut mis à jour) | ARB-08 |
 | « Conserver l'application `rondes` pour les données historiques » | `docs/propositions/audit_reprise_v11.md` §4, `docs/REFERENCE.md` §4 | **Remplacée** par la suppression définitive | ARB-09 |
 | Cahier des charges §20 (rondes) | Notion | **À aligner** par le PO (non modifié ici) | ARB-09 |
@@ -187,3 +189,51 @@ Ces points découlent de l'exécution des décisions ; ils ne remettent aucune r
 6. **Unité suppléance/délégation (ARB-06 et `DEC-SUP-*`)** : proposition technique d'un modèle unique « délégation » couvrant la suppléance officielle (fonction entière, durée limitée) et la délégation ciblée (actions et modules précisés) ; à confirmer par le PO comme simplification, car cela fixe l'architecture de L08.
 7. **Seuils d'imminence par défaut (ARB-07)** : valeurs initiales proposées par le PO ou reprises des délais d'alerte d'activation existants (30 minutes par défaut).
 8. **Données Rondes (ARB-09)** : volume et contenu réels inconnus (seules des données de démonstration existent dans les environnements vus). Exporter, puis supprimer, relève d'une autorisation distincte.
+
+## 9. Arbitrages complémentaires du 24/11/2026 (AC-01 à AC-08)
+
+Huit décisions du PO complètent ARB-01 à ARB-09 ; elles prévalent sur toute décision antérieure contradictoire (§3 conserve l'historique). Identifiants officiels proposés au format du registre, définitifs à son intégration.
+
+| Alias | Identifiant proposé | Sujet | Précise ou tranche | Lot | Critères |
+|---|---|---|---|---|---|
+| AC-01 | `DEC-DRT-10` | Migration des comptes administrateurs | ARB-01 règles 1 à 4 ; point §8.2 | L06 | CA-L06-1 à 8 |
+| AC-02 | `DEC-DRT-11` | Seuils minimaux d'autorité | ARB-01 règle 7 ; point §8.1 | L06 (planchers), L08, L10, L33, L34 | CA-L06-4, 9 ; lots suivants pour leurs actes |
+| AC-03 | `DEC-DRT-12` | Partage ciblé des passations | ARB-02 ; point §8.3 | L30 | CA-L30-3 et suivants |
+| AC-04 | `DEC-MOD-02` | Archives des modules désactivés | ARB-03 ; point §8.4 | L37 (nouveau, après L34 et L08) | à définir en L37 |
+| AC-05 | `DEC-FDS-17` | Échanges de quarts à la mer | ARB-04 ; **tranche B3** ; point §8.5 | L10 (un seul moteur) | CA-L10-1 à 6, étendus à la mer |
+| AC-06 | `DEC-DRT-13` | Délégations et suppléances | ARB-06 ; point §8.6 ; `DEC-SUP-*` | L08 | CA-L08-1 à 6 |
+| AC-07 | `DEC-NOT-02` | Seuils d'imminence des notifications | ARB-07 ; point §8.7 | L35 | CA-L35-4 et suivants |
+| AC-08 | `DEC-ORG-08` | Procédure de suppression des données Rondes | ARB-09 ; point §8.8 | L36 (étapes 1 à 8) | CA-L36-1 à 5 |
+
+**AC-01 — comptes administrateurs.** Un administrateur exclusivement technique ne garde que ses droits techniques ; un administrateur qui exerce aussi une fonction métier **explicitement établie** garde deux rôles indépendants ; fonction inconnue : droits techniques seuls ; un nouvel administrateur ne reçoit aucun droit métier par défaut ; aucune fonction n'est déduite du statut d'administrateur ; une fonction non établie est confirmée par une autorité habilitée. Une procédure sécurisée d'initialisation des premières autorités métier d'un bâtiment est prévue, sans auto-attribution ni contournement permanent : **elle fera l'objet d'une proposition soumise au PO avant implémentation** (`docs/recette/L06_PROPOSITION_INITIALISATION.md`).
+
+**AC-02 — autorités minimales** (exigences métier validées pour Matrix, non transcription certifiée de la réglementation de la Marine nationale) :
+
+| Acte | Autorité minimale |
+|---|---|
+| Modification de l'organisation hiérarchique | Commandant |
+| Désignation des commandants adjoints | Commandant |
+| Désignation du BSC | COMAEQ |
+| Validation finale d'un échange de garde | COMAEQ ou délégataire habilité |
+| Attribution d'une délégation | Autorité compétente pour l'acte concerné |
+| Désignation des chefs de service | Commandant |
+| Désignation des chefs de secteur et de section | Autorité hiérarchique compétente |
+| Activation ou désactivation d'un module | Commandant ou délégataire habilité |
+| Modification des circuits de validation | Commandant ou délégataire habilité |
+| Attribution des droits techniques | Autorité technique habilitée |
+
+Le paramétrage peut renforcer ces exigences, jamais les abaisser ; suppléances officielles et délégations autorisées restent applicables.
+
+**AC-03 — partage ciblé.** Droits de partage : marin (ses contributions), chef de section (sa section), de secteur (son secteur), de service (son service), commandant adjoint (ses services de rattachement), commandant en second et commandant (le bâtiment), administrateur technique (aucun). Partage d'une information individuelle avec un marin, une fonction, une section, un secteur ou un service ; lecture seule ; restrictions de confidentialité respectées ; auteur, destinataires et date enregistrés ; révocable par une autorité habilitée ; jamais l'ouverture implicite d'une passation entière.
+
+**AC-04 — archives.** Espace de consultation en lecture seule des données historiques d'un module désactivé ; commandant (sous réserve de confidentialité), second selon ses habilitations, adjoint et chef de service sur habilitation dans leur périmètre, autres marins sur autorisation, administrateur technique aucun droit automatique ; habilitations limitables dans le temps ; consultations et exports tracés ; la consultation ne réactive ni module, ni notifications, ni tâches.
+
+**AC-05 — échanges à la mer.** Un seul moteur d'échange pour les quarts à la mer et les tours à quai : demande, acceptation, contrôles (qualifications, disponibilités et conflits, temps de repos), instruction, validation finale, traçabilité. À quai : instruction par le chef de liste, validation par le COMAEQ ou son délégataire. À la mer : instruction par le responsable des quarts concernés, validation par l'autorité compétente selon la nature du quart ; circuit configurable dans le respect des seuils.
+
+**AC-06 — délégations et suppléances.** Fondations techniques communes, distinction métier explicite : la délégation porte sur des actes et des périmètres déterminés ; la suppléance remplace temporairement un titulaire avec les prérogatives associées. Nominatives, encadrées par une autorité compétente, limitées dans le temps, traçables, révocables, à expiration automatique. Une absence au calendrier ne transfère jamais l'autorité sans désignation préalable.
+
+**AC-07 — seuils d'imminence** (par bâtiment, configurables sans code) : alertes urgentes et de sécurité, demandes d'action : immédiat ; prochain quart ou tour : 24 h ; appareillage ou retour à quai : 48 h ; relève d'équipage : 72 h ; échéance de maintenance : 48 h ; formation programmée : 48 h ; expiration d'une qualification : 30 jours ; autres échéances : 24 h. Sécurité et demandes d'action toujours prioritaires ; échéances dépassées prioritaires tant qu'elles sont pertinentes ; aucune notification supprimée à cause du régime ; feuilles de service : COMMUN.
+
+**AC-08 — suppression des données Rondes.** Procédure : (1) inventaire des données et dépendances ; (2) obligations de conservation ; (3) sauvegarde et restauration vérifiée ; (4) export si nécessaire ; (5) bilan présenté au PO ; (6) autorisation explicite de destruction ; (7) suppression des données, tables et composants ; (8) intégrité des autres modules sur SQLite et PostgreSQL. Sans donnée : preuve de l'absence. **La validation de la procédure n'autorise pas la destruction.**
+
+Points du §8 désormais tranchés : 1 (AC-02), 3 (AC-03), 4 (AC-04, habilitation de consultation), 5 (AC-05), 6 (AC-06 : fondations communes, distinction métier), 7 (AC-07), 8 (AC-08, procédure). Le point 2 est tranché pour le sort des comptes (AC-01) ; le **modèle technique** retenu par L06 est décrit dans `docs/recette/L06_MIGRATION_ET_PREUVES.md`.

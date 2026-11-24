@@ -32,6 +32,7 @@ Cinq arbitrages (01, 02, 03, 06, 04) reposent sur la même question : « cette p
 | 2 | **L10** Échanges de garde décidés par le COMAEQ (ARB-04) | Fonctionnel | M | possible | L08, L29 | oui |
 | 2 | **L33** BSC : suppléant habilité et recours (ARB-05) | Fonctionnel | S | non | L08 | oui |
 | 3 | **L35** Notifications : classification configurable et règles « jamais repliées » (`D7-NOT`, ARB-07) | Fonctionnel | M | **oui** (configuration) | L34 recommandé | oui |
+| 3 | **L37** Archives des modules désactivés (AC-04) | Fonctionnel | M | probable | L34, L08 | oui |
 | 4 | **L36-b** Rondes : suppression des données et des tables (ARB-09) | Nettoyage | M | **oui, destructive** | L36-a, sauvegarde, **autorisation distincte** | non-régression |
 
 **Justification de l'ordre.**
@@ -65,6 +66,7 @@ Fichiers prévus pour L24-Q : `matrix/core/navigation.py` (libellé du menu), `m
 Conditions de clôture communes : tests positifs et négatifs du lot verts sur SQLite **et** PostgreSQL ; tests des apps touchées verts ; relecture indépendante ; mise à jour de `docs/DECISIONS_PO.md`, de `docs/REFERENCE.md` et du registre d'anomalies ; recette intermédiaire du PO ; suite complète exécutée **une fois**, sur le candidat final à l'intégration, pas à chaque lot. Aucun résultat d'un commit n'est reporté sur un autre.
 
 ### L29 — Socle d'habilitation et preuve d'application des autorisations
+- **Statut : validé définitivement par le PO le 24/11/2026, référence `c355310`** (branche `claude/l29-socle-habilitation-v11`). La clôture ne vaut pas sécurisation de l'ensemble des autorisations : anomalies résiduelles, limites de couverture et blocages avant déploiement (§9) sont conservés.
 - **Statut (24/11/2026) : réalisé sur la branche `claude/l29-socle-habilitation-v11`, en attente de la validation du PO.** Preuves : `docs/recette/L29_CARTOGRAPHIE_ET_PREUVES.md`.
 - **Objectif et périmètre.** Un contrôle commun lecture / écriture / validation par fonction, désignation, périmètre, équipage, état du module et plancher ; un registre déclaratif des points d'entrée ; une **preuve par exécution** que les autorisations s'appliquent réellement. Aucun changement fonctionnel voulu : c'est une réorganisation de contrôles de sécurité, donc **pas un lot à risque faible**.
 - **Décisions.** ARB-01 (règles 2, 7, 9), préalable de ARB-02, 03, 04, 06.
@@ -82,6 +84,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Clôture.** Rapport des divergences découvertes, soumis au PO avant L06 : chacune est classée corrigée par L29, reportée vers un lot nommé, ou exemptée avec justification.
 
 ### L06 — Administrateur technique sans autorité métier
+- **Statut : développement autorisé le 24/11/2026**, branche `claude/l06-autorites-technique-metier-v11` (base `c355310`). Décisions : ARB-01, ARB-06, AC-01 (migration des comptes), AC-02 (planchers). Preuves et migration : `docs/recette/L06_MIGRATION_ET_PREUVES.md`. Hors lot : MASTER_ADMIN et superutilisateur Django (à instruire), procédure d'initialisation des premières autorités (proposition à valider).
 - **Objectif et périmètre.** Séparer l'administration technique de l'échelle métier ; interdire l'auto-attribution ; planchers non abaissables ; prérogatives du commandant en second ; traces.
 - **Décisions.** ARB-01 ; A1, A3, A4, B2.
 - **Composants.** `accounts.UserProfile` et rôles, seuils, `quarts/models.py` (supervision, publication), API, administration Django, `org/admin.py`, création d'administrateur (`create_admin.bat`).
@@ -92,6 +95,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Tests.** T-L06-1 admin seul refusé sur échange, publication, visa (négatif, web et API) ; T-L06-2 admin + fonction métier autorisé (positif) ; T-L06-3 auto-attribution refusée ; T-L06-4 plancher refusé ; T-L06-5 second : actes propres autorisés, actes du commandant refusés ; T-L06-6 trace d'audit ; T-L06-7 migration : comptes existants conservés, sur SQLite et PostgreSQL, avec sauvegarde restaurable.
 
 ### L30 — Confidentialité des passations
+- **Décision complémentaire AC-03** : partage ciblé (droits par échelon, lecture seule, révocable, tracé).
 - **Objectif et périmètre.** Visibilité par périmètre de responsabilité, partage ciblé, équipage à terre sans limite de durée.
 - **Décisions.** ARB-02 ; A14, NE-06.
 - **Composants.** `dashboard/passation.py` (`syntheses_visibles`, `contenu_passation`), `org.SynthesePassation`, `scopes.py`, gabarits de passation.
@@ -102,6 +106,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Tests.** T-L30-1 matrice échelon × contenu (positif et négatif) ; T-L30-2 les tests d'audit A14 sont **inversés** (ils prouvaient l'écart) ; T-L30-3 partage ciblé ; T-L30-4 équipage à terre ; T-L30-5 administrateur ; T-L30-6 PostgreSQL et volumétrie.
 
 ### L08 — Délégations et suppléance explicites
+- **Décision complémentaire AC-06** : fondations communes, distinction délégation (actes, périmètres) et suppléance (remplacement d'un titulaire) ; nominatives, bornées, révocables, expiration automatique ; aucune délégation implicite par le calendrier.
 - **Objectif et périmètre.** Un mécanisme unique de suppléance officielle et de délégation : bénéficiaire, délégant habilité, périmètre, actions, modules, dates ; expiration automatique ; traces ; récapitulatif pour le titulaire.
 - **Décisions.** ARB-06 ; `DEC-SUP-01` à `-07`, `DEC-FDS-02` ; B1.
 - **Composants.** Nouveau modèle de délégation (généralise `DelegationProgramme`), contrôle commun L29, tâche d'expiration, notifications.
@@ -121,6 +126,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Tests.** T-L32-1 à T-L32-5 par module (écriture dans/hors périmètre, web et API) ; T-L32-6 motif d'absence ; T-L32-7 enchaînements internes conservés ; T-L32-8 non-régression des adjoints existants.
 
 ### L10 — Échanges de garde décidés par le COMAEQ
+- **Décision complémentaire AC-05** : un seul moteur pour les quarts à la mer et les tours à quai (contrôles dont temps de repos) ; B3 est tranché. Validation à quai : COMAEQ ou délégataire (AC-02).
 - **Objectif et périmètre.** Circuit à six étapes, instruction distincte, validation finale COMAEQ ou délégué, effet seulement après validation.
 - **Décisions.** ARB-04 ; A2, `DEC-FDS-07`, `-13`.
 - **Composants.** `quarts/echanges.py`, `EchangeService` (statuts, vues, notifications), contrôles de qualifications et de disponibilité.
@@ -140,6 +146,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Tests.** T-L33-1 suppléant (positif) ; T-L33-2 non-suppléant refusé ; T-L33-3 double équipage étanche ; T-L33-4 exception à terre conservée.
 
 ### L34 — Désactivation complète des modules
+- **Décision complémentaire AC-04** : les archives des modules désactivés sont consultées dans un espace dédié, en lecture seule, tracé, sans réactivation : lot **L37** ci-dessous. Activation ou désactivation : Commandant ou délégataire (AC-02).
 - **Objectif et périmètre.** Navigation, recherche, tableau de bord, calendrier, API, notifications, tâches automatiques, création et modification : tous fermés pour un module désactivé ; données conservées ; dépendances contrôlées ; configuration et état visibles pour l'administration ; consultation exceptionnelle des archives ; traces.
 - **Décisions.** ARB-03 ; A25.
 - **Composants.** `matrix/core/modules.py`, `middleware.py`, API, `dashboard/`, `calendar_app/`, `notifications/`, tâches Celery, `org.ModuleActivation`, administration.
@@ -150,6 +157,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Tests.** T-L34-1 web, API, accueil, calendrier, recherche (négatifs) ; T-L34-2 tâches Celery ; T-L34-3 notifications ; T-L34-4 réactivation ; T-L34-5 dépendances ; T-L34-6 administrateur ; T-L34-7 les tests d'audit A25 sont **inversés**.
 
 ### L35 — Notifications : classification et règles « jamais repliées »
+- **Décision complémentaire AC-07** : seuils d'imminence initiaux validés (voir `docs/DECISIONS_PO.md` §9), configurables par bâtiment.
 - **Objectif et périmètre.** Table de classification configurable ; feuilles de service en COMMUN ; règles de non-repli (urgence, sécurité, action, échéance imminente, prochain quart ou tour, transition imminente) ; seuils d'imminence configurables ; notifications lues retirées du tableau de bord mais conservées dans le centre.
 - **Décisions.** ARB-07. **Composants.** `notifications/regimes.py`, `notifications/models.py`, émetteurs dans `quarts/` (une vingtaine de `regime="..."`), tableau de bord, centre de notifications.
 - **Complexité.** M. **Migration.** Oui (configuration).
@@ -166,6 +174,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Tests.** T-L24Q-1 libellé ; T-L24Q-2 défauts et bascule ; T-L24Q-3 persistance par personne (et non partagée) ; T-L24Q-4 vue collective refusée sans habilitation ; T-L24Q-5 bandeau.
 
 ### L36 — Suppression définitive du module Rondes
+- **Décision complémentaire AC-08** : procédure en huit étapes ; l'autorisation de destruction reste distincte (étape 6) ; sans donnée, preuve de l'absence.
 - **Objectif et périmètre.** **a** : inventaire, retrait du code et des références résiduelles (hors données). **b** : sauvegarde, export, puis migration de suppression des tables, retrait de l'application.
 - **Décisions.** ARB-09 ; A8.
 - **Composants.** `rondes/` (4 modèles, 2 migrations), `matrix/settings.py`, `matrix/core/scopes.py`, `icones.py`, `dashboard/comanav.py`, seeds, documentation, cahier des charges.
@@ -178,6 +187,12 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **L07** (rattachement incomplet) : à traiter avec L29/L06, dont il partage les points d'entrée.
 - **L09** (visas par fonction) : prolonge L08 ; non commencé avant lui.
 - **L21** (sécurité d'accès avec les SIC) et A24/`D7-EXP` (sauvegarde, supervision, conservation) : indépendants, **toujours ouverts**, condition d'un déploiement opérationnel.
+
+### L37 — Archives des modules désactivés (nouveau, AC-04)
+- **Objectif et périmètre.** Espace de consultation en lecture seule des données historiques d'un module désactivé, par habilitation spécifique (commandant ; second selon ses habilitations ; adjoint et chef de service dans leur périmètre ; autres sur autorisation ; administrateur technique : aucun droit automatique), limitable dans le temps ; consultations et exports tracés ; aucune réactivation de module, de notification ou de tâche.
+- **Décisions.** ARB-03, AC-04. **Prérequis.** L34 (fermeture complète), L08 (habilitations temporaires). **Complexité.** M. **Migration.** Probable (habilitations d'archive).
+- **Critères.** CA-L37-1 lecture seule ; CA-L37-2 accès sur habilitation seulement ; CA-L37-3 aucune réactivation induite ; CA-L37-4 consultations et exports tracés ; CA-L37-5 restrictions de confidentialité respectées.
+- **Tests.** T-L37-1 accès autorisé et refusé par profil ; T-L37-2 aucune écriture ; T-L37-3 notifications et tâches toujours inactives ; T-L37-4 traces ; T-L37-5 habilitation expirée.
 
 ## 5. Ce qui n'est pas dans ce plan
 
