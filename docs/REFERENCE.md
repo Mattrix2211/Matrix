@@ -128,6 +128,10 @@ Trois actes exigent une confirmation, en web comme en API : clôture « Terminé
 - `verifier-migration-retrocompatible.sh` : alerte si une migration ajoute un champ sans valeur par défaut.
 - `verifier-migrations-appliquees-avant-commit.sh` : bloque si des migrations ne sont pas appliquées à `db.sqlite3`. `matrix/core/checks.py` avertit aussi au `runserver`.
 
+## 6 bis. Habilitations : point de contrôle commun et inventaire des accès
+
+`matrix/core/habilitation.py` (`evaluer`) compose compte actif, module activé et niveau d'écriture sur le service. `matrix/core/points_entree.py` inventorie routes, API, administration et tâches ; `matrix/core/registre_acces.py` déclare la protection attendue de chacune ; `manage.py cartographier_points_entree` en donne le tableau. Une route, un modèle d'administration ou une tâche sans règle fait échouer `matrix/tests/habilitation/`. Détail et preuves : `docs/recette/L29_CARTOGRAPHIE_ET_PREUVES.md`.
+
 ## 7. Phases (feuille de route Matrix 2.0, cahier des charges §42)
 
 Décisions métier du 24/11/2026 (ARB-01 à ARB-09) : `docs/DECISIONS_PO.md` ; plan des lots de reprise : `docs/PLAN_LOTS_REPRISE.md`.

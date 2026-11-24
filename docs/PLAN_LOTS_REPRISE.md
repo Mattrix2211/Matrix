@@ -65,6 +65,7 @@ Fichiers prévus pour L24-Q : `matrix/core/navigation.py` (libellé du menu), `m
 Conditions de clôture communes : tests positifs et négatifs du lot verts sur SQLite **et** PostgreSQL ; tests des apps touchées verts ; relecture indépendante ; mise à jour de `docs/DECISIONS_PO.md`, de `docs/REFERENCE.md` et du registre d'anomalies ; recette intermédiaire du PO ; suite complète exécutée **une fois**, sur le candidat final à l'intégration, pas à chaque lot. Aucun résultat d'un commit n'est reporté sur un autre.
 
 ### L29 — Socle d'habilitation et preuve d'application des autorisations
+- **Statut (24/11/2026) : réalisé sur la branche `claude/l29-socle-habilitation-v11`, en attente de la validation du PO.** Preuves : `docs/recette/L29_CARTOGRAPHIE_ET_PREUVES.md`.
 - **Objectif et périmètre.** Un contrôle commun lecture / écriture / validation par fonction, désignation, périmètre, équipage, état du module et plancher ; un registre déclaratif des points d'entrée ; une **preuve par exécution** que les autorisations s'appliquent réellement. Aucun changement fonctionnel voulu : c'est une réorganisation de contrôles de sécurité, donc **pas un lot à risque faible**.
 - **Décisions.** ARB-01 (règles 2, 7, 9), préalable de ARB-02, 03, 04, 06.
 - **Composants.** `matrix/core/ecriture_service.py`, `scopes.py`, `roles.py`, `role_thresholds.py`, `matrix/core/middleware.py`, routes web, API et administration, tâches Celery et services internes ; inventaire des routes (annexes C1 à C3 du dossier de reprise).
