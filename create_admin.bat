@@ -22,7 +22,16 @@ echo - Une adresse email
 echo - Un mot de passe (tape 2 fois pour confirmation)
 echo.
 
+REM Le mot de passe est saisi a l'invite (jamais affiche, valide par Django).
+REM Une variable d'environnement eventuelle est ecartee pour garder cette validation.
+set DJANGO_SUPERUSER_PASSWORD=
 python manage.py createsuperuser
+if errorlevel 1 (
+    echo.
+    echo Aucun compte n'a ete cree ou une erreur est survenue. Lisez le message ci-dessus.
+    pause
+    exit /b 1
+)
 
 echo.
 echo ================================================
