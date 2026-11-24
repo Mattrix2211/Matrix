@@ -40,9 +40,9 @@ from matrix.core.equipage import (
     releve_en_attente, releve_planifiee, valider_releve_secours,
 )
 from matrix.core.fuseau import MESSAGE_FUSEAU_OBLIGATOIRE, champ_local, formater, fuseau_herite, fuseau_valide, fuseaux_disponibles, libelle_fuseau, lire_champ_local, nom_fuseau
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, est_administrateur_technique, user_role_level
 from matrix.core.role_thresholds import (
-    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, niveau_requis_pour,
+    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_autorise, seuil_role, niveau_requis_pour,
 )
 from matrix.core.modules import (
     REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif, module_actif_pour_user,
@@ -290,13 +290,13 @@ class SettingsView(LoginRequiredMixin, View):
 
     @staticmethod
     def _peut_voir_equipage(user):
-        # Onglet Équipage : commandant, son second et administrateur d'unité d'un bâtiment à double équipage.
+        # Onglet Équipage : commandant et son second d'un bâtiment à double équipage.
         if is_master_admin(user):
             return True
         profil = getattr(user, 'profile', None)
         navire = profil.ship if profil else None
         return bool(
-            navire and navire.double_equipage and profil.role in (*ROLES_COMMANDEMENT, Roles.ADMIN_NAVIRE)
+            navire and navire.double_equipage and profil.role in ROLES_COMMANDEMENT
         )
 
     def dispatch(self, request, *args, **kwargs):
@@ -313,7 +313,7 @@ class SettingsView(LoginRequiredMixin, View):
             # (référentiels globaux, navires, hiérarchie, journal...) reste
             # réservé aux comptes techniques superuser Django (MASTER_ADMIN).
             profile = getattr(request.user, 'profile', None)
-            est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
+            est_admin_navire = est_administrateur_technique(request.user)
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             peut_gerer_modules = self._peut_gerer_modules(request.user)
             peut_voir_equipage = self._peut_voir_equipage(request.user)
@@ -369,7 +369,7 @@ class SettingsView(LoginRequiredMixin, View):
             # à la désignation de responsables transverses — sans les autres
             # données/référentiels réservés aux superusers.
             profile = getattr(request.user, 'profile', None)
-            est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
+            est_admin_navire = est_administrateur_technique(request.user)
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             peut_gerer_modules = self._peut_gerer_modules(request.user)
             peut_voir_equipage = self._peut_voir_equipage(request.user)
@@ -864,6 +864,8 @@ class SettingsView(LoginRequiredMixin, View):
                         nouveau_role = request.POST.get('nouveau_role')
                         if nouveau_role not in dict(ROLES_POUR_SEUILS):
                             messages.error(request, "Rôle invalide.")
+                        elif not seuil_autorise(cle_action, RoleLevel[nouveau_role]):
+                            messages.error(request, "Ce seuil ne peut pas descendre sous l'autorité minimale de l'action : il ne peut qu'être renforcé.")
                         else:
                             ancien = config.thresholds.get(cle_action) or action_seuil.defaut.name
                             config.thresholds[cle_action] = nouveau_role

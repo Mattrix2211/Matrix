@@ -45,7 +45,7 @@ class ScopeLeakUsersAPITests(TestCase):
         )
         self.admin_navire_a = User.objects.create_user(username="admin_navire_a_cpt", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.admin_navire_a, defaults={"role": "ADMIN_NAVIRE", "ship": self.ship_a}
+            user=self.admin_navire_a, defaults={"role": "COMMANDANT", "ship": self.ship_a}
         )
         self.master_admin = User.objects.create_superuser(
             username="master_admin_cpt", password="pass", email="master_admin_cpt@example.com"

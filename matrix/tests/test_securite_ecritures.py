@@ -20,7 +20,7 @@ from training.models import ReferentFormation, TrainingCourse, TrainingRecord, T
 # Tous les comptes de seed_demo qui n'ont pas le droit de modifier la structure.
 SANS_DROIT_STRUCTURE = [
     "equipier_a", "marin_b", "chef_section_a", "chef_secteur_a", "chef_secteur_b", "chef_service_a",
-    "coma_comanav", "coma_comaeq", "second_a", "cdt_a", "cdt_b", "terre_classe", "terre_securite",
+    "coma_comanav", "coma_comaeq", "second_a", "cdt_b", "admin_navire", "terre_classe", "terre_securite",
     "equipier_nor", "chef_secteur_nor", "cdt_nor",
 ]
 
@@ -89,7 +89,7 @@ class StructureBatimentTests(Base):
         for compte in SANS_DROIT_STRUCTURE:
             for methode, url, donnees in self.requetes_interdites():
                 reponse = self.appel(compte, methode, url, donnees)
-                self.assertIn(reponse.status_code, (403, 404), f"{compte} {methode} {url} -> {reponse.status_code}")
+                self.assertIn(reponse.status_code, (400, 403, 404), f"{compte} {methode} {url} -> {reponse.status_code}")  # 400 : refusé par la validation du périmètre
         self.assertEqual(self.etat_structure(), avant)
         self.assertEqual(self.traces("org."), traces)
 
@@ -106,19 +106,19 @@ class StructureBatimentTests(Base):
         self.assertEqual(reponse.status_code, 200)
         self.assertTrue(all(s["sector"] in {x.pk for x in Sector.objects.filter(service__ship=self.bre)} for s in reponse.json()))
 
-    def test_admin_navire_modifie_sa_structure_avec_trace(self):
-        reponse = self.appel("admin_navire", "patch", f"/api/org/sections/{self.section_bre.pk}/", {"name": "Pompes de cale"})
+    def test_commandant_modifie_sa_structure_avec_trace(self):
+        reponse = self.appel("cdt_a", "patch", f"/api/org/sections/{self.section_bre.pk}/", {"name": "Pompes de cale"})
         self.assertEqual(reponse.status_code, 200)
         self.section_bre.refresh_from_db()
         self.assertEqual(self.section_bre.name, "Pompes de cale")
         trace = AuditLog.objects.get(action="org.modification")
         self.assertIn("Pompes de cale", trace.details)
-        self.assertEqual(trace.actor.username, "admin_navire")
+        self.assertEqual(trace.actor.username, "cdt_a")
 
-    def test_admin_navire_cree_et_supprime_avec_trace(self):
-        cree = self.appel("admin_navire", "post", "/api/org/sections/", {"sector": self.secteur_bre.pk, "name": "Nouvelle"})
+    def test_commandant_cree_et_supprime_avec_trace(self):
+        cree = self.appel("cdt_a", "post", "/api/org/sections/", {"sector": self.secteur_bre.pk, "name": "Nouvelle"})
         self.assertEqual(cree.status_code, 201)
-        self.assertEqual(self.appel("admin_navire", "delete", f"/api/org/sections/{cree.json()['id']}/").status_code, 204)
+        self.assertEqual(self.appel("cdt_a", "delete", f"/api/org/sections/{cree.json()['id']}/").status_code, 204)
         self.assertEqual(
             list(AuditLog.objects.filter(action__startswith="org.").order_by("pk").values_list("action", flat=True)),
             ["org.creation", "org.suppression"],
@@ -127,14 +127,14 @@ class StructureBatimentTests(Base):
     def test_suppression_d_une_section_occupee_est_refusee_sans_rien_perdre(self):
         section = Section.objects.get(sector__service__ship=self.bre, name="Moteurs bâbord")
         marins = UserProfile.objects.filter(section=section).count()
-        reponse = self.appel("admin_navire", "delete", f"/api/org/sections/{section.pk}/")
+        reponse = self.appel("cdt_a", "delete", f"/api/org/sections/{section.pk}/")
         self.assertEqual(reponse.status_code, 409)
         self.assertTrue(Section.objects.filter(pk=section.pk).exists())
         self.assertEqual(UserProfile.objects.filter(section=section).count(), marins)
         self.assertGreater(marins, 0)
         self.assertTrue(AuditLog.objects.filter(action="suppression_unite_refusee").exists())
 
-    def test_admin_navire_ne_touche_pas_a_l_autre_batiment(self):
+    def test_commandant_ne_touche_pas_a_l_autre_batiment(self):
         avant = self.etat_structure()
         for methode, url, donnees in [
             ("patch", f"/api/org/ships/{self.nor.pk}/", {"archived": True}),
@@ -144,27 +144,29 @@ class StructureBatimentTests(Base):
             ("patch", f"/api/assets/locations/{self.lieu_nor.pk}/", {"name": "X"}),
             ("delete", f"/api/assets/locations/{self.lieu_nor.pk}/", None),
         ]:
-            self.assertIn(self.appel("admin_navire", methode, url, donnees).status_code, (400, 403, 404), url)
+            self.assertIn(self.appel("cdt_a", methode, url, donnees).status_code, (400, 403, 404), url)
         self.assertEqual(self.etat_structure(), avant)
 
     def test_administrateur_general_agit_sur_toute_la_flotte(self):
         self.assertEqual(self.appel("admin", "patch", f"/api/org/services/{self.service_nor.pk}/", {"name": "Propulsion NOR"}).status_code, 200)
         self.assertEqual(self.appel("admin", "delete", f"/api/assets/locations/{self.lieu_nor.pk}/").status_code, 204)
 
-    def test_seuil_configurable_par_unite(self):
+    def test_le_seuil_de_structure_ne_peut_pas_descendre_sous_le_commandant(self):
+        """AC-02 : modifier l'organisation exige au moins le commandant ; le paramétrage ne peut que renforcer."""
         self.seuil("structure_navire_ecriture", "CHEF_SERVICE", self.bre)
-        self.assertEqual(self.appel("chef_service_a", "patch", f"/api/org/sections/{self.section_bre.pk}/", {"name": "Reconfigurée"}).status_code, 200)
-        self.assertEqual(self.appel("chef_section_a", "patch", f"/api/org/sections/{self.section_bre.pk}/", {"name": "Non"}).status_code, 403)
+        url = f"/api/org/sections/{self.section_bre.pk}/"
+        self.assertEqual(self.appel("chef_service_a", "patch", url, {"name": "Reconfigurée"}).status_code, 403)
+        self.assertEqual(self.appel("cdt_a", "patch", url, {"name": "Reconfigurée"}).status_code, 200)
 
     def test_double_equipage_bascule_explicite_et_sans_droit_accidentel(self):
         url = f"/api/org/ships/{self.bre.pk}/"
-        # Commandant et chef : refusés.
-        for compte in ("cdt_a", "chef_service_a"):
+        # Chef de service et administrateur technique : refusés.
+        for compte in ("admin_navire", "chef_service_a"):
             self.assertEqual(self.appel(compte, "patch", url, {"double_equipage": False}).status_code, 403)
         # L'équipage à bord ne change que par la relève.
-        self.assertEqual(self.appel("admin_navire", "patch", url, {"equipage_a_bord": "B"}).status_code, 403)
+        self.assertEqual(self.appel("cdt_a", "patch", url, {"equipage_a_bord": "B"}).status_code, 403)
         # L'équipage B (à terre) retrouverait l'écriture : refus tant qu'il est rattaché.
-        refus = self.appel("admin_navire", "patch", url, {"double_equipage": False})
+        refus = self.appel("cdt_a", "patch", url, {"double_equipage": False})
         self.assertEqual(refus.status_code, 400)
         self.bre.refresh_from_db()
         self.assertTrue(self.bre.double_equipage)
@@ -173,7 +175,7 @@ class StructureBatimentTests(Base):
         for marin in User.objects.filter(profile__ship=self.bre, profile__equipage="B"):
             marin.profile.equipage = ""
             marin.profile.save()
-        self.assertEqual(self.appel("admin_navire", "patch", url, {"double_equipage": False}).status_code, 200)
+        self.assertEqual(self.appel("cdt_a", "patch", url, {"double_equipage": False}).status_code, 200)
         self.assertEqual(self.traces("changement_equipage"), 1)
 
     def test_activation_du_double_equipage_exige_un_equipage_a_bord(self):

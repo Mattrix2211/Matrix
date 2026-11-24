@@ -11,7 +11,7 @@
 | `coma_comanav`, `coma_comops` | Bretagne, A | Commandants adjoints (lecture, pas d'écriture hors de leurs services) |
 | `second_a`, `cdt_a`, `cdt_b` | Bretagne | Commandant en second, commandants (A et B) |
 | `marin_b`, `chef_secteur_b` | Bretagne, équipage B | Séparation des équipages à vérifier |
-| `admin_navire` | Bretagne | Administrateur d'unité |
+| `admin_navire` | Bretagne | Administrateur technique (aucune autorité métier : rôle d'équipier, droits techniques seuls) |
 | `cdt_abe`, `comaeq_abe`, `chef_liste_abe`, `marin_abe_1..3`, `historique_abe` | Auguste Bénébig (QUAI) | Activation anticipée, liste en retard, désignation historique à qualifier |
 | `cdt_jch`, `comaeq_jch`, `chef_liste_jch`, `marin_jch_1..3` | Jacques Chevallier (MER) | Activation possible seulement après l'accostage |
 | `terre_classe` | à terre | Suivi de classe FREMM (lecture) |

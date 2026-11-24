@@ -59,7 +59,7 @@ class BaseComanav(TestCase):
 
 class AccesTests(BaseComanav):
     def test_comanav_commandement_et_admin_ont_acces(self):
-        for nom, role in (("cdt", "COMMANDANT"), ("cdt2", "COMMANDANT_EN_SECOND"), ("adm", "ADMIN_NAVIRE"), ("mas", "MASTER_ADMIN")):
+        for nom, role in (("cdt", "COMMANDANT"), ("cdt2", "COMMANDANT_EN_SECOND"), ("mas", "MASTER_ADMIN")):
             with self.subTest(role=role):
                 self.assertEqual(self._page(self._marin(nom, role, self.navire)).status_code, 200)
         self.assertEqual(self._page(self.comanav).status_code, 200)
@@ -71,6 +71,7 @@ class AccesTests(BaseComanav):
             self._marin("comaeq", "ETAT_MAJOR", self.navire, fonction_coma="COMAEQ"),
             self._marin("etat_major", "ETAT_MAJOR", self.navire),
             self._marin("sans_navire", "COMMANDANT", None),
+            self._marin("administrateur_technique", "EQUIPIER", self.navire, administrateur_technique=True),
         ]
         for user in autres:
             with self.subTest(user=user.username):

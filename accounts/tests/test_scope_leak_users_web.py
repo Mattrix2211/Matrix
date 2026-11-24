@@ -40,7 +40,7 @@ class ScopeLeakUsersWebTests(TestCase):
         )
         self.admin_navire_a = User.objects.create_user(username="admin_navire_a_anw", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.admin_navire_a, defaults={"role": "ADMIN_NAVIRE", "ship": self.ship_a}
+            user=self.admin_navire_a, defaults={"role": "COMMANDANT", "ship": self.ship_a}
         )
         self.master_admin = User.objects.create_superuser(
             username="master_admin_anw", password="pass", email="master_admin_anw@example.com"
@@ -126,7 +126,7 @@ class ScopeLeakUsersWebWriteTests(TestCase):
         self.assertTrue(User.objects.filter(pk=self.equipier_b.pk).exists())
 
     def test_set_password_refuse_une_cible_dun_autre_navire(self):
-        UserProfile.objects.filter(user=self.commandant_a).update(role="ADMIN_NAVIRE")  # seul rôle autorisé à réinitialiser
+        UserProfile.objects.filter(user=self.commandant_a).update(role="EQUIPIER", administrateur_technique=True)  # seul droit autorisé à réinitialiser
         self.client.login(username="commandant_a_ane", password="pass")
         r = self.client.post(
             "/users/",
@@ -151,7 +151,7 @@ class ScopeLeakUsersWebWriteTests(TestCase):
         self.assertEqual(self.equipier_b.profile.role, "EQUIPIER")
 
     def test_bulk_reset_passwords_refuse_une_cible_dun_autre_navire(self):
-        UserProfile.objects.filter(user=self.commandant_a).update(role="ADMIN_NAVIRE")  # seul rôle autorisé à réinitialiser
+        UserProfile.objects.filter(user=self.commandant_a).update(role="EQUIPIER", administrateur_technique=True)  # seul droit autorisé à réinitialiser
         self.client.login(username="commandant_a_ane", password="pass")
         r = self.client.post(
             "/users/",

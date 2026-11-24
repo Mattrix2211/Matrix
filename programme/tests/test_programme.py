@@ -81,7 +81,7 @@ class SaisieEtDroitsTests(ProgrammeBase):
             services.creer_evenement(self.second, "x", self._type(), self.demain, self.demain - timedelta(hours=1), f"ship:{self.navire.pk}")
         with self.assertRaises(PermissionError):
             services.ajouter_type(self.second, "Revue", "#123456")
-        admin = self._marin("admin", None, None, "ADMIN_NAVIRE")
+        admin = self._marin("admin", None, None, "COMMANDANT")
         services.ajouter_type(admin, "Revue d'armement", "#123456")
         self.assertTrue(services.types_du_navire(self.navire.pk).filter(nom="Revue d'armement").exists())
 

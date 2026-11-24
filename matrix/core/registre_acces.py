@@ -61,7 +61,7 @@ REGLES = (
        module="quarts", lecture_sensible=True,
        couverture=("quarts.tests.test_feuille_service_circuit_bsc", "matrix.tests.test_securite_ecritures")),
     _r("WEB-QUARTS", r"^quarts/", controles=_ECRITURE, module="quarts",
-       ecarts=("A1, A3, A4 : l'administrateur d'unité franchit les seuils d'autorité métier → L06",),
+       ecarts=("A3, A4 : seuil de publication abaissable par bâtiment ; droits du commandant en second différents entre écran et API → L08",),
        couverture=("matrix.tests.test_securite_terre_second", "matrix.tests.test_etancheite_equipage_vues")),
     _r("WEB-ABSENCES", r"^absences/", controles=_QUERYSET, module="absences", lecture_sensible=True,
        ecarts=("ARB-06 : périmètre de lecture des absences et protection du motif à poser avant tout affichage du motif (non affiché aujourd'hui) → L32",)),

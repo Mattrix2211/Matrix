@@ -10,7 +10,8 @@ User = get_user_model()
 
 class Roles(models.TextChoices):
     MASTER_ADMIN = "MASTER_ADMIN", "Administrateur général"
-    ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur d'unité"
+    # Obsolète depuis L06 : l'administration technique est l'indicateur `administrateur_technique`, indépendant du rôle métier.
+    ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur d'unité (obsolète)"
     COMMANDANT = "COMMANDANT", "Commandant"
     COMMANDANT_EN_SECOND = "COMMANDANT_EN_SECOND", "Commandant en second"
     ETAT_MAJOR = "ETAT_MAJOR", "État-major"
@@ -27,6 +28,8 @@ class Themes(models.TextChoices):
 class UserProfile(TimeStampedModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     role = models.CharField(max_length=32, choices=Roles.choices)
+    # Droits techniques d'unité (comptes, seuils dans leurs planchers) : indépendants du rôle métier, aucun droit métier.
+    administrateur_technique = models.BooleanField(default=False, verbose_name="Administrateur technique")
     grade = models.CharField(max_length=64, blank=True, default="")
     specialite = models.CharField(max_length=128, blank=True, default="")
     fonction_service = models.CharField(max_length=128, blank=True, default="")
@@ -68,6 +71,11 @@ class UserProfile(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} ({self.role})"
+
+    def save(self, *args, **kwargs):
+        if self.role == Roles.ADMIN_NAVIRE:
+            raise ValueError("Le rôle « administrateur d'unité » n'existe plus : utiliser l'indicateur administrateur_technique.")
+        super().save(*args, **kwargs)
 
     @property
     def navire_id_effectif(self):

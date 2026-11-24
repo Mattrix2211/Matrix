@@ -19,13 +19,15 @@ class DelaisActivationTests(BaseActivation):
         super().setUp()
         self.url_delais = reverse("quarts-delais-activation")
         self.second = self._user("csd", "COMMANDANT_EN_SECOND")
-        self.admin_unite = self._user("adm", "ADMIN_NAVIRE")
+        self.admin_unite = self._user("adm", "EQUIPIER")
+        self.admin_unite.profile.administrateur_technique = True
+        self.admin_unite.profile.save()
         self.autre = self._user("autre", "CHEF_SERVICE", service=self.service)
         self.valides = {"rappel_minutes": 45, "alerte_minutes": 5, "escalade_minutes": 20, "activation_anticipee_minutes": 45, "remplacement_duree_max_heures": 48}
 
     def test_droits_de_lecture_et_de_modification(self):
         modifier = (self.commandant, self.comaeq)
-        lire = (self.second, self.admin_unite, self.chef)
+        lire = (self.second, self.chef)
         for user in (*modifier, *lire):
             self.client.force_login(user)
             self.assertEqual(self.client.get(self.url_delais).status_code, 200, user.username)
@@ -33,9 +35,10 @@ class DelaisActivationTests(BaseActivation):
             self.client.force_login(user)
             self.assertEqual(self.client.post(self.url_delais, self.valides).status_code, 403, user.username)
         self.assertFalse(ConfigurationActivation.objects.exists())
-        self.client.force_login(self.autre)  # aucun droit particulier
-        self.assertEqual(self.client.get(self.url_delais).status_code, 404)
-        self.assertEqual(self.client.post(self.url_delais, self.valides).status_code, 404)
+        for sans_droit in (self.autre, self.admin_unite):  # l'administrateur technique n'a aucun droit métier
+            self.client.force_login(sans_droit)
+            self.assertEqual(self.client.get(self.url_delais).status_code, 404, sans_droit.username)
+            self.assertEqual(self.client.post(self.url_delais, self.valides).status_code, 404, sans_droit.username)
 
     def test_modification_validee_et_auditee(self):
         self.client.force_login(self.comaeq)

@@ -96,7 +96,7 @@ class IsMasterAdminTests(TestCase):
         """ADMIN_NAVIRE est un cran en dessous de MASTER_ADMIN (matrix/core/roles.py) :
         rattaché à un navire précis, il ne doit pas obtenir l'accès flotte entière."""
         user = User.objects.create_user(username="an", password="pass")
-        UserProfile.objects.update_or_create(user=user, defaults={"role": Roles.ADMIN_NAVIRE})
+        UserProfile.objects.update_or_create(user=user, defaults={"role": Roles.COMMANDANT})
         user.refresh_from_db()
         self.assertFalse(is_master_admin(user))
 

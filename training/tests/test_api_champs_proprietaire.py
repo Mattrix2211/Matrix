@@ -82,7 +82,10 @@ class ApiSessionsEtFormationsChampsTests(TestCase):
         self.navire = Ship.objects.create(name="Navire A trs", code="A-TRS")
         self.autre_navire = Ship.objects.create(name="Navire B trs", code="B-TRS")
         self.cours = TrainingCourse.objects.create(title="Cours trs", validity_days=365)
-        self.chef = self._marin("chef_trs", "ADMIN_NAVIRE", self.navire)
+        self.chef = self._marin("chef_trs", "COMMANDANT", self.navire)
+        self.administrateur = self._marin("adm_trs", "EQUIPIER", self.navire)
+        self.administrateur.profile.administrateur_technique = True
+        self.administrateur.profile.save()
         self.equipier = self._marin("equipier_trs", "EQUIPIER", self.navire)
         self.etranger = self._marin("etranger_trs", "EQUIPIER", self.autre_navire)
         self.client = APIClient()
@@ -109,10 +112,12 @@ class ApiSessionsEtFormationsChampsTests(TestCase):
         self.assertEqual(r.status_code, 201, r.content)
 
     def test_auteur_de_la_formation_pose_par_le_serveur(self):
+        self.client.logout()
+        self.client.login(username="adm_trs", password="pass")
         r = self.client.post(
             "/api/training/courses/",
             {"title": "Nouvelle", "validity_days": 100, "created_by": self.etranger.pk},
             format="json",
         )
         self.assertEqual(r.status_code, 201, r.content)
-        self.assertEqual(TrainingCourse.objects.get(pk=r.data["id"]).created_by, self.chef)
+        self.assertEqual(TrainingCourse.objects.get(pk=r.data["id"]).created_by, self.administrateur)

@@ -58,7 +58,7 @@ class FormulaireUtilisateurTests(TestCase):
     def test_role_hors_liste_propose_sans_etre_modifie(self):
         # Un rôle désactivé n'est pas écrasé par le premier choix de la liste
         RoleAvailability.objects.create(code=Roles.COMMANDANT, active=False)
-        admin = self._marin("adm_frm", Roles.ADMIN_NAVIRE, self.navire)
+        admin = self._marin("adm_frm", Roles.MASTER_ADMIN, self.navire)
         self.client.login(username="adm_frm", password="pass")
         page = self.client.get(reverse("user-edit", args=[self.cdt.pk]))
         self.assertContains(page, '<option value="" selected>Commandant (inchangé)</option>', html=False)
@@ -73,7 +73,7 @@ class FormulaireUtilisateurTests(TestCase):
     def test_anti_elevation_de_role_toujours_applique_par_le_serveur(self):
         self.client.login(username="cdt_frm", password="pass")
         self.client.post(reverse("user-directory"), {
-            "action": "edit_user", "pk": self.marin.pk, "role": Roles.ADMIN_NAVIRE, "ship_id": self.navire.pk,
+            "action": "edit_user", "pk": self.marin.pk, "role": Roles.COMMANDANT, "ship_id": self.navire.pk,
         })
         self.marin.profile.refresh_from_db()
         self.assertEqual(self.marin.profile.role, Roles.EQUIPIER)

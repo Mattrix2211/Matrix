@@ -46,7 +46,7 @@ class Base(TestCase):
         self.second_b = marin("second_b", "COMMANDANT_EN_SECOND", self.navire, "B")
         self.equipier_a = marin("equipier_a", "EQUIPIER", self.navire, "A")
         self.equipier_b = marin("equipier_b", "EQUIPIER", self.navire, "B")
-        self.admin_navire = marin("admin_navire", "ADMIN_NAVIRE", self.navire)
+        self.admin_navire = marin("admin_navire", "COMMANDANT", self.navire)
         self.master = marin("master", "MASTER_ADMIN", None)
         self.maintenant = timezone.now().replace(microsecond=0)
 
@@ -103,8 +103,8 @@ class FuseauTests(Base):
         self.assertIn("instants deja enregistres inchanges", audit.details)
 
     def test_droits_et_validation_du_changement_de_fuseau(self):
-        for auteur in (self.cdt_a, self.equipier_a):
-            self.assertIn("réservé", changer_fuseau(auteur, self.navire, "Pacific/Noumea"))
+        self.assertIn("réservé", changer_fuseau(self.equipier_a, self.navire, "Pacific/Noumea"))
+        self.assertEqual(changer_fuseau(self.cdt_a, self.navire, "Pacific/Noumea"), "")
         self.assertIn("inconnu", changer_fuseau(self.admin_navire, self.navire, "Mars/Olympus"))
         self.assertIn("inconnu", changer_fuseau(self.admin_navire, self.navire, ""))
         self.assertEqual(changer_fuseau(self.master, self.navire, "Pacific/Noumea"), "")
@@ -112,12 +112,14 @@ class FuseauTests(Base):
         self.assertIn("réservé", changer_fuseau(self.admin_navire, autre, "Pacific/Noumea"))
         self.assertEqual(Ship.objects.get(pk=autre.pk).fuseau_horaire, "")
 
-    def test_le_seuil_unite_administration_reste_configurable_par_batiment(self):
-        RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"unite_administration": "COMMANDANT"})
+    def test_le_seuil_unite_administration_peut_etre_renforce_jamais_abaisse(self):
+        RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"unite_administration": "EQUIPIER"})
         invalidate_cache(self.navire.pk)
         self.addCleanup(invalidate_cache, self.navire.pk)
-        self.assertEqual(changer_fuseau(self.cdt_a, self.navire, "Pacific/Noumea"), "")
-        self.assertIn("réservé", changer_fuseau(self.equipier_a, self.navire, "Europe/Paris"))
+        self.assertIn("réservé", changer_fuseau(self.equipier_a, self.navire, "Europe/Paris"))  # plancher : commandant
+        RoleThresholdConfig.objects.filter(ship=self.navire).update(thresholds={"unite_administration": "MASTER_ADMIN"})
+        invalidate_cache(self.navire.pk)
+        self.assertIn("réservé", changer_fuseau(self.cdt_a, self.navire, "Pacific/Noumea"))
 
     def test_un_fuseau_inconnu_ne_passe_pas_la_validation_du_modele(self):
         self.navire.fuseau_horaire = "Mars/Olympus"

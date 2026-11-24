@@ -35,7 +35,7 @@ class ScopeNavireTests(TestCase):
 
         self.admin_navire_a = User.objects.create_user(username="admin_a", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.admin_navire_a, defaults={"role": "ADMIN_NAVIRE", "ship": self.navire_a}
+            user=self.admin_navire_a, defaults={"role": "COMMANDANT", "ship": self.navire_a}
         )
 
         self.master_admin = User.objects.create_user(username="master", password="pass")

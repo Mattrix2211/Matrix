@@ -485,7 +485,7 @@ class NonRegressionCatalogueTests(TestCase):
         self.assertFalse(course.gere_par_le_bord)
         ship = Ship.objects.create(name="Navire Historique", code="HIST")
         admin = User.objects.create_user(username="admin_hist", password="pass")
-        UserProfile.objects.update_or_create(user=admin, defaults={"role": "ADMIN_NAVIRE", "ship": ship})
+        UserProfile.objects.update_or_create(user=admin, defaults={"role": "EQUIPIER", "administrateur_technique": True, "ship": ship})
         self.client.login(username="admin_hist", password="pass")
         r = self.client.get("/formations/")
         titres = [f.title for f in r.context["formations"]]

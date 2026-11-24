@@ -4,8 +4,8 @@ from enum import IntEnum
 class RoleLevel(IntEnum):
     """Niveau hiérarchique numérique, du plus bas (Équipier) au plus haut (Administrateur général).
 
-    Ordre complet documenté dans CLAUDE.md :
-    MASTER_ADMIN > ADMIN_NAVIRE > COMMANDANT > COMMANDANT_EN_SECOND > ETAT_MAJOR > CHEF_SERVICE > CHEF_SECTEUR > CHEF_SECTION > EQUIPIER
+    Échelle MÉTIER : EQUIPIER … COMMANDANT. `ADMIN_NAVIRE` n'est plus un rôle mais le palier des droits TECHNIQUES, que seul
+    un administrateur technique atteint (`niveau_pour_action`) ; aucun rôle métier n'y mène. MASTER_ADMIN reste au-dessus.
     """
 
     EQUIPIER = 1
@@ -27,7 +27,6 @@ ROLE_TO_LEVEL = {
     "ETAT_MAJOR": RoleLevel.ETAT_MAJOR,
     "COMMANDANT_EN_SECOND": RoleLevel.COMMANDANT_EN_SECOND,
     "COMMANDANT": RoleLevel.COMMANDANT,
-    "ADMIN_NAVIRE": RoleLevel.ADMIN_NAVIRE,
     "MASTER_ADMIN": RoleLevel.MASTER_ADMIN,
 }
 
@@ -48,6 +47,16 @@ def user_role_level(user) -> RoleLevel:
 
 # Rôles dont le grade ne vaut pas écriture sur les données du bord : leurs écritures passent par des workflows explicites.
 ROLES_SANS_ECRITURE_HERITEE = ("COMMANDANT_EN_SECOND",)
+
+
+def est_administrateur_technique(user) -> bool:
+    """Droits techniques d'unité : indicateur du profil, ou administrateur général. N'ouvre aucun droit métier."""
+    if not getattr(user, "is_authenticated", False) or not user.is_active:
+        return False
+    if user.is_superuser:
+        return True
+    profile = getattr(user, "profile", None)
+    return bool(profile and (profile.administrateur_technique or profile.role == "MASTER_ADMIN"))
 
 
 def niveau_ecriture(user) -> RoleLevel:

@@ -151,7 +151,7 @@ class DefinitionTests(Base):
         self.assertEqual(niveau_ecriture(second), RoleLevel.EQUIPIER)
         for compte, niveau in (("cdt_a", RoleLevel.COMMANDANT), ("chef_service_a", RoleLevel.CHEF_SERVICE),
                                ("chef_section_a", RoleLevel.CHEF_SECTION), ("equipier_a", RoleLevel.EQUIPIER),
-                               ("admin_navire", RoleLevel.ADMIN_NAVIRE)):
+                               ("admin_navire", RoleLevel.EQUIPIER)):  # administrateur technique : aucun niveau métier
             self.assertEqual(niveau_ecriture(User.objects.get(username=compte)), niveau, compte)
 
 
@@ -348,8 +348,14 @@ class ChaineEmbarqueeSansRegressionTests(Base):
                     {"titre": "Notice", "type_document": "AUTRE", "fichier": self.fichier()})
         self.assertTrue(self.installation.documents.filter(titre="Notice").exists())
 
-    def test_commandant_et_administrateur_d_unite_gardent_leurs_ecritures(self):
-        for compte in ("cdt_a", "admin_navire"):
+    def test_administrateur_technique_n_ecrit_pas_sur_les_donnees_metier(self):
+        client = self.client_de("admin_navire")
+        self.assertEqual(client.post(f"/logistics/tickets/{self.ticket.pk}/transition/", {"status": "IN_REPAIR"}).status_code, 403)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, "REPORTED")
+
+    def test_commandant_garde_ses_ecritures(self):
+        for compte in ("cdt_a",):
             client = self.client_de(compte)
             self.assertEqual(client.post(f"/logistics/tickets/{self.ticket.pk}/transition/", {"status": "IN_REPAIR"}).status_code, 302, compte)
             self.ticket.refresh_from_db()

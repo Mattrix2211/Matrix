@@ -124,16 +124,17 @@ class OngletModulesPermissionsTests(TestCase):
         activation = ModuleActivation.objects.get(ship=self.ship, module="assets")
         self.assertFalse(activation.active)
 
-    def test_admin_navire_peut_aussi_gerer_les_modules(self):
-        # ADMIN_NAVIRE est au-dessus de COMMANDANT dans la hiérarchie
-        # (matrix/core/roles.py), il satisfait donc le seuil par défaut.
-        self._marin("admin_navire_mod", "ADMIN_NAVIRE")
-        self.client.login(username="admin_navire_mod", password="pass")
+    def test_administrateur_technique_seul_ne_gere_pas_les_modules(self):
+        # AC-02 : l'activation d'un module est un acte du commandant ou de son délégataire, pas un droit technique.
+        user = self._marin("admin_technique_mod", "EQUIPIER")
+        user.profile.administrateur_technique = True
+        user.profile.save()
+        self.client.login(username="admin_technique_mod", password="pass")
 
         response = self.client.get(self.url, {"tab": "modules"})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
 
-    def test_seuil_module_gestion_abaisse_autorise_un_role_inferieur(self):
+    def test_seuil_module_gestion_ne_peut_pas_etre_abaisse_sous_le_commandant(self):
         chef_service = self._marin("chef_service_abaisse", "CHEF_SERVICE")
         RoleThresholdConfig.objects.create(
             ship=self.ship, thresholds={"module_gestion": "CHEF_SERVICE"},
@@ -143,7 +144,7 @@ class OngletModulesPermissionsTests(TestCase):
 
         self.client.login(username="chef_service_abaisse", password="pass")
         response = self.client.get(self.url, {"tab": "modules"})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)  # plancher d'autorité : le paramétrage ne peut que renforcer
 
     def test_lien_modules_absent_de_la_navigation_pour_un_role_non_habilite(self):
         self._marin("chef_nav_mod", "CHEF_SERVICE")

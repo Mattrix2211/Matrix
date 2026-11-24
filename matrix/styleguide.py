@@ -17,7 +17,7 @@ from django.template.loader import get_template
 from django.views.generic import TemplateView
 
 from matrix.core.icones import ICONES
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import est_administrateur_technique
 
 CSS = settings.BASE_DIR / "matrix" / "static" / "css" / "matrix.css"
 
@@ -386,7 +386,7 @@ class StyleguideView(LoginRequiredMixin, TemplateView):
     template_name = "styleguide/index.html"
 
     def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.ADMIN_NAVIRE:
+        if request.user.is_authenticated and not est_administrateur_technique(request.user):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 

@@ -15,7 +15,7 @@ from . import preferences
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, est_administrateur_technique, user_role_level
 from matrix.core.saisie import entier_ou_none, entiers_valides, identifiant_d_url, verifier_longueurs
 from matrix.core.permissions import ManageUsersPermission
 from matrix.core.scopes import (
@@ -28,6 +28,12 @@ from org.archivage import exclure_archives
 from training.models import CandidatureFormation
 from training.services import qualifications_validees_de
 from matrix.core.organisation import votre_niveau
+
+
+# Seules actions de l'annuaire ouvertes à un administrateur technique sans autorité métier ; il ne désigne personne.
+ACTIONS_ANNUAIRE_TECHNIQUES = ("set_password", "bulk_reset_passwords")
+# Au-delà, la reprise d'un compte revient à l'administrateur général (voir accounts/services.py).
+ROLES_REINITIALISABLES_PAR_TECHNIQUE = (Roles.EQUIPIER, Roles.CHEF_SECTION)
 
 
 def _role_attribution_autorisee(acting_user, role_cible):
@@ -43,7 +49,7 @@ def _role_attribution_autorisee(acting_user, role_cible):
     profile = getattr(acting_user, "profile", None)
     acting_role = profile.role if profile else None
     allowed = ManageUsersPermission.MANAGE_MAP.get(acting_role, set())
-    return role_cible in allowed
+    return role_cible in allowed and role_cible != Roles.ADMIN_NAVIRE
 
 
 def _longueurs_refusees(request, valeurs_compte, valeurs_profil):
@@ -80,9 +86,14 @@ def _utilisateurs_gerables_par(acting_user):
         # gérable par le rôle de l'appelant (même matrice que l'API) ; soi-même reste éditable.
         profil = getattr(acting_user, "profile", None)
         gerables = ManageUsersPermission.MANAGE_MAP.get(profil.role if profil else None, set())
-        qs = qs.filter(
-            perimetre_navire_q(acting_user, "profile__"), Q(profile__role__in=gerables) | Q(pk=acting_user.pk),
-        ).exclude(Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True))
+        condition = Q(profile__role__in=gerables) | Q(pk=acting_user.pk)
+        if est_administrateur_technique(acting_user):
+            condition |= Q(profile__role__in=ROLES_REINITIALISABLES_PAR_TECHNIQUE, profile__administrateur_technique=False)
+        qs = qs.filter(perimetre_navire_q(acting_user, "profile__"), condition).exclude(
+            Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True))
+        if not est_administrateur_technique(acting_user):
+            # Les droits techniques relèvent de l'autorité technique : une autorité métier ne reprend pas ces comptes.
+            qs = qs.exclude(Q(profile__administrateur_technique=True) & ~Q(pk=acting_user.pk))
     return qs
 
 
@@ -99,7 +110,7 @@ def _referentiels_formulaire(user):
         "roles": [
             {"code": code, "label": label}
             for code, label in Roles.choices
-            if code != "MASTER_ADMIN" and actifs.get(code, True) and _role_attribution_autorisee(user, code)
+            if code not in ("MASTER_ADMIN", "ADMIN_NAVIRE") and actifs.get(code, True) and _role_attribution_autorisee(user, code)
         ],
     }
     if is_master_admin(user):
@@ -144,7 +155,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # déjà connecté mais dont le rôle est insuffisant. Le commandant en
         # second consulte l'annuaire (lecture) sans pouvoir y écrire.
         seuil = NIVEAU_VISION_COMMANDEMENT if request.method in ("GET", "HEAD") else RoleLevel.COMMANDANT
-        if request.user.is_authenticated and user_role_level(request.user) < seuil:
+        technique = est_administrateur_technique(request.user) and (
+            request.method in ("GET", "HEAD") or request.POST.get("action") in ACTIONS_ANNUAIRE_TECHNIQUES
+        )
+        if request.user.is_authenticated and user_role_level(request.user) < seuil and not technique:
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
@@ -173,8 +187,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["peut_gerer"] = user_role_level(self.request.user) >= RoleLevel.COMMANDANT
+        ctx["peut_gerer_metier"] = user_role_level(self.request.user) >= RoleLevel.COMMANDANT
         ctx["peut_reinitialiser"] = peut_reinitialiser(self.request.user)
+        # Colonnes d'actions affichées : autorité métier, ou administrateur technique qui peut réinitialiser un mot de passe.
+        ctx["peut_gerer"] = ctx["peut_gerer_metier"] or (est_administrateur_technique(self.request.user) and ctx["peut_reinitialiser"])
         # Actions proposées seulement sur les comptes que le serveur accepterait de modifier.
         ctx["gerables_ids"] = set(
             _utilisateurs_gerables_par(self.request.user).filter(pk__in=[u.pk for u in ctx["users"]]).values_list("pk", flat=True)
@@ -243,9 +259,11 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # rattachement) relève du périmètre COMMANDANT et au-dessus. Corrige la faille
         # permettant à n'importe quel utilisateur connecté (y compris un EQUIPIER) de
         # s'auto-promouvoir ou d'agir sur les comptes d'autrui via un POST direct.
-        if user_role_level(request.user) < RoleLevel.COMMANDANT:
-            raise PermissionDenied
         action = request.POST.get("action")
+        if user_role_level(request.user) < RoleLevel.COMMANDANT and not (
+            est_administrateur_technique(request.user) and action in ACTIONS_ANNUAIRE_TECHNIQUES
+        ):
+            raise PermissionDenied
         # Actions groupées
         if action in ("bulk_update_role", "bulk_update_ship", "bulk_update_fonction", "bulk_update_service", "bulk_update_sector", "bulk_update_section", "bulk_update_grade", "bulk_update_specialite", "bulk_delete_users", "bulk_reset_passwords"):
             ids = entiers_valides(request.POST.getlist("selected_ids"))

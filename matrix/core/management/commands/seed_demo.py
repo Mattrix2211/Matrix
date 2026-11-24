@@ -89,7 +89,7 @@ class Command(BaseCommand):
     # ---------- Outils ----------
 
     def _utilisateur(self, nom, role, prenom="", ship=None, service=None, sector=None, section=None,
-                     equipage="", fonction_coma="", grade="", specialite="", mdp=None, superuser=False):
+                     equipage="", fonction_coma="", grade="", specialite="", mdp=None, superuser=False, technique=False):
         user, cree = User.objects.get_or_create(username=nom, defaults={
             "first_name": prenom, "last_name": nom.replace("_", " ").title(), "is_superuser": superuser, "is_staff": superuser})
         if cree:
@@ -98,6 +98,7 @@ class Command(BaseCommand):
         profil = user.profile
         profil.role, profil.ship, profil.service, profil.sector, profil.section = role, ship, service, sector, section
         profil.equipage, profil.fonction_coma, profil.grade, profil.specialite = equipage, fonction_coma, grade, specialite
+        profil.administrateur_technique = technique
         profil.save()
         navire = ship or (service.ship if service else None) or (sector.service.ship if sector else None) \
             or (section.sector.service.ship if section else None)
@@ -202,7 +203,7 @@ class Command(BaseCommand):
           grade="Matelot", specialite="Électricité")
         self.equipier_incendie = u("equipier_incendie_a", Roles.EQUIPIER, "Omar", ship=ship, service=s["Sécurité"], sector=pompiers, section=sp, equipage="A",
           grade="Matelot", specialite="Sécurité")
-        u("admin_navire", Roles.ADMIN_NAVIRE, "Paul", ship=ship, equipage="A")
+        u("admin_navire", Roles.EQUIPIER, "Paul", ship=ship, equipage="A", technique=True)
         for type_liste in (ChefDeListe.TYPE_QUARTS, ChefDeListe.TYPE_QUAI):
             ChefDeListe.objects.get_or_create(user=self.chef_secteur_a, sector=moteurs, ship=None, service=None, section=None, type_liste=type_liste)
         # Visa et suivi : le commandant en second est désigné par l'administration.

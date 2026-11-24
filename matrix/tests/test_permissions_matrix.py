@@ -43,7 +43,8 @@ from training.models import TrainingCourse
 
 # Ordre croissant du niveau hiérarchique, du plus bas (Équipier) au plus haut
 # (Administrateur général) — mêmes 8 niveaux que matrix/core/roles.py.
-ROLES = list(RoleLevel)
+# Échelle MÉTIER : le palier ADMIN_NAVIRE (droits techniques) n'est plus un rôle ; il est éprouvé par les tests L06.
+ROLES = [niveau for niveau in RoleLevel if niveau is not RoleLevel.ADMIN_NAVIRE]
 
 
 class MatricePermissionsTestCase(TestCase):
@@ -569,7 +570,7 @@ class TrainingCourseMatriceTests(MatricePermissionsTestCase):
     """Formation (catalogue général, non gérée par un bord) : lecture (liste
     et détail) ouverte à tout rôle (catalogue global, RolePermission laisse
     passer les méthodes sûres sans condition), création/modification réservées
-    à l'administration de l'unité (ADMIN_NAVIRE+, comme la création web :
+    aux droits techniques (administrateur technique ou général, comme la création web :
     le catalogue est commun à toute la flotte). L'action métier sensible de ce
     domaine — la validation d'une formation pour un marin (TrainingRecord) —
     n'est pas régie par ce seuil générique mais par le contrôle par référent
@@ -604,7 +605,7 @@ class TrainingCourseMatriceTests(MatricePermissionsTestCase):
                 return False
             self.assertEqual(r.status_code, 201)
             return TrainingCourse.objects.filter(title=f"Formation créée par {role.name}").exists()
-        self.assert_seuil(RoleLevel.ADMIN_NAVIRE, executer, api=True)
+        self.assert_seuil(RoleLevel.MASTER_ADMIN, executer, api=True)
 
     def test_modification_formation_generique(self):
         def executer(client, role):
@@ -614,7 +615,7 @@ class TrainingCourseMatriceTests(MatricePermissionsTestCase):
                 format="json",
             )
             return r.status_code != 403
-        self.assert_seuil(RoleLevel.ADMIN_NAVIRE, executer, api=True)
+        self.assert_seuil(RoleLevel.MASTER_ADMIN, executer, api=True)
 
 
 class PersonalEventMatriceTests(MatricePermissionsTestCase):

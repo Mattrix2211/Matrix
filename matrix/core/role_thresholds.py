@@ -37,6 +37,10 @@ class ActionSeuil:
     defaut: RoleLevel
     # Exception explicite : le commandant en second garde cette action selon son grade (le seuil reste réglable).
     ouverte_au_second: bool = False
+    # Autorité minimale validée (AC-02) : le paramétrage peut la renforcer, jamais l'abaisser.
+    plancher: RoleLevel = None
+    # Droit technique : atteint par un administrateur technique, jamais par un grade métier.
+    technique: bool = False
 
 
 # Registre central : une entrée par action dont le seuil est désormais
@@ -46,12 +50,12 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "structure_navire_ecriture",
         "Modifier ou supprimer la structure de l'unité : services, secteurs, sections, configuration des secteurs, lieux",
-        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.COMMANDANT, plancher=RoleLevel.COMMANDANT,
     ),
     ActionSeuil(
         "unite_administration",
         "Archiver l'unité, activer/désactiver son double équipage ou changer son fuseau horaire de référence",
-        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.COMMANDANT, plancher=RoleLevel.COMMANDANT,
     ),
     ActionSeuil(
         "asset_ecriture_simple", "Créer ou modifier un matériel, un dossier",
@@ -158,12 +162,12 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
-        "Modules", PORTEE_NAVIRE, NIVEAU_VISION_COMMANDEMENT,
+        "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT, plancher=RoleLevel.COMMANDANT,
     ),
     ActionSeuil(
         "mot_de_passe_reinitialisation",
         "Réinitialiser le mot de passe d'un marin du bâtiment (mot de passe provisoire à changer à la connexion)",
-        "Comptes", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+        "Comptes", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE, technique=True,
     ),
     ActionSeuil(
         "tache_attribution",
@@ -183,7 +187,7 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "programme_types",
         "Configurer les types d'événements du programme du bâtiment",
-        "Programme du bâtiment", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+        "Programme du bâtiment", PORTEE_NAVIRE, RoleLevel.COMMANDANT, plancher=RoleLevel.COMMANDANT,
     ),
     ActionSeuil(
         "poste_gestion",
@@ -239,6 +243,16 @@ def _thresholds_for(ship_id):
     return valeurs_validees(cle_seuils(ship_id), charger)
 
 
+def _avec_plancher(action, niveau):
+    return max(niveau, action.plancher) if action.plancher is not None else niveau
+
+
+def seuil_autorise(cle_action, niveau):
+    """Vrai si `niveau` respecte l'autorité minimale de l'action : on peut la renforcer, jamais l'abaisser."""
+    action = REGISTRE_PAR_CLE[cle_action]
+    return action.plancher is None or niveau >= action.plancher
+
+
 def seuil_role(cle_action, ship_id=None):
     """Retourne le RoleLevel minimal requis pour l'action donnée, en tenant
     compte de la configuration du navire (ou de la configuration globale
@@ -257,7 +271,7 @@ def seuil_role(cle_action, ship_id=None):
     if not nom:
         return action.defaut
     try:
-        return RoleLevel[nom]
+        return _avec_plancher(action, RoleLevel[nom])
     except KeyError:
         return action.defaut
 
@@ -273,8 +287,10 @@ def ship_id_de(user):
 def niveau_pour_action(user, cle_action):
     """Niveau de `user` à comparer au seuil de l'action : son niveau d'écriture, ou son grade pour le
     commandant en second sur une action qui lui est explicitement ouverte."""
-    from .roles import ROLES_SANS_ECRITURE_HERITEE, niveau_ecriture, user_role_level
+    from .roles import ROLES_SANS_ECRITURE_HERITEE, est_administrateur_technique, niveau_ecriture, user_role_level
 
+    if REGISTRE_PAR_CLE[cle_action].technique:
+        return RoleLevel.ADMIN_NAVIRE if est_administrateur_technique(user) else niveau_ecriture(user)
     profile = getattr(user, "profile", None)
     if REGISTRE_PAR_CLE[cle_action].ouverte_au_second and profile and profile.role in ROLES_SANS_ECRITURE_HERITEE:
         return user_role_level(user)

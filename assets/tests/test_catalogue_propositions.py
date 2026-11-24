@@ -272,7 +272,7 @@ class ComaEtRepliTests(BasePropositions):
         p = self._proposition_au_visa_coma_service_libre()
         second = self._u("second", "COMMANDANT_EN_SECOND", ship=self.ship)
         commandant = self._u("cdt", "COMMANDANT", ship=self.ship)
-        admin = self._u("adm", "ADMIN_NAVIRE", ship=self.ship)
+        admin = self._u("adm", "COMMANDANT", ship=self.ship)
         for intrus in (second, commandant, admin, self.chef_service, self.comaeq):
             self.assertFalse(circuit.peut_agir(intrus, p)[0], intrus.username)
             self.viser(intrus, p)

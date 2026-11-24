@@ -72,7 +72,7 @@ class VueFlotteAccesTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_admin_navire_a_acces(self):
-        self._creer_utilisateur("admin_navire", "ADMIN_NAVIRE", ship=self.navire)
+        self._creer_utilisateur("admin_navire", "COMMANDANT", ship=self.navire)
         self.client.login(username="admin_navire", password="pass")
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)

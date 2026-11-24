@@ -137,7 +137,7 @@ class ManageUsersPermissionTests(TestCase):
         self.chef_section.refresh_from_db()
 
         self.admin_navire = User.objects.create_user(username="adm", password="pass")
-        UserProfile.objects.update_or_create(user=self.admin_navire, defaults={"role": Roles.ADMIN_NAVIRE})
+        UserProfile.objects.update_or_create(user=self.admin_navire, defaults={"role": Roles.EQUIPIER, "administrateur_technique": True})
         self.admin_navire.refresh_from_db()
 
         self.permission = ManageUsersPermission()
@@ -163,7 +163,7 @@ class ManageUsersPermissionTests(TestCase):
         self.assertLess(RoleLevel.ETAT_MAJOR, RoleLevel.COMMANDANT_EN_SECOND)
         self.assertLess(RoleLevel.COMMANDANT_EN_SECOND, RoleLevel.COMMANDANT)
 
-    def test_seuls_les_administrateurs_designent_le_commandant_en_second(self):
+    def test_personne_sauf_l_administrateur_general_ne_designe_le_commandant_en_second(self):
         req = fake_request("POST", self.commandant, {"role": "COMMANDANT_EN_SECOND"})
         self.assertFalse(self.permission.has_permission(req, self.view))
         # Les autres désignations du commandant restent inchangées.
@@ -180,17 +180,20 @@ class ManageUsersPermissionTests(TestCase):
         self.assertFalse(self.permission.has_permission(req, self.view))
         self.assertNotIn(Roles.COMMANDANT_EN_SECOND, ManageUsersPermission.MANAGE_MAP)
 
-    def test_admin_navire_peut_designer_un_commandant_en_second(self):
-        req = fake_request("POST", self.admin_navire, {"role": "COMMANDANT_EN_SECOND"})
-        self.assertTrue(self.permission.has_permission(req, self.view))
+    def test_administrateur_technique_ne_designe_aucune_autorite(self):
+        for role in ("COMMANDANT_EN_SECOND", "COMMANDANT", "ETAT_MAJOR", "CHEF_SERVICE", "CHEF_SECTION", "EQUIPIER", "ADMIN_NAVIRE"):
+            req = fake_request("POST", self.admin_navire, {"role": role})
+            self.assertFalse(self.permission.has_permission(req, self.view), role)
+
+    def test_administrateur_technique_modifie_sans_changer_de_role_et_attribue_les_droits_techniques(self):
+        self.assertTrue(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"ship": 1}), self.view))
+        self.assertTrue(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"administrateur_technique": True}), self.view))
+        # Sans droits techniques, personne ne les attribue, même un commandant.
+        self.assertFalse(self.permission.has_permission(fake_request("PATCH", self.commandant, {"administrateur_technique": True}), self.view))
 
     def test_ecriture_refusee_sans_role_dans_la_charge_utile(self):
         req = fake_request("POST", self.commandant, {})
         self.assertFalse(self.permission.has_permission(req, self.view))
-
-    def test_admin_navire_peut_attribuer_jusqua_son_rang(self):
-        req = fake_request("POST", self.admin_navire, {"role": "ADMIN_NAVIRE"})
-        self.assertTrue(self.permission.has_permission(req, self.view))
 
     def test_admin_navire_ne_peut_pas_attribuer_master_admin(self):
         req = fake_request("POST", self.admin_navire, {"role": "MASTER_ADMIN"})

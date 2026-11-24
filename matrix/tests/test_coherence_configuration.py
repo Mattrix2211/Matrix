@@ -28,7 +28,7 @@ from matrix.core.role_thresholds import seuil_role
 from matrix.core.roles import RoleLevel
 from org.models import ModuleActivation, RoleThresholdConfig, Ship, VersionConfiguration
 
-ACTION = "module_gestion"  # défaut : NIVEAU_VISION_COMMANDEMENT (6)
+ACTION = "poste_gestion"  # défaut : CHEF_SERVICE ; sans plancher, le seuil s'abaisse comme s'élève
 
 
 class ProcessusIndependant:
@@ -82,13 +82,13 @@ class DeuxProcessusTests(SimpleTestCase):
         self.addCleanup(self.b, "nettoyer", self.ship_id)
 
     def test_releve_de_seuil_vu_par_l_autre_processus(self):
-        self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION), "COMMANDANT_EN_SECOND")
+        self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION), "CHEF_SERVICE")
         self.b("ecrire_seuil", self.ship_id, ACTION, "COMMANDANT")
         self.assertEqual(self.b("lire_seuil", self.ship_id, ACTION), "COMMANDANT")
         self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION), "COMMANDANT")
 
     def test_abaissement_et_revocations_successives(self):
-        for nom in ("CHEF_SERVICE", "COMMANDANT", "ADMIN_NAVIRE"):
+        for nom in ("ETAT_MAJOR", "COMMANDANT", "ADMIN_NAVIRE"):
             self.assertNotEqual(self.a("lire_seuil", self.ship_id, ACTION), nom)
             self.b("ecrire_seuil", self.ship_id, ACTION, nom)
             self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION), nom)
@@ -101,7 +101,7 @@ class DeuxProcessusTests(SimpleTestCase):
         self.assertTrue(self.a("lire_module", self.ship_id, "assets"))
 
     def test_worker_celery_simule(self):
-        self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION, en_tache=True), "COMMANDANT_EN_SECOND")
+        self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION, en_tache=True), "CHEF_SERVICE")
         self.b("ecrire_seuil", self.ship_id, ACTION, "COMMANDANT")
         self.b("basculer_module", self.ship_id, "assets", False)
         self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION, en_tache=True), "COMMANDANT")
@@ -139,24 +139,24 @@ class ContexteTests(TestCase):
     def test_ecriture_dans_le_contexte_est_vue_immediatement(self):
         jeton = ouvrir_contexte()
         self.addCleanup(fermer_contexte, jeton)
-        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.CHEF_SERVICE)
         RoleThresholdConfig.objects.create(ship=self.ship, thresholds={ACTION: "COMMANDANT"})
         self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT)
 
     def test_rafraichir_contexte_revalide_les_versions(self):
         jeton = ouvrir_contexte()
         self.addCleanup(fermer_contexte, jeton)
-        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.CHEF_SERVICE)
         # Écriture d'un autre processus simulée : ni signal ni incrément en mémo.
         models.QuerySet(RoleThresholdConfig).bulk_create(
             [RoleThresholdConfig(ship=self.ship, thresholds={ACTION: "COMMANDANT"})])
         VersionConfiguration.objects.create(cle=cle_seuils(self.ship.id), valeur=1)
-        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)  # mémo figé
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.CHEF_SERVICE)  # mémo figé
         rafraichir_contexte()
         self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT)
 
     def test_tache_celery_ouvre_un_contexte_et_voit_ses_ecritures(self):
-        self.assertEqual(tache_double_lecture.apply(args=[self.ship.id]).get(), ("COMMANDANT_EN_SECOND", "COMMANDANT"))
+        self.assertEqual(tache_double_lecture.apply(args=[self.ship.id]).get(), ("CHEF_SERVICE", "COMMANDANT"))
 
 
 class CheminsDeModificationTests(TestCase):
@@ -182,7 +182,7 @@ class CheminsDeModificationTests(TestCase):
         config.save()
         self.assertEqual(self.seuil(), RoleLevel.ADMIN_NAVIRE)
         config.delete()
-        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(), RoleLevel.CHEF_SERVICE)
 
     def test_queryset_update_bulk_et_suppression(self):
         self.chauffer()
@@ -195,7 +195,7 @@ class CheminsDeModificationTests(TestCase):
         RoleThresholdConfig.objects.bulk_update([config], ["thresholds"])
         self.assertEqual(self.seuil(), RoleLevel.ETAT_MAJOR)
         RoleThresholdConfig.objects.filter(ship=self.ship).delete()
-        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(), RoleLevel.CHEF_SERVICE)
 
     def test_modules_instance_queryset_et_cascade(self):
         self.chauffer()
@@ -220,11 +220,11 @@ class CheminsDeModificationTests(TestCase):
         self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)
         config.ship = self.autre
         config.save()
-        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(), RoleLevel.CHEF_SERVICE)
         self.assertEqual(self.seuil(self.autre), RoleLevel.COMMANDANT)
         RoleThresholdConfig.objects.filter(pk=config.pk).update(ship=self.ship)
         self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)
-        self.assertEqual(self.seuil(self.autre), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(self.autre), RoleLevel.CHEF_SERVICE)
 
     def test_lecteur_intercale_avant_l_ecriture_d_un_changement_de_navire(self):
         # Un lecteur passe entre le pre_save et l'UPDATE : il ne doit pas figer l'ancienne
@@ -239,7 +239,7 @@ class CheminsDeModificationTests(TestCase):
         self.addCleanup(pre_save.disconnect, lecteur, sender=RoleThresholdConfig)
         config.ship = self.autre
         config.save()
-        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(), RoleLevel.CHEF_SERVICE)
         self.assertEqual(self.seuil(self.autre), RoleLevel.COMMANDANT)
 
     def test_bulk_update_avec_changement_de_navire(self):
@@ -247,7 +247,7 @@ class CheminsDeModificationTests(TestCase):
         self.chauffer()
         config.ship = self.autre
         RoleThresholdConfig.objects.bulk_update([config], ["ship"])
-        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(), RoleLevel.CHEF_SERVICE)
         self.assertEqual(self.seuil(self.autre), RoleLevel.COMMANDANT)
 
     def test_chargement_de_fixture(self):
@@ -275,7 +275,7 @@ class CheminsDeModificationTests(TestCase):
         self.assertEqual(apres[cle_modules(self.ship.id)], 1)
         for cle in (cle_seuils(self.autre.id), cle_modules(self.autre.id), cle_seuils(None)):
             self.assertEqual(apres.get(cle), avant.get(cle))
-        self.assertEqual(self.seuil(self.autre), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(self.autre), RoleLevel.CHEF_SERVICE)
         self.assertTrue(module_actif("assets", self.autre.id))
 
     def test_incrementation_atomique_et_compteur(self):
@@ -294,12 +294,12 @@ class CheminsWebTests(TestCase):
         self.client.login(username="admin_coh", password="pass")
 
     def test_vue_reglages_seuil_puis_reinitialisation(self):
-        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.CHEF_SERVICE)
         donnees = {"action": "update_role_threshold", "cle_action": ACTION, "nouveau_role": "COMMANDANT", "ship_id": self.ship.id}
         self.client.post(reverse("settings"), donnees)
         self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT)
         self.client.post(reverse("settings"), {**donnees, "action": "reset_role_threshold"})
-        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.CHEF_SERVICE)
 
     def test_vue_reglages_bascule_de_module(self):
         self.assertTrue(module_actif("assets", self.ship.id))
@@ -326,7 +326,7 @@ class CheminsWebTests(TestCase):
         self.assertFalse(module_actif("assets", self.ship.id))
         self.client.post(reverse("admin:org_rolethresholdconfig_delete", args=[config.pk]), {"post": "yes"})
         self.client.post(reverse("admin:org_moduleactivation_delete", args=[activation.pk]), {"post": "yes"})
-        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.CHEF_SERVICE)
         self.assertTrue(module_actif("assets", self.ship.id))
 
     def test_le_contexte_est_ferme_apres_la_requete(self):

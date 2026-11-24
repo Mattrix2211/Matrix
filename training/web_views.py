@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.views.generic import ListView, View
 
 from matrix.core.commandants_adjoints import commandant_adjoint_du_service, est_commandant_adjoint_du_service, service_de
-from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
+from matrix.core.roles import RoleLevel, est_administrateur_technique, niveau_ecriture, user_role_level
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import is_master_admin, perimetre_hierarchique_q, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_document
@@ -65,7 +65,7 @@ NIVEAU_REQUIS_GESTION_PREREQUIS = RoleLevel.CHEF_SECTION
 # et portable entre navires ») : une formation devenant une fiche globale
 # partagée par tous les navires, la garder réservée à un administrateur reste
 # tout aussi pertinent, sinon davantage.
-NIVEAU_REQUIS_CREATION_FORMATION = RoleLevel.ADMIN_NAVIRE
+# Réservée aux administrateurs techniques (indicateur distinct du rôle métier) : `est_administrateur_technique`.
 
 # Seuil de rôle générique à partir duquel un chef peut RÉSERVER (mais pas
 # VALIDER) une place de session pour un marin de son propre périmètre
@@ -91,7 +91,7 @@ def _peut_gerer_prerequis(user):
 
 
 def _peut_creer_formation(user):
-    return user_role_level(user) >= NIVEAU_REQUIS_CREATION_FORMATION
+    return est_administrateur_technique(user)
 
 
 def _peut_valider_formation(user):
@@ -193,7 +193,7 @@ def _peut_gerer_brh(user):
 # Seuil de rôle requis pour proposer la création ou la modification d'une
 # formation « gérée par le bord » (Circuit C — Circuit d'approbation chef de
 # secteur -> chef de service) : CHEF_SECTEUR+, à ne pas confondre avec
-# NIVEAU_REQUIS_CREATION_FORMATION (ADMIN_NAVIRE+, INCHANGÉ) qui reste le seul
+# NIVEAU_REQUIS_CREATION_FORMATION (administrateur technique, INCHANGÉ) qui reste le seul
 # seuil de création d'une formation « organisme » classique.
 NIVEAU_REQUIS_PROPOSITION_FORMATION_BORD = RoleLevel.CHEF_SECTEUR
 

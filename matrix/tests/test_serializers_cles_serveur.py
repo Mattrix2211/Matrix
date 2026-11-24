@@ -198,7 +198,7 @@ class TrainingCleServeurTests(BaseApi):
 class ProfilCleServeurTests(BaseApi):
     def setUp(self):
         super().setUp()
-        self.admin_a = _utilisateur("admin_a_sec", Roles.ADMIN_NAVIRE, ship=self.ship_a)
+        self.admin_a = _utilisateur("admin_a_sec", Roles.COMMANDANT, ship=self.ship_a)
         self.client_admin = self._client("admin_a_sec")
         self.profil = self.autre.profile
 
@@ -312,11 +312,13 @@ class ReferencesHorsPerimetreTests(BaseApi):
         self.assertEqual((cours.created_by, cours.updated_by), (self.chef_section_form, self.chef_section_form))
 
     def _client_chef_formation(self):
-        self.chef_section_form = _utilisateur("cs_form_sec", Roles.ADMIN_NAVIRE, ship=self.ship_a)
+        self.chef_section_form = _utilisateur("cs_form_sec", Roles.EQUIPIER, ship=self.ship_a)
+        self.chef_section_form.profile.administrateur_technique = True  # le catalogue relève des droits techniques
+        self.chef_section_form.profile.save()
         return self._client("cs_form_sec")
 
     def test_profil_non_creable_par_l_api(self):
-        admin = _utilisateur("admin_ref_sec", Roles.ADMIN_NAVIRE, ship=self.ship_a)
+        admin = _utilisateur("admin_ref_sec", Roles.COMMANDANT, ship=self.ship_a)
         r = self._client("admin_ref_sec").post("/api/accounts/profiles/", {"role": Roles.EQUIPIER}, format="json")
         self.assertEqual(r.status_code, 405)
         self.assertIsNotNone(admin.profile)

@@ -101,15 +101,18 @@ class FuseauWebTests(Base):
         self.assertEqual(releve.date_effet, avant)
         self.assertTrue(AuditLog.objects.filter(action="fuseau_horaire_modifie", actor=self.admin_navire).exists())
 
-    def test_commandant_ou_equipier_ne_changent_pas_le_fuseau(self):
-        for utilisateur in (self.cdt_a, self.equipier_a):
-            self.changer(utilisateur)
-            self.navire.refresh_from_db()
-            self.assertEqual(self.navire.fuseau_horaire, "Europe/Paris", utilisateur.username)
+    def test_l_equipier_ne_change_pas_le_fuseau_et_le_commandant_le_change(self):
+        """AC-02 : modifier l'organisation d'un bâtiment est un acte du commandant."""
+        self.changer(self.equipier_a)
+        self.navire.refresh_from_db()
+        self.assertEqual(self.navire.fuseau_horaire, "Europe/Paris")
+        self.changer(self.cdt_a)
+        self.navire.refresh_from_db()
+        self.assertNotEqual(self.navire.fuseau_horaire, "Europe/Paris")
 
     def test_equipage_a_terre_bloque_par_le_middleware(self):
         # Même habilité (seuil abaissé), l'équipage à terre ne modifie pas un réglage du bâtiment.
-        UserProfile.objects.filter(user=self.cdt_b).update(role="ADMIN_NAVIRE")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="COMMANDANT")
         reponse = self.changer(self.cdt_b)
         self.assertEqual(reponse.status_code, 403)
         self.navire.refresh_from_db()
@@ -177,7 +180,7 @@ class ApiEtAdministrationTests(Base):
 
     def test_modification_du_fuseau_par_l_api_reservee_a_l_administration(self):
         url = f"/api/org/ships/{self.navire.pk}/"
-        reponse = client_de(self.cdt_a).patch(url, {"fuseau_horaire": "Pacific/Noumea"}, content_type="application/json")
+        reponse = client_de(self.equipier_a).patch(url, {"fuseau_horaire": "Pacific/Noumea"}, content_type="application/json")
         self.assertIn(reponse.status_code, (403, 404))
         reponse = client_de(self.admin_navire).patch(url, {"fuseau_horaire": "Pacific/Noumea"}, content_type="application/json")
         self.assertEqual(reponse.status_code, 200, reponse.content)

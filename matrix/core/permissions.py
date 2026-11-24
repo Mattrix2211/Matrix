@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .ecriture_service import niveau_ecriture_sur
-from .roles import niveau_ecriture, RoleLevel
+from .roles import est_administrateur_technique, niveau_ecriture, RoleLevel
 from .role_thresholds import seuil_role, ship_id_de
 from django.contrib.auth import get_user_model
 from accounts.models import Roles
@@ -82,35 +82,30 @@ class IsAuthorOrReadOnly(BasePermission):
 
 
 class ManageUsersPermission(BasePermission):
-    """Lecture autorisée pour les utilisateurs authentifiés ; écriture réservée si le rôle de
-    l'utilisateur courant peut gérer le rôle cible.
+    """Lecture autorisée pour les utilisateurs authentifiés ; écriture selon l'autorité sur le rôle visé.
 
-    Règles :
-    - MASTER_ADMIN : gère tout
-    - ADMIN_NAVIRE : gère tous les rôles jusqu'au sien, jamais MASTER_ADMIN ;
-      seuls les administrateurs désignent le COMMANDANT_EN_SECOND
-      (le scoping par navire de la DESTINATION d'affectation est appliqué dans
-      UserProfileSerializer.validate() : cette permission ne porte que sur le
-      RÔLE gérable)
-    - COMMANDANT: peut gérer ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
-    - COMMANDANT_EN_SECOND: ne gère aucun compte (vision seulement, comme l'annuaire web)
-    - ETAT_MAJOR: peut gérer CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
-    - CHEF_SERVICE: peut gérer CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
-    - CHEF_SECTEUR: peut gérer CHEF_SECTION, EQUIPIER
-    - CHEF_SECTION: peut gérer EQUIPIER
+    Règles (AC-01, AC-02) :
+    - MASTER_ADMIN et superutilisateur : gèrent tout ;
+    - COMMANDANT : désigne commandants adjoints, chefs de service, de secteur, de section et équipiers ;
+    - ÉTAT-MAJOR : désigne chefs de secteur, de section et équipiers (les chefs de service relèvent du commandant) ;
+    - CHEF_SERVICE : chefs de secteur, de section et équipiers ; CHEF_SECTEUR : chefs de section et équipiers ;
+      CHEF_SECTION : équipiers ; le commandant en second ne désigne personne ;
+    - l'administrateur technique (indicateur indépendant du rôle) modifie un compte sans changer son rôle et attribue
+      les droits techniques à un autre compte ; il ne désigne aucune autorité métier ;
+    - personne ne modifie son propre rôle ni ses propres droits techniques.
     """
 
     MANAGE_MAP = {
-        Roles.ADMIN_NAVIRE: {
-            Roles.COMMANDANT, Roles.COMMANDANT_EN_SECOND, Roles.ETAT_MAJOR, Roles.CHEF_SERVICE,
-            Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER, Roles.ADMIN_NAVIRE,
-        },
         Roles.COMMANDANT: {Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
-        Roles.ETAT_MAJOR: {Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
+        Roles.ETAT_MAJOR: {Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SERVICE: {Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SECTEUR: {Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SECTION: {Roles.EQUIPIER},
     }
+
+    @staticmethod
+    def _modifie_droits_techniques(request):
+        return "administrateur_technique" in request.data
 
     def has_permission(self, request, view):
         # Lecture autorisée pour les utilisateurs authentifiés
@@ -124,12 +119,13 @@ class ManageUsersPermission(BasePermission):
             return False
         if profile.role == Roles.MASTER_ADMIN:
             return True
-        # Rôle demandé dans le payload ; ADMIN_NAVIRE peut modifier sans changer de rôle
+        technique = est_administrateur_technique(request.user)
+        if self._modifie_droits_techniques(request) and not technique:
+            return False
         target_role = request.data.get('role')
         if not target_role:
-            return profile.role == Roles.ADMIN_NAVIRE
-        allowed = self.MANAGE_MAP.get(profile.role, set())
-        return target_role in allowed
+            return technique
+        return target_role in self.MANAGE_MAP.get(profile.role, set())
 
     def has_object_permission(self, request, view, obj):
         # Méthodes sûres déjà autorisées dans has_permission
@@ -142,7 +138,16 @@ class ManageUsersPermission(BasePermission):
             return False
         if profile.role == Roles.MASTER_ADMIN:
             return True
-        # Vérifie le rôle actuel de l'utilisateur cible
-        obj_role = getattr(obj, 'role', None)
-        allowed = self.MANAGE_MAP.get(profile.role, set())
-        return obj_role in allowed
+        if getattr(obj, 'user_id', None) == request.user.pk and (
+            self._modifie_droits_techniques(request) or ('role' in request.data and request.data['role'] != obj.role)
+        ):
+            return False
+        technique = est_administrateur_technique(request.user)
+        dans_la_matrice = obj.role in self.MANAGE_MAP.get(profile.role, set())
+        if request.data.get('role'):
+            return dans_la_matrice
+        # Modification sans changement de rôle : administrateur technique, sur son bâtiment, jamais sur un administrateur général.
+        technique_sur_son_batiment = (
+            technique and obj.role != Roles.MASTER_ADMIN and not obj.user.is_superuser and obj.ship_id == profile.ship_id
+        )
+        return technique_sur_son_batiment or dans_la_matrice

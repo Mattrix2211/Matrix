@@ -25,14 +25,14 @@ BORNE_REMPLACEMENT = (1, 168)
 
 
 def droit_sur_les_delais(user, ship):
-    """« modifier » (commandant, COMAEQ titulaire), « lire » (commandant en second, administrateur d'unité,
+    """« modifier » (commandant, COMAEQ titulaire), « lire » (commandant en second,
     chef de liste du bâtiment) ou None. Aucun droit par le seul rang hiérarchique ailleurs."""
     profil = getattr(user, "profile", None)
     if ship is None or profil is None or not user.is_active or profil.ship_id != ship.pk:
         return None
     if profil.role == Roles.COMMANDANT or (profil.role == Roles.ETAT_MAJOR and profil.fonction_coma == "COMAEQ"):
         return "modifier"
-    if profil.role in (Roles.COMMANDANT_EN_SECOND, Roles.ADMIN_NAVIRE):
+    if profil.role == Roles.COMMANDANT_EN_SECOND:
         return "lire"
     if ChefDeListe.objects.filter(user=user).exists():
         return "lire"

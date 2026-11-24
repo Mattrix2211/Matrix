@@ -22,7 +22,7 @@ class ApiComptesChampsProprietaireTests(TestCase):
         self.equipier_a = self._marin("equipier_a_chp", "EQUIPIER", ship=self.ship_a)
         self.equipier_b = self._marin("equipier_b_chp", "EQUIPIER", ship=self.ship_b)
         self.commandant_a = self._marin("commandant_a_chp", "COMMANDANT", ship=self.ship_a)
-        self.admin_a = self._marin("admin_a_chp", "ADMIN_NAVIRE", ship=self.ship_a)
+        self.admin_a = self._marin("admin_a_chp", "EQUIPIER", ship=self.ship_a, administrateur_technique=True)
 
     def _marin(self, username, role, **perimetre):
         user = User.objects.create_user(username=username, password="pass")

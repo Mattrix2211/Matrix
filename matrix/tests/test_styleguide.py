@@ -15,10 +15,10 @@ from matrix.styleguide import COMPOSANTS, lire_parametres, rapport_contraste, ta
 URL = "/styleguide/"
 
 
-def creer(nom, role=None, **extra):
+def creer(nom, role=None, technique=False, **extra):
     utilisateur = User.objects.create_user(nom, password="x", **extra)
     if role:
-        UserProfile.objects.update_or_create(user=utilisateur, defaults={"role": role})
+        UserProfile.objects.update_or_create(user=utilisateur, defaults={"role": role, "administrateur_technique": technique})
         utilisateur.refresh_from_db()
     return utilisateur
 
@@ -36,7 +36,7 @@ class AccesTests(TestCase):
                 self.assertEqual(self.client.get(URL).status_code, 403)
 
     def test_administrateurs_autorises(self):
-        self.client.force_login(creer("an", Roles.ADMIN_NAVIRE))
+        self.client.force_login(creer("an", Roles.EQUIPIER, technique=True))
         self.assertEqual(self.client.get(URL).status_code, 200)
         self.client.force_login(creer("root", is_superuser=True))
         self.assertEqual(self.client.get(URL).status_code, 200)
@@ -45,7 +45,7 @@ class AccesTests(TestCase):
 class ContenuTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.admin = creer("an", Roles.ADMIN_NAVIRE)
+        cls.admin = creer("an", Roles.EQUIPIER, technique=True)
 
     def setUp(self):
         self.client.force_login(self.admin)
@@ -105,7 +105,7 @@ class CalculTests(SimpleTestCase):
 
 class RobustesseTests(TestCase):
     def test_gabarit_absent_ne_casse_pas_la_page(self):
-        self.client.force_login(creer("an", Roles.ADMIN_NAVIRE))
+        self.client.force_login(creer("an", Roles.EQUIPIER, technique=True))
         with mock.patch("matrix.styleguide.get_template", side_effect=TemplateDoesNotExist("components/x.html")):
             self.assertEqual(lire_parametres("surface"), [])
             self.assertEqual(self.client.get(URL).status_code, 200)
@@ -117,7 +117,7 @@ class RobustesseTests(TestCase):
             self.assertEqual(lire_parametres("surface"), [])
 
     def test_variable_css_absente_ne_casse_pas_la_page(self):
-        self.client.force_login(creer("an", Roles.ADMIN_NAVIRE))
+        self.client.force_login(creer("an", Roles.EQUIPIER, technique=True))
         clair, sombre = variables_css()
         for couleurs in (clair, sombre):
             del couleurs["red-texte"]

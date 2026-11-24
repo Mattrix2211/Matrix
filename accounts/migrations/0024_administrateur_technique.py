@@ -1,0 +1,59 @@
+"""Sépare l'administration technique du rôle métier (lot L06, AC-01).
+
+Un ancien « administrateur d'unité » devient administrateur technique. Son rôle métier n'est jamais déduit de ce statut :
+équipier, sauf si une fonction de commandant adjoint est déjà renseignée sur sa fiche (état-major, fonction conservée).
+Chaque conversion est tracée dans le journal d'audit ; le sens inverse restaure le rôle d'origine.
+"""
+from django.db import migrations, models
+
+ACTION = "l06_migration_role"
+
+
+def separer(apps, schema_editor):
+    UserProfile = apps.get_model("accounts", "UserProfile")
+    AuditLog = apps.get_model("accounts", "AuditLog")
+    for profil in UserProfile.objects.filter(role="ADMIN_NAVIRE"):
+        fonction = bool(profil.fonction_coma)
+        profil.role = "ETAT_MAJOR" if fonction else "EQUIPIER"
+        profil.administrateur_technique = True
+        profil.save(update_fields=["role", "administrateur_technique"])
+        AuditLog.objects.create(
+            actor=None, action=ACTION, target_user_id=profil.user_id,
+            details=f"avant=ADMIN_NAVIRE; apres={profil.role}; fonction_etablie={'oui' if fonction else 'non'}",
+        )
+
+
+def restaurer(apps, schema_editor):
+    UserProfile = apps.get_model("accounts", "UserProfile")
+    AuditLog = apps.get_model("accounts", "AuditLog")
+    for journal in AuditLog.objects.filter(action=ACTION):
+        UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_technique=True).update(
+            role="ADMIN_NAVIRE", administrateur_technique=False)
+        journal.delete()
+
+
+class Migration(migrations.Migration):
+    dependencies = [("accounts", "0023_protection_suppression_unites")]
+    operations = [
+        migrations.AddField(
+            model_name="userprofile", name="administrateur_technique",
+            field=models.BooleanField(default=False, verbose_name="Administrateur technique"),
+        ),
+        migrations.AlterField(
+            model_name="userprofile", name="role",
+            field=models.CharField(choices=[
+                ("MASTER_ADMIN", "Administrateur général"), ("ADMIN_NAVIRE", "Administrateur d'unité (obsolète)"),
+                ("COMMANDANT", "Commandant"), ("COMMANDANT_EN_SECOND", "Commandant en second"), ("ETAT_MAJOR", "État-major"),
+                ("CHEF_SERVICE", "Chef de service"), ("CHEF_SECTEUR", "Chef de secteur"), ("CHEF_SECTION", "Chef de section"),
+                ("EQUIPIER", "Équipier")], max_length=32),
+        ),
+        migrations.AlterField(
+            model_name="roleavailability", name="code",
+            field=models.CharField(choices=[
+                ("MASTER_ADMIN", "Administrateur général"), ("ADMIN_NAVIRE", "Administrateur d'unité (obsolète)"),
+                ("COMMANDANT", "Commandant"), ("COMMANDANT_EN_SECOND", "Commandant en second"), ("ETAT_MAJOR", "État-major"),
+                ("CHEF_SERVICE", "Chef de service"), ("CHEF_SECTEUR", "Chef de secteur"), ("CHEF_SECTION", "Chef de section"),
+                ("EQUIPIER", "Équipier")], max_length=64, unique=True),
+        ),
+        migrations.RunPython(separer, restaurer),
+    ]

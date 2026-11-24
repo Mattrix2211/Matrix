@@ -91,7 +91,7 @@ class DeconnexionTests(BarreSuperieureTestCase):
 
 class SelecteurBatimentTests(BarreSuperieureTestCase):
     def test_utilisateur_de_bord_sans_selecteur_batiment_en_texte(self):
-        for role in ("EQUIPIER", "CHEF_SERVICE", "COMMANDANT", "ADMIN_NAVIRE"):
+        for role in ("EQUIPIER", "CHEF_SERVICE", "COMMANDANT"):
             reponse = self._connecte(self._marin(f"bord_{role}", role, self.alsace))
             self.assertNotContains(reponse, "Changer de bâtiment")
             self.assertContains(reponse, "Bâtiment de rattachement")

@@ -17,6 +17,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = "__all__"
 
+    def validate_role(self, valeur):
+        if valeur == "ADMIN_NAVIRE":
+            raise serializers.ValidationError("Ce rôle n'existe plus : l'administration technique est un indicateur distinct.")
+        return valeur
+
     def _refuser_unites_archivees(self, attrs):
         """Aucun nouveau rattachement à une unité archivée (une valeur inchangée reste tolérée)."""
         from org.archivage import est_active

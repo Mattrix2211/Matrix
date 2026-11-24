@@ -35,7 +35,7 @@ class BaseArchivage(TestCase):
         self.admin = creer_compte("admin_flotte", "MASTER_ADMIN")
         self.admin.is_superuser = True
         self.admin.save()
-        self.admin_navire = creer_compte("admin_a", "ADMIN_NAVIRE", ship=self.navire)
+        self.admin_navire = creer_compte("admin_a", "COMMANDANT", ship=self.navire)
         self.marin = creer_compte("marin_a", "EQUIPIER", ship=self.navire, service=self.service, sector=self.secteur, section=self.section)
 
 

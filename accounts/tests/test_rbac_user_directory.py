@@ -30,7 +30,7 @@ class UserDirectoryRBACTests(TestCase):
 
         self.admin_navire = User.objects.create_user(username="adm1", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.admin_navire, defaults={"role": Roles.ADMIN_NAVIRE, "ship": self.navire}
+            user=self.admin_navire, defaults={"role": Roles.EQUIPIER, "ship": self.navire, "administrateur_technique": True}
         )
 
         self.autre = User.objects.create_user(username="autre1", password="pass")
@@ -136,14 +136,14 @@ class UserDirectoryRBACTests(TestCase):
         self.autre.profile.refresh_from_db()
         self.assertEqual(self.autre.profile.role, Roles.CHEF_SERVICE)
 
-    def test_admin_navire_ne_peut_pas_attribuer_le_role_master_admin(self):
-        """L'ADMIN_NAVIRE gère les comptes de son navire, jamais jusqu'à MASTER_ADMIN."""
+    def test_admin_technique_ne_peut_pas_attribuer_le_role_master_admin(self):
+        """L'administrateur technique ne désigne aucune autorité, a fortiori pas l'administrateur général."""
         self.client.login(username="adm1", password="pass")
         r = self.client.post("/users/", {
             "action": "bulk_update_role",
             "selected_ids": [self.autre.id],
             "role": "MASTER_ADMIN",
         })
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code, 403)
         self.autre.profile.refresh_from_db()
         self.assertEqual(self.autre.profile.role, Roles.EQUIPIER)

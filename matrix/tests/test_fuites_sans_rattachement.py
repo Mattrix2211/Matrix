@@ -215,7 +215,7 @@ class AssetTypeAutreBatimentTests(TestCase):
         self.mien, self.voisin = navire("MIE"), navire("VOI")
         self.chef = User.objects.create_user(username="chef_mien", password="pass")
         profil = self.chef.profile
-        profil.role, profil.ship = "ADMIN_NAVIRE", self.mien[0]
+        profil.role, profil.ship = "COMMANDANT", self.mien[0]
         profil.save()
         self.client.force_login(self.chef)
 

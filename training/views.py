@@ -42,14 +42,13 @@ from .serializers import (
 # contrôles, pourtant déjà corrects côté web.
 from .web_views import (
     formation_bord_en_service,
-    NIVEAU_REQUIS_CREATION_FORMATION,
     NIVEAU_REQUIS_VALIDATION_FORMATION_BORD,
     peut_modifier_formation_bord,
     peut_valider_proposition_bord,
 )
 from matrix.core.mixins import EcritureDansLePerimetreMixin, EcritureTraceeMixin
 from matrix.core.permissions import RolePermission
-from matrix.core.roles import niveau_ecriture, user_role_level
+from matrix.core.roles import est_administrateur_technique, niveau_ecriture, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_navire_q, resoudre_affectation_dans_perimetre
 from matrix.core.saisie import entier_ou_none
 
@@ -58,6 +57,17 @@ User = get_user_model()
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
+
+class CatalogueFormationPermission(RolePermission):
+    """Écriture du catalogue : le seuil de rôle habituel, ou les droits techniques (sans grade métier) ; le détail est
+    revérifié par `_exiger_catalogue` et le périmètre des formations gérées par un bord."""
+
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) or est_administrateur_technique(request.user)
+
+    def has_object_permission(self, request, view, obj):
+        return super().has_object_permission(request, view, obj) or est_administrateur_technique(request.user)
+
 
 class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
     # Formation désormais globale (aucun rattachement navire) : aucun filtre de
@@ -73,7 +83,7 @@ class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
     # get_queryset ci-dessous, jamais par cet attribut directement.
     queryset = TrainingCourse.objects.all()
     serializer_class = TrainingCourseSerializer
-    permission_classes = [RolePermission]
+    permission_classes = [CatalogueFormationPermission]
     domaine_audit = "training"
 
     def get_queryset(self):
@@ -108,7 +118,7 @@ class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
 
     def _exiger_catalogue(self):
         # Le catalogue « organisme » est commun à toute la flotte : même seuil que la création web.
-        if user_role_level(self.request.user) < NIVEAU_REQUIS_CREATION_FORMATION:
+        if not est_administrateur_technique(self.request.user):
             raise ApiPermissionDenied("Le catalogue des formations est réservé à l'administration.")
 
     def perform_create(self, serializer):

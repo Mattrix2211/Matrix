@@ -28,7 +28,7 @@ class DesignationBase(TestCase):
             self._m(f"second_{e}", "COMMANDANT_EN_SECOND", e)
             self._m(f"chef_service_{e}", "CHEF_SERVICE", e, service=self.service)
             self._m(f"matelot_{e}", "EQUIPIER", e)
-        self._m("admin_unite", "ADMIN_NAVIRE", "")
+        self._m("admin_unite", "COMMANDANT", "")
         self._m("maitre", "MASTER_ADMIN", "")
 
     def _m(self, nom, role, equipage, **champs):

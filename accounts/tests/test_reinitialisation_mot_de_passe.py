@@ -15,7 +15,7 @@ class ReinitialisationTests(TestCase):
         self.navire = Ship.objects.create(name="Navire MDP", code="MDP")
         service = Service.objects.create(ship=self.navire, name="Service MDP")
         self.secteur = Sector.objects.create(service=service, name="Secteur MDP")
-        self.admin = self._marin("admin_mdp", "ADMIN_NAVIRE")
+        self.admin = self._marin("admin_mdp", "ADMIN_TECHNIQUE")
         self.commandant = self._marin("commandant_mdp", "COMMANDANT")
         self.chef = self._marin("chef_mdp", "CHEF_SERVICE")
         self.marin = self._marin("marin_mdp", "EQUIPIER")
@@ -26,7 +26,9 @@ class ReinitialisationTests(TestCase):
     def _marin(self, nom, role, navire=None):
         user = User.objects.create_user(username=nom, password="ancien-mdp-123")
         profil = user.profile
-        profil.role, profil.ship = role, navire or self.navire
+        # « ADMIN_TECHNIQUE » : droits techniques seuls, rôle métier d'équipier (L06).
+        profil.administrateur_technique = role == "ADMIN_TECHNIQUE"
+        profil.role, profil.ship = ("EQUIPIER" if role == "ADMIN_TECHNIQUE" else role), navire or self.navire
         if navire is None:
             profil.service, profil.sector = self.secteur.service, self.secteur
         profil.save()

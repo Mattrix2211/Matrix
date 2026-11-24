@@ -36,11 +36,11 @@ JOURS_INTERVENTIONS = 30
 
 
 def peut_voir_vue_comanav(user):
-    """COMANAV désigné, commandement (commandant, commandant en second, admin du navire) ou administrateur général."""
+    """COMANAV désigné, commandement (commandant, commandant en second) ou administrateur général."""
     if is_master_admin(user):
         return True
     profil = getattr(user, "profile", None)
-    if profil and profil.role in (*ROLES_COMMANDEMENT, Roles.ADMIN_NAVIRE) and profil.navire_id_effectif:
+    if profil and profil.role in ROLES_COMMANDEMENT and profil.navire_id_effectif:
         return True
     return est_titulaire(user, CommandantAdjoint.COMANAV)
 

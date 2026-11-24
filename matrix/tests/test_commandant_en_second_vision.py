@@ -86,8 +86,9 @@ class SeuilsDeLectureTests(VisionCommandementBase):
         self.assertIn(self.marin.profile.pk, profils)
         self.assertNotIn(self.etranger.profile.pk, profils)
 
-    def test_module_gestion(self):
-        self.assertEqual(seuil_role("module_gestion", self.navire.pk), RoleLevel.COMMANDANT_EN_SECOND)
+    def test_module_gestion_revient_au_commandant(self):
+        """AC-02 : activer ou désactiver un module exige l'autorité du commandant (ou son délégataire) ; le second n'en hérite pas."""
+        self.assertEqual(seuil_role("module_gestion", self.navire.pk), RoleLevel.COMMANDANT)
 
 
 class QuartsEtFormationsTests(VisionCommandementBase):

@@ -26,7 +26,7 @@ class CreationFormationAdminNavireTests(TestCase):
 
         self.admin = User.objects.create_user(username="admin_navire", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.admin, defaults={"role": "ADMIN_NAVIRE", "ship": self.ship},
+            user=self.admin, defaults={"role": "EQUIPIER", "administrateur_technique": True, "ship": self.ship},
         )
 
     def test_admin_navire_peut_creer_une_formation(self):
@@ -104,10 +104,8 @@ class CreationFormationRefuseeAuxChefsTests(TestCase):
         self.assertFalse(TrainingCourse.objects.filter(title="Formation refusée").exists())
 
     def test_commandant_ne_peut_pas_creer_une_formation(self):
-        # ADMIN_NAVIRE est strictement plus élevé que COMMANDANT dans la
-        # hiérarchie (RoleLevel) : le seuil de création exclut donc aussi le
-        # commandant, cohérent avec la demande explicite du PO de réserver
-        # cette action à un administrateur.
+        # La création est un droit technique (indicateur administrateur_technique) :
+        # aucun grade métier, commandant compris, n'y donne accès.
         self.client.login(username="commandant_creation", password="pass")
         r = self.client.post("/formations/", {"action": "create_course", "title": "Formation refusée bis"})
         self.assertEqual(r.status_code, 403)

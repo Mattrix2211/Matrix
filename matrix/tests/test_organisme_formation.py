@@ -133,7 +133,7 @@ class CreationFormationParAdminEcoleTests(TestCase):
         self.ecole = Ship.objects.create(name="Centre de formation Brest", code="CFB", type_unite="CENTRE_FORMATION")
         self.admin = User.objects.create_user(username="admin_ecole", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.admin, defaults={"role": "ADMIN_NAVIRE", "ship": self.ecole},
+            user=self.admin, defaults={"role": "EQUIPIER", "administrateur_technique": True, "ship": self.ecole},
         )
         self.client.login(username="admin_ecole", password="pass")
 

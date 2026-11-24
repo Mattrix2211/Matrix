@@ -67,7 +67,7 @@ class TitulairesTests(CommandantsAdjointsBase):
         self.assertFalse(est_commandant_adjoint_du_service(comaeq_b, self.machine, "A"))
 
     def test_champ_service_non_modifiable_par_l_api(self):
-        admin = self._marin("adm", "ADMIN_NAVIRE", ship=self.navire)
+        admin = self._marin("adm", "COMMANDANT", ship=self.navire)
         client = APIClient()
         client.force_authenticate(admin)
         client.patch(f"/api/org/services/{self.libre.pk}/", {"commandant_adjoint": "COMOPS"}, format="json")

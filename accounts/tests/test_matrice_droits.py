@@ -16,8 +16,8 @@ ONGLETS = [
 # Onglets attendus (200) par acteur, navire sans double équipage, seuils par défaut.
 ONGLETS_AUTORISES = {
     "master": set(ONGLETS),
-    "admin_a": {"seuils_role", "modules", "notifications"},
-    "admin_b": {"seuils_role", "modules", "notifications"},
+    "admin_a": {"seuils_role", "notifications"},
+    "admin_b": {"seuils_role", "notifications"},
     "commandant": {"modules", "notifications"},
     "chef": {"notifications"},
     "equipier": {"notifications"},
@@ -30,18 +30,19 @@ class MatriceDroitsBase(TestCase):
         self.b = Ship.objects.create(name="Navire B matrice", code="MXB")
         self.acteurs = {
             "master": User.objects.create_superuser("master_mx", "m@example.com", "pass"),
-            "admin_a": self.marin("admin_a_mx", "ADMIN_NAVIRE", self.a),
-            "admin_b": self.marin("admin_b_mx", "ADMIN_NAVIRE", self.b),
+            "admin_a": self.marin("admin_a_mx", "EQUIPIER", self.a, technique=True),
+            "admin_b": self.marin("admin_b_mx", "EQUIPIER", self.b, technique=True),
             "commandant": self.marin("commandant_mx", "COMMANDANT", self.a),
+            "commandant_b": self.marin("commandant_b_mx", "COMMANDANT", self.b),
             "chef": self.marin("chef_mx", "CHEF_SERVICE", self.a),
             "equipier": self.marin("equipier_mx", "EQUIPIER", self.a),
         }
         self.equipier_b = self.marin("equipier_b_mx", "EQUIPIER", self.b)
 
-    def marin(self, nom, role, navire):
+    def marin(self, nom, role, navire, technique=False):
         user = User.objects.create_user(nom, password="pass")
         profil = user.profile
-        profil.role, profil.ship = role, navire
+        profil.role, profil.ship, profil.administrateur_technique = role, navire, technique
         profil.save()
         return user
 
@@ -56,7 +57,7 @@ class MatriceDroitsBase(TestCase):
 
 class AnnuaireEtEditionTests(MatriceDroitsBase):
     def test_acces_a_l_annuaire_par_role(self):
-        attendu = {"master": 200, "admin_a": 200, "admin_b": 200, "commandant": 200, "chef": 403, "equipier": 403}
+        attendu = {"master": 200, "admin_a": 200, "admin_b": 200, "commandant": 200, "chef": 403, "equipier": 403}  # l'administrateur technique consulte
         for cle, code in attendu.items():
             self.connecter(cle)
             self.assertEqual(self.client.get(reverse("user-directory")).status_code, code, cle)
@@ -76,16 +77,16 @@ class AnnuaireEtEditionTests(MatriceDroitsBase):
         cibles = {
             # (acteur, cible) -> code attendu
             ("master", "equipier"): 200, ("master", "admin_b"): 200,
-            ("admin_a", "equipier"): 200, ("admin_a", "commandant"): 200, ("admin_a", "admin_a"): 200,
-            ("admin_a", "admin_b"): 404, ("admin_a", "master"): 404,
-            ("commandant", "equipier"): 200, ("commandant", "admin_a"): 404, ("commandant", "master"): 404,
+            # L'administrateur technique ne modifie pas les comptes (désignation = autorité métier).
+            ("admin_a", "equipier"): 403, ("admin_a", "commandant"): 403, ("admin_a", "admin_a"): 403,
+            ("commandant", "equipier"): 200, ("commandant", "chef"): 200, ("commandant", "admin_a"): 404, ("commandant", "master"): 404,
             ("chef", "equipier"): 403, ("equipier", "equipier"): 403,
         }
         for (acteur, cible), code in cibles.items():
             self.connecter(acteur)
             url = reverse("user-edit", args=[self.acteurs[cible].pk])
             self.assertEqual(self.client.get(url).status_code, code, f"{acteur} -> {cible}")
-        self.connecter("admin_b")
+        self.connecter("commandant_b")
         self.assertEqual(self.client.get(reverse("user-edit", args=[self.acteurs["equipier"].pk])).status_code, 404)
 
     def test_pas_de_lien_vers_un_compte_non_modifiable(self):
@@ -100,13 +101,13 @@ class AnnuaireEtEditionTests(MatriceDroitsBase):
         self.assertNotIn("ADMIN_NAVIRE", codes)
         self.assertNotIn("COMMANDANT", codes)
         self.assertIn("EQUIPIER", codes)
-        self.connecter("admin_a")
+        self.assertIn("CHEF_SERVICE", codes)
+        self.connecter("admin_a")  # l'administrateur technique ne désigne aucune autorité
         codes = {r["code"] for r in self.client.get(reverse("user-directory")).context["roles"]}
-        self.assertIn("ADMIN_NAVIRE", codes)
-        self.assertNotIn("MASTER_ADMIN", codes)
+        self.assertEqual(codes, set())
 
     def test_edition_hors_perimetre_ou_de_rang_superieur_refusee(self):
-        for acteur, cible in (("admin_a", "equipier_b"), ("commandant", "admin_a")):
+        for acteur, cible in (("commandant", "equipier_b"), ("commandant", "admin_a"), ("admin_a", "equipier")):
             self.connecter(acteur)
             cible_user = self.equipier_b if cible == "equipier_b" else self.acteurs[cible]
             self.client.post(reverse("user-directory"), {
@@ -116,16 +117,16 @@ class AnnuaireEtEditionTests(MatriceDroitsBase):
             self.assertNotEqual(cible_user.username, "pirate", f"{acteur} -> {cible}")
 
     def test_changement_de_role_trace(self):
-        self.connecter("admin_a")
+        self.connecter("commandant")
         cible = self.acteurs["equipier"]
         self.client.post(reverse("user-directory"), {
             "action": "edit_user", "pk": cible.pk, "username": cible.username, "role": "CHEF_SECTION",
         })
         journal = AuditLog.objects.get(action="changement_role", target_user=cible)
-        self.assertEqual((journal.actor, journal.details), (self.acteurs["admin_a"], "role=EQUIPIER -> CHEF_SECTION"))
+        self.assertEqual((journal.actor, journal.details), (self.acteurs["commandant"], "role=EQUIPIER -> CHEF_SECTION"))
 
     def test_changement_de_role_groupe_et_api_traces(self):
-        self.connecter("admin_a")
+        self.connecter("commandant")
         cible = self.acteurs["equipier"]
         self.client.post(reverse("user-directory"), {"action": "bulk_update_role", "selected_ids": [cible.pk], "role": "CHEF_SECTION"})
         self.assertEqual(AuditLog.objects.get(action="bulk_update_role", target_user=cible).details, "role=EQUIPIER -> CHEF_SECTION")
@@ -232,12 +233,12 @@ class ParametresMatriceTests(MatriceDroitsBase):
     def test_onglet_equipage_reserve_au_double_equipage(self):
         self.a.double_equipage = True
         self.a.save()
-        for cle, attendu in (("admin_a", 200), ("commandant", 200), ("chef", 403), ("admin_b", 403)):
+        for cle, attendu in (("admin_a", 403), ("commandant", 200), ("chef", 403), ("commandant_b", 403)):
             self.connecter(cle)
             self.assertEqual(self.client.get("/parametre/", {"tab": "equipage"}).status_code, attendu, cle)
 
     def test_modules_bornes_au_navire_de_l_acteur(self):
-        for cle, navire, autre in (("admin_a", self.a, self.b), ("commandant", self.a, self.b), ("admin_b", self.b, self.a)):
+        for cle, navire, autre in (("commandant", self.a, self.b), ("commandant_b", self.b, self.a)):
             self.connecter(cle)
             self.client.post("/parametre/", {"action": "toggle_module", "cle_module": "annonces", "ship_id": autre.pk})
             self.assertFalse(ModuleActivation.objects.get(ship=navire, module="annonces").active, cle)
@@ -265,8 +266,8 @@ class ParametresMatriceTests(MatriceDroitsBase):
         self.assertEqual(reponse.status_code, 403)
 
     def test_responsables_limites_aux_marins_du_navire(self):
-        self.abaisser_seuil("responsabilite_transverse_gestion", "ADMIN_NAVIRE")
-        self.connecter("admin_a")
+        self.abaisser_seuil("responsabilite_transverse_gestion", "COMMANDANT")
+        self.connecter("commandant")
         page = self.client.get("/parametre/", {"tab": "responsables"})
         noms = {u.username for u in page.context["marins_disponibles"]}
         self.assertIn("equipier_mx", noms)
@@ -286,11 +287,10 @@ class CreationUtilisateurRoleTests(MatriceDroitsBase):
         return re.findall(r'<option value="([^"]*)"\s+selected', select)
 
     def test_formulaire_sans_role_eleve_preselectionne(self):
-        for cle in ("commandant", "admin_a"):
-            self.assertEqual(self._selectionnes(cle), [""], cle)
+        self.assertEqual(self._selectionnes("commandant"), [""])
 
     def test_creation_sans_role_refusee(self):
-        self.connecter("admin_a")
+        self.connecter("commandant")
         avant = User.objects.count()
         reponse = self.client.post(reverse("user-directory"), {
             "action": "create_user", "first_name": "Sans", "last_name": "Role", "ship_id": self.a.pk,
@@ -307,6 +307,6 @@ class CreationUtilisateurRoleTests(MatriceDroitsBase):
         self.assertEqual(User.objects.get(username="avec.role").profile.role, "CHEF_SECTION")
 
     def test_actions_de_masse_sans_role_preselectionne(self):
-        self.connecter("admin_a")
+        self.connecter("commandant")
         html = self.client.get(reverse("user-directory")).content.decode()
         self.assertIn('id="bulkRole" required>\n              <option value="" selected disabled>', html)

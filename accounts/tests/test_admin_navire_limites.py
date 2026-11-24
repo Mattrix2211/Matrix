@@ -1,4 +1,4 @@
-"""Un ADMIN_NAVIRE ne touche jamais au rôle MASTER_ADMIN, côté API comme côté web."""
+"""Un administrateur technique ne touche jamais au rôle MASTER_ADMIN et ne désigne aucune autorité, côté API comme côté web."""
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -10,13 +10,14 @@ from org.models import Ship
 class AdminNavireLimitesTests(TestCase):
     def setUp(self):
         self.navire = Ship.objects.create(name="Navire limites", code="NV-LIM")
-        self.admin = self._marin("admin_lim", "ADMIN_NAVIRE")
+        self.admin = self._marin("admin_lim", "EQUIPIER", technique=True)
         self.equipier = self._marin("equipier_lim", "EQUIPIER")
         self.maitre = self._marin("maitre_lim", "MASTER_ADMIN")
 
-    def _marin(self, username, role):
+    def _marin(self, username, role, technique=False):
         user = User.objects.create_user(username=username, password="pass")
-        UserProfile.objects.update_or_create(user=user, defaults={"role": role, "ship": self.navire})
+        UserProfile.objects.update_or_create(
+            user=user, defaults={"role": role, "ship": self.navire, "administrateur_technique": technique})
         return user
 
     def _api(self):
@@ -45,13 +46,15 @@ class AdminNavireLimitesTests(TestCase):
         super_bord.is_superuser = True
         super_bord.save()
         client = self._api()
-        self.assertEqual(client.patch(f"/api/accounts/profiles/{super_bord.profile.pk}/", {"role": "EQUIPIER"}, format="json").status_code, 404)
+        self.assertEqual(client.patch(f"/api/accounts/profiles/{super_bord.profile.pk}/", {"ship": self.navire.pk}, format="json").status_code, 404)
         self.assertNotIn(super_bord.profile.pk, [p["id"] for p in client.get("/api/accounts/profiles/").json()])
 
-    def test_api_autorise_un_role_inferieur_ou_egal(self):
-        for role in ("COMMANDANT", "ADMIN_NAVIRE"):
+    def test_api_refuse_de_designer_une_autorite_metier(self):
+        for role in ("COMMANDANT", "COMMANDANT_EN_SECOND", "ETAT_MAJOR", "CHEF_SERVICE", "CHEF_SECTION", "ADMIN_NAVIRE"):
             r = self._api().patch(f"/api/accounts/profiles/{self.equipier.profile.pk}/", {"role": role}, format="json")
-            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.status_code, 403, role)
+        self.equipier.profile.refresh_from_db()
+        self.assertEqual(self.equipier.profile.role, "EQUIPIER")
 
     def test_api_modification_sans_role_dans_le_payload_reste_possible(self):
         r = self._api().patch(f"/api/accounts/profiles/{self.equipier.profile.pk}/", {"ship": self.navire.pk}, format="json")

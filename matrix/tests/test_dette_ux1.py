@@ -141,7 +141,7 @@ class EffectifsParEquipageTests(TestCase):
     def test_parametres_listent_les_marins_par_equipage(self):
         navire = Ship.objects.create(name="Bâtiment double", code="BD3", double_equipage=True, equipage_a_bord="A")
         admin = User.objects.create_user(username="adm", password="pass")
-        admin.profile.role, admin.profile.ship, admin.profile.equipage = "ADMIN_NAVIRE", navire, "A"
+        admin.profile.role, admin.profile.ship, admin.profile.equipage = "COMMANDANT", navire, "A"
         admin.profile.save()
         marin = User.objects.create_user(username="marin_terre_b", password="pass")
         marin.profile.ship, marin.profile.equipage = navire, "B"

@@ -25,11 +25,11 @@ REFUS_CODES = {401, 403, 404, 405}
 MARQUEUR_S2 = "TACHE-PARTAGEE-SECTION-2"
 
 
-def _marin(nom, role, navire, equipage="", service=None, secteur=None, section=None, fonction_coma="", **drapeaux):
+def _marin(nom, role, navire, equipage="", service=None, secteur=None, section=None, fonction_coma="", technique=False, **drapeaux):
     user = User.objects.create_user(username=nom, password=MOT_DE_PASSE_TEST, **drapeaux)
     UserProfile.objects.update_or_create(user=user, defaults={
         "role": role, "ship": navire, "service": service, "sector": secteur, "section": section,
-        "equipage": equipage, "fonction_coma": fonction_coma,
+        "equipage": equipage, "fonction_coma": fonction_coma, "administrateur_technique": technique,
     })
     return User.objects.get(pk=user.pk)
 
@@ -54,7 +54,9 @@ class MondeFictif(TestCase):
             "cdt_a": _marin("cdt_a", "COMMANDANT", n, "A"),
             "cdt_b": _marin("cdt_b", "COMMANDANT", n, "B"),
             "second_b": _marin("second_b", "COMMANDANT_EN_SECOND", n, "B"),
-            "admin_navire": _marin("admin_navire", "ADMIN_NAVIRE", n, "B"),
+            "admin_navire": _marin("admin_navire", "EQUIPIER", n, "B", technique=True),
+            "cdt_admin": _marin("cdt_admin", "COMMANDANT", n, "B", technique=True),
+            "bsc_admin": _marin("bsc_admin", "EQUIPIER", n, "B", s1, sec1, cls.section1, technique=True),
             "master_admin": _marin("master_admin", "MASTER_ADMIN", None, is_superuser=True, is_staff=True),
             "staff_sans_droit": _marin("staff_sans_droit", "EQUIPIER", n, "B", s1, sec1, cls.section1, is_staff=True),
             "comanav_b": _marin("comanav_b", "ETAT_MAJOR", n, "B", fonction_coma="COMANAV"),
@@ -72,7 +74,7 @@ class MondeFictif(TestCase):
             "equipier_a": _marin("equipier_a", "EQUIPIER", n, "A", s1, sec1, cls.section1),
             "equipier_abe": _marin("equipier_abe", "EQUIPIER", cls.autre_navire, "", service_nor),
             "cdt_abe": _marin("cdt_abe", "COMMANDANT", cls.autre_navire, ""),
-            "admin_abe": _marin("admin_abe", "ADMIN_NAVIRE", cls.autre_navire, ""),
+            "admin_abe": _marin("admin_abe", "EQUIPIER", cls.autre_navire, "", technique=True),
             "soutien_terre": _marin("soutien_terre", "CHEF_SERVICE", None),
         }
         ResponsableSpecialite.objects.create(user=u["soutien_terre"], specialite=SpecialityChoice.objects.create(name="Mécanique"))

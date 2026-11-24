@@ -27,7 +27,7 @@ class SerializersOrgPerimetreTests(TestCase):
         self.secteur_a1 = Sector.objects.create(service=self.service_a1, name="Manoeuvre")
         self.secteur_a2 = Sector.objects.create(service=self.service_a2, name="Propulsion")
         self.secteur_b = Sector.objects.create(service=self.service_b, name="Manoeuvre B")
-        self.admin_a = _client("admin_org_a", Roles.ADMIN_NAVIRE, ship=self.ship_a)
+        self.admin_a = _client("admin_org_a", Roles.COMMANDANT, ship=self.ship_a)
         self.chef_secteur = _client(
             "chef_secteur_org_a", Roles.CHEF_SECTEUR, ship=self.ship_a,
             service=self.service_a1, sector=self.secteur_a1,
