@@ -2,6 +2,7 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .ecriture_service import niveau_ecriture_sur
 from .roles import est_administrateur_technique, niveau_ecriture, RoleLevel, user_role_level
 from .role_thresholds import seuil_role, ship_id_de
+from .scopes import ship_id_for_user
 from django.contrib.auth import get_user_model
 from accounts.models import Roles
 
@@ -166,6 +167,6 @@ class ManageUsersPermission(BasePermission):
         if request.data.get('role'):
             return dans_la_matrice
         technique_sur_son_batiment = (
-            technique and obj.role != Roles.MASTER_ADMIN and not obj.user.is_superuser and obj.ship_id == profile.ship_id
+            technique and obj.role != Roles.MASTER_ADMIN and not obj.user.is_superuser and ship_id_for_user(obj.user) == ship_id_for_user(request.user)
         )
         return technique_sur_son_batiment or dans_la_matrice

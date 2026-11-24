@@ -271,9 +271,13 @@ def seuil_role(cle_action, ship_id=None):
     if not nom:
         return action.defaut
     try:
-        return _avec_plancher(action, RoleLevel[nom])
+        niveau = RoleLevel[nom]
     except KeyError:
         return action.defaut
+    # Le palier « administrateur d'unité » n'existe plus pour un acte métier : il retirerait l'autorité aux titulaires.
+    if niveau == RoleLevel.ADMIN_NAVIRE and not action.technique:
+        niveau = RoleLevel.COMMANDANT
+    return _avec_plancher(action, niveau)
 
 
 def ship_id_de(user):

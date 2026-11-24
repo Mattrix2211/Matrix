@@ -1,6 +1,8 @@
 """L06 : séparation de l'administration technique et de l'autorité métier (AC-01, AC-02), vérifiée sur le monde fictif."""
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
+
 from django.utils import timezone
 
 from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
@@ -10,6 +12,8 @@ from org.models import RoleThresholdConfig
 from quarts.models import ServiceGarde, peut_gerer_liste, peut_publier_liste
 
 from .outils import MondeFictif
+
+User = get_user_model()
 
 
 class AutoritesTests(MondeFictif):
@@ -102,13 +106,24 @@ class ApiProfilsTests(MondeFictif):
         for donnees in ({"service": self.service2.pk}, {"sector": self.secteur2.pk}):
             self.assertEqual(self._patch("admin_navire", self.admin_navire, donnees).status_code, 403, donnees)
 
-    def test_le_drapeau_technique_ne_se_modifie_pas_par_l_api_des_profils(self):
+    def test_l_attribution_et_le_retrait_du_drapeau_sont_traces(self):
         reponse = self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": True})
-        self.assertIn(reponse.status_code, (200, 403))
-        self.equipier_b1.profile.refresh_from_db()
-        self.assertTrue(self.equipier_b1.profile.administrateur_technique or reponse.status_code == 403)
-        self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(),
-                         1 if self.equipier_b1.profile.administrateur_technique else 0)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertTrue(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
+        ligne = AuditLog.objects.get(action="changement_droits_techniques")
+        self.assertEqual(ligne.details, "administrateur_technique=False -> True")
+        self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": True})  # valeur inchangée : pas de trace
+        self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(), 1)
+        self.assertEqual(self._patch("admin_navire", self.admin_navire, {"administrateur_technique": False}).status_code, 403)
+        self.assertTrue(UserProfile.objects.get(user=self.admin_navire).administrateur_technique)  # jamais sur soi-même
+        self.assertEqual(self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": False}).status_code, 200)
+        self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(), 2)
+
+    def test_les_valeurs_de_formulaire_du_drapeau_sont_interpretees(self):
+        for valeur in ("on", "true"):
+            self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": valeur})
+            self.assertTrue(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique, valeur)
+            UserProfile.objects.filter(user=self.equipier_b1).update(administrateur_technique=False)
 
     def test_un_envoi_multipart_ne_retire_pas_le_drapeau_technique(self):
         client = self.client_de("admin_navire")
@@ -120,3 +135,26 @@ class ApiProfilsTests(MondeFictif):
         self.assertFalse(peut_reinitialiser_cible(self.admin_navire, self.comanav_b))
         self.assertFalse(peut_reinitialiser_cible(self.admin_navire, self.admin_abe))
         self.assertTrue(peut_reinitialiser_cible(self.admin_navire, self.equipier_b1))
+
+    def test_un_compte_porteur_d_une_designation_n_est_pas_reinitialisable_par_un_technique(self):
+        from accounts.services import DESIGNATIONS
+        for relation in DESIGNATIONS:  # une désignation renommée ou supprimée ne doit pas sortir silencieusement du contrôle
+            self.assertTrue(hasattr(User, relation), relation)
+
+
+class SeuilsTechniqueTests(MondeFictif):
+    def test_l_administrateur_technique_ne_peut_que_renforcer_un_seuil_metier(self):
+        from matrix.core.role_thresholds import seuil_role
+        for cle in ("liste_service_publication", "feuille_service_visa_service", "alerte_organisation_validation"):
+            defaut = seuil_role(cle, self.navire.pk)
+            client = self.client_de("admin_navire")
+            client.post("/parametre/", {"action": "update_role_threshold", "cle_action": cle, "nouveau_role": "EQUIPIER", "ship_id": self.navire.pk})
+            self.assertEqual(seuil_role(cle, self.navire.pk), defaut, cle)
+            RoleThresholdConfig.objects.update_or_create(ship=self.navire, defaults={"thresholds": {cle: "COMMANDANT"}})
+            client.post("/parametre/", {"action": "reset_role_threshold", "cle_action": cle})
+            self.assertEqual(seuil_role(cle, self.navire.pk), RoleLevel.COMMANDANT, cle)
+            RoleThresholdConfig.objects.all().delete()
+
+    def test_un_seuil_metier_enregistre_au_palier_obsolete_equivaut_au_commandant(self):
+        RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"asset_ecriture_simple": "ADMIN_NAVIRE"})
+        self.assertEqual(seuil_role("asset_ecriture_simple", self.navire.pk), RoleLevel.COMMANDANT)

@@ -47,7 +47,8 @@ def _reinitialisable_par_technique(acteur, cible):
 # Désignations indépendantes du rôle : qui les porte exerce une autorité que le rôle ne montre pas.
 DESIGNATIONS = (
     "designations_chef_de_liste", "redactions_feuille_service", "delegations_programme", "formations_referentes",
-    "specialites_dont_il_est_responsable", "classes_navire_dont_il_est_responsable",
+    "specialites_dont_il_est_responsable", "classes_navire_dont_il_est_responsable", "navires_brh",
+    "navires_dont_il_est_referent_formation", "remplacements_chef_de_liste", "responsables_specialite_diriges",
 )
 
 

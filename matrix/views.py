@@ -55,6 +55,13 @@ _LIBELLE_ROLE = dict(Roles.choices)
 ROLES_POUR_SEUILS = [(niveau.name, _LIBELLE_ROLE.get(niveau.name, niveau.name)) for niveau in RoleLevel]
 
 
+def _abaisse_sans_autorite_metier(user, action_seuil, cle_action, nouveau):
+    """Un administrateur technique sans autorité de commandement ne peut pas abaisser un seuil métier (auto-élévation)."""
+    if is_master_admin(user) or action_seuil.technique or user_role_level(user) >= RoleLevel.COMMANDANT:
+        return False
+    return nouveau < seuil_role(cle_action, ship_id_for_user(user))
+
+
 def _lignes_seuils(ship_id, portee_visee):
     """Construit les lignes affichables pour l'onglet Sécurité des Réglages :
     une ligne par action configurable de la portée demandée (SHIP ou
@@ -864,8 +871,11 @@ class SettingsView(LoginRequiredMixin, View):
                         nouveau_role = request.POST.get('nouveau_role')
                         if nouveau_role not in dict(ROLES_POUR_SEUILS):
                             messages.error(request, "Rôle invalide.")
-                        elif not is_master_admin(request.user) and not action_seuil.technique and RoleLevel[nouveau_role] > RoleLevel.COMMANDANT:
-                            messages.error(request, "Un seuil ne peut pas être relevé au-dessus du commandant : cela retirerait l'autorité aux titulaires.")
+                        elif not is_master_admin(request.user) and RoleLevel[nouveau_role] > (
+                                RoleLevel.ADMIN_NAVIRE if action_seuil.technique else RoleLevel.COMMANDANT):
+                            messages.error(request, "Ce seuil ne peut pas être relevé jusqu'à retirer l'autorité aux titulaires.")
+                        elif _abaisse_sans_autorite_metier(request.user, action_seuil, cle_action, RoleLevel[nouveau_role]):
+                            messages.error(request, "Sans autorité de commandement, un seuil ne peut qu'être renforcé.")
                         elif not seuil_autorise(cle_action, RoleLevel[nouveau_role]):
                             messages.error(request, "Ce seuil ne peut pas descendre sous l'autorité minimale de l'action : il ne peut qu'être renforcé.")
                         else:
@@ -877,6 +887,8 @@ class SettingsView(LoginRequiredMixin, View):
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> {nouveau_role}",
                             )
                             messages.success(request, "Seuil de rôle mis à jour.")
+                    elif _abaisse_sans_autorite_metier(request.user, action_seuil, cle_action, action_seuil.defaut):
+                        messages.error(request, "Sans autorité de commandement, un seuil ne peut qu'être renforcé.")
                     else:
                         if cle_action in config.thresholds:
                             ancien = config.thresholds.pop(cle_action)
