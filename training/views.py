@@ -400,6 +400,8 @@ class TrainingSessionPermission(RolePermission):
         return all(peut_valider_formation(user, course, navire_de(m)) for m in marins)
 
     def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
         if request.method in SAFE_METHODS:
             return super().has_permission(request, view)
         if request.method != "POST":

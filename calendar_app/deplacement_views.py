@@ -10,7 +10,7 @@ from django.utils import timezone
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
-from matrix.core.ecriture_service import niveau_ecriture_sur
+from matrix.core.habilitation import Action, evaluer
 from matrix.core.roles import niveau_ecriture, RoleLevel
 from matrix.core.mixins import build_scope_q
 from accounts.models import AuditLog
@@ -62,7 +62,7 @@ def calendar_event_move(request):
             t = _perimetre_ticket(CorrectiveTicket.objects.all(), request.user).get(pk=ev_id)
         except CorrectiveTicket.DoesNotExist:
             raise Http404
-        if niveau_ecriture_sur(request.user, t) < RoleLevel.CHEF_SECTION:
+        if not evaluer(request.user, Action.ECRIRE, objet=t, niveau_requis=RoleLevel.CHEF_SECTION):
             raise PermissionDenied
         t.planned_for = new_date
         t.save(update_fields=["planned_for"])
@@ -87,7 +87,7 @@ def calendar_event_move(request):
             perimetre = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
             if not MaintenanceOccurrence.objects.filter(perimetre, pk=ev_id).exists():
                 raise Http404
-            if niveau_ecriture_sur(request.user, occ) < RoleLevel.CHEF_SECTION:
+            if not evaluer(request.user, Action.ECRIRE, objet=occ, niveau_requis=RoleLevel.CHEF_SECTION):
                 raise PermissionDenied
         occ.scheduled_for = new_date
         occ.save(update_fields=["scheduled_for"])

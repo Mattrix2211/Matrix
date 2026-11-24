@@ -43,8 +43,11 @@ class RolePermission(BasePermission):
         return getattr(view, 'min_role_level_write', self.min_level_write)
 
     def has_permission(self, request, view):
+        # Aucune écriture sans compte, même quand le seuil d'action est celui d'un équipier (anonyme = niveau équipier).
+        if not request.user.is_authenticated:
+            return False
         if request.method in SAFE_METHODS:
-            return request.user.is_authenticated
+            return True
         if request.user.is_superuser:
             return True
         return niveau_ecriture(request.user) >= self._seuil_requis(request, view)

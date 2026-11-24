@@ -120,14 +120,14 @@ class ReferenceBatimentAdmin(admin.ModelAdmin):
                 f"{champ} -> {form.cleaned_data.get(champ)}" for champ in form.changed_data if champ in ("archive", "statut", "numero_coque", "nom", "port_base")
             ))
 
-    @admin.action(description="Archiver les bâtiments sélectionnés (retirés du service)")
+    @admin.action(description="Archiver les bâtiments sélectionnés (retirés du service)", permissions=["change"])
     def archiver(self, request, queryset):
         for reference in queryset.filter(archive=False):
             reference.archive = True
             reference.save(update_fields=["archive", "updated_at"])
             self._tracer(request, reference, "archive")
 
-    @admin.action(description="Restaurer les bâtiments sélectionnés")
+    @admin.action(description="Restaurer les bâtiments sélectionnés", permissions=["change"])
     def restaurer(self, request, queryset):
         for reference in queryset.filter(archive=True):
             reference.archive = False
