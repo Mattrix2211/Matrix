@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions
+from rest_framework.fields import BooleanField
 from django.contrib.auth.models import User
 from .models import AuditLog, UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
 from .serializers import (
@@ -51,13 +52,29 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         return qs.filter(build_scope_q(self.request.user, ""))
 
     def perform_update(self, serializer):
-        ancien_role = serializer.instance.role
+        ancien_role, ancienne_fonction = serializer.instance.role, serializer.instance.fonction_coma
+        nouveau = BooleanField().to_internal_value(self.request.data["administrateur_technique"]) \
+            if "administrateur_technique" in self.request.data else None
         profil = serializer.save()
         if profil.role != ancien_role:
             AuditLog.objects.create(
                 actor=self.request.user, action="changement_role", target_user=profil.user,
                 details=f"role={ancien_role} -> {profil.role}",
             )
+        if profil.fonction_coma != ancienne_fonction:
+            AuditLog.objects.create(
+                actor=self.request.user, action="changement_fonction", target_user=profil.user,
+                details=f"fonction_coma={ancienne_fonction or '—'} -> {profil.fonction_coma or '—'}",
+            )
+        if nouveau is not None:
+            if nouveau != profil.administrateur_technique:
+                avant = profil.administrateur_technique
+                profil.administrateur_technique = nouveau
+                profil.save(update_fields=["administrateur_technique"])
+                AuditLog.objects.create(
+                    actor=self.request.user, action="changement_droits_techniques", target_user=profil.user,
+                    details=f"administrateur_technique={avant} -> {nouveau}",
+                )
 
 
 # Les trois ViewSets ci-dessous exposent des référentiels GLOBAUX, communs à

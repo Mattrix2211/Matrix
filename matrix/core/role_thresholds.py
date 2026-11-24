@@ -290,7 +290,8 @@ def niveau_pour_action(user, cle_action):
     from .roles import ROLES_SANS_ECRITURE_HERITEE, est_administrateur_technique, niveau_ecriture, user_role_level
 
     if REGISTRE_PAR_CLE[cle_action].technique:
-        return RoleLevel.ADMIN_NAVIRE if est_administrateur_technique(user) else niveau_ecriture(user)
+        niveau = niveau_ecriture(user)
+        return max(niveau, RoleLevel.ADMIN_NAVIRE) if est_administrateur_technique(user) else niveau
     profile = getattr(user, "profile", None)
     if REGISTRE_PAR_CLE[cle_action].ouverte_au_second and profile and profile.role in ROLES_SANS_ECRITURE_HERITEE:
         return user_role_level(user)

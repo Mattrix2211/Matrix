@@ -10,7 +10,7 @@ from django.contrib.auth.views import PasswordChangeView
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
-from .services import peut_reinitialiser, reinitialiser_mot_de_passe
+from .services import peut_reinitialiser, peut_reinitialiser_cible, reinitialiser_mot_de_passe
 from . import preferences
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
@@ -384,7 +384,8 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 if not peut_reinitialiser(request.user):
                     raise PermissionDenied
                 provisoires = [
-                    (u, reinitialiser_mot_de_passe(request.user, u)) for u in users if u.pk != request.user.pk
+                    (u, reinitialiser_mot_de_passe(request.user, u)) for u in users
+                    if u.pk != request.user.pk and peut_reinitialiser_cible(request.user, u)
                 ]
                 if not provisoires:
                     messages.warning(request, "Aucun marin de votre bâtiment à réinitialiser.")

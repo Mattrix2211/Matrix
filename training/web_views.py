@@ -56,15 +56,6 @@ User = get_user_model()
 # déjà appliqué côté API sur TrainingCourseViewSet.
 NIVEAU_REQUIS_GESTION_PREREQUIS = RoleLevel.CHEF_SECTION
 
-# Seuil de rôle requis pour créer une toute nouvelle formation : volontairement
-# plus strict que NIVEAU_REQUIS_GESTION_PREREQUIS (qui ne fait qu'éditer une
-# formation existante). Demande explicite du Product Owner : la création reste
-# réservée à un administrateur pour l'instant, les centres de formation
-# externes prendront le relais dans une phase future non spécifiée. Seuil
-# INCHANGÉ par la portabilité des formations (tâche Notion « Formation unique
-# et portable entre navires ») : une formation devenant une fiche globale
-# partagée par tous les navires, la garder réservée à un administrateur reste
-# tout aussi pertinent, sinon davantage.
 # Réservée aux administrateurs techniques (indicateur distinct du rôle métier) : `est_administrateur_technique`.
 
 # Seuil de rôle générique à partir duquel un chef peut RÉSERVER (mais pas
@@ -193,8 +184,7 @@ def _peut_gerer_brh(user):
 # Seuil de rôle requis pour proposer la création ou la modification d'une
 # formation « gérée par le bord » (Circuit C — Circuit d'approbation chef de
 # secteur -> chef de service) : CHEF_SECTEUR+, à ne pas confondre avec
-# NIVEAU_REQUIS_CREATION_FORMATION (administrateur technique, INCHANGÉ) qui reste le seul
-# seuil de création d'une formation « organisme » classique.
+# la création d'une formation « organisme » classique (administrateur technique).
 NIVEAU_REQUIS_PROPOSITION_FORMATION_BORD = RoleLevel.CHEF_SECTEUR
 
 

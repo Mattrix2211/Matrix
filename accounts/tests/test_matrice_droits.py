@@ -256,7 +256,7 @@ class ParametresMatriceTests(MatriceDroitsBase):
     def test_seuils_de_role_bornes_au_navire_de_l_administrateur(self):
         self.connecter("admin_a")
         self.client.post("/parametre/", {
-            "action": "update_role_threshold", "cle_action": "module_gestion", "nouveau_role": "ADMIN_NAVIRE", "ship_id": self.b.pk,
+            "action": "update_role_threshold", "cle_action": "module_gestion", "nouveau_role": "COMMANDANT", "ship_id": self.b.pk,
         })
         self.assertTrue(RoleThresholdConfig.objects.filter(ship=self.a).exists())
         self.assertFalse(RoleThresholdConfig.objects.filter(ship=self.b).exists())

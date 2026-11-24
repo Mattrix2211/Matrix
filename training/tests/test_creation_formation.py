@@ -1,8 +1,7 @@
 """Tests du formulaire web de création d'une formation (TrainingCourse),
 remplaçant l'admin Django pour cette opération. Seuil de permission
 volontairement plus strict que la gestion des prérequis/catégorie/référents
-d'une formation existante (RoleLevel.ADMIN_NAVIRE, cf. NIVEAU_REQUIS_CREATION_FORMATION
-dans training/web_views.py) : demande explicite du Product Owner, la création
+d'une formation existante (administrateur technique, cf. `est_administrateur_technique`) : demande explicite du Product Owner, la création
 de nouvelles formations reste réservée à un administrateur pour l'instant.
 
 Catalogue devenu global (tâche Notion « Formation unique et portable entre

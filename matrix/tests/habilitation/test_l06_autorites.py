@@ -76,3 +76,47 @@ class AutoritesTests(MondeFictif):
 
     def test_aucune_trace_de_migration_sur_un_monde_cree_apres_la_migration(self):
         self.assertFalse(AuditLog.objects.filter(action="l06_migration_role").exists())
+
+
+class ApiProfilsTests(MondeFictif):
+    """Revue L06 : aucune voie de l'API des profils ne confère ou n'étend une autorité."""
+
+    def _patch(self, nom, cible, donnees):
+        import json
+        client = self.client_de(nom)
+        return client.patch(f"/api/accounts/profiles/{cible.profile.pk}/", data=json.dumps(donnees), content_type="application/json")
+
+    def test_l_administrateur_technique_ne_designe_aucune_fonction(self):
+        for cible in (self.equipier_b1, self.admin_navire):
+            reponse = self._patch("admin_navire", cible, {"fonction_coma": "COMAEQ"})
+            self.assertEqual(reponse.status_code, 403, cible.username)
+            cible.profile.refresh_from_db()
+            self.assertEqual(cible.profile.fonction_coma, "")
+
+    def test_l_etat_major_technique_ne_s_attribue_pas_de_fonction_ni_de_perimetre(self):
+        for donnees in ({"fonction_coma": "COMAEQ"}, {"service": self.service2.pk}, {"role": "COMMANDANT"}):
+            reponse = self._patch("comanav_b", self.comanav_b, donnees)
+            self.assertEqual(reponse.status_code, 403, donnees)
+
+    def test_l_administrateur_technique_n_elargit_pas_son_perimetre(self):
+        for donnees in ({"service": self.service2.pk}, {"sector": self.secteur2.pk}):
+            self.assertEqual(self._patch("admin_navire", self.admin_navire, donnees).status_code, 403, donnees)
+
+    def test_le_drapeau_technique_ne_se_modifie_pas_par_l_api_des_profils(self):
+        reponse = self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": True})
+        self.assertIn(reponse.status_code, (200, 403))
+        self.equipier_b1.profile.refresh_from_db()
+        self.assertTrue(self.equipier_b1.profile.administrateur_technique or reponse.status_code == 403)
+        self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(),
+                         1 if self.equipier_b1.profile.administrateur_technique else 0)
+
+    def test_un_envoi_multipart_ne_retire_pas_le_drapeau_technique(self):
+        client = self.client_de("admin_navire")
+        client.put(f"/api/accounts/profiles/{self.equipier_b1.profile.pk}/", {"grade": ""})
+        self.assertTrue(UserProfile.objects.get(user=self.admin_navire).administrateur_technique)
+
+    def test_la_reinitialisation_de_masse_ignore_les_comptes_non_reinitialisables(self):
+        from accounts.services import peut_reinitialiser_cible
+        self.assertFalse(peut_reinitialiser_cible(self.admin_navire, self.comanav_b))
+        self.assertFalse(peut_reinitialiser_cible(self.admin_navire, self.admin_abe))
+        self.assertTrue(peut_reinitialiser_cible(self.admin_navire, self.equipier_b1))

@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .ecriture_service import niveau_ecriture_sur
-from .roles import est_administrateur_technique, niveau_ecriture, RoleLevel
+from .roles import est_administrateur_technique, niveau_ecriture, RoleLevel, user_role_level
 from .role_thresholds import seuil_role, ship_id_de
 from django.contrib.auth import get_user_model
 from accounts.models import Roles
@@ -103,9 +103,26 @@ class ManageUsersPermission(BasePermission):
         Roles.CHEF_SECTION: {Roles.EQUIPIER},
     }
 
+    # Champs qui portent une autorité ou un périmètre : jamais modifiés par un administrateur technique, ni par quiconque sur
+    # son propre profil ; la fonction de commandant adjoint exige le commandant (AC-02).
+    CHAMPS_AUTORITE = ("role", "fonction_coma", "ship", "service", "sector", "section", "allowed_sectors", "equipage")
+
     @staticmethod
     def _modifie_droits_techniques(request):
         return "administrateur_technique" in request.data
+
+    @classmethod
+    def _champs_d_autorite_presents(cls, request):
+        return [champ for champ in cls.CHAMPS_AUTORITE if champ in request.data]
+
+    @staticmethod
+    def _change(obj, champ, valeur):
+        """Vrai si `valeur` modifie le champ d'autorité de `obj` (clés étrangères comparées par identifiant)."""
+        if champ == "allowed_sectors":
+            envoyes = {str(v) for v in (valeur if isinstance(valeur, (list, tuple)) else [valeur])}
+            return envoyes != {str(pk) for pk in obj.allowed_sectors.values_list("pk", flat=True)}
+        actuel = getattr(obj, f"{champ}_id", None) if champ in ("ship", "service", "sector", "section") else getattr(obj, champ, "")
+        return str(actuel if actuel is not None else "") != str(valeur if valeur is not None else "")
 
     def has_permission(self, request, view):
         # Lecture autorisée pour les utilisateurs authentifiés
@@ -124,7 +141,8 @@ class ManageUsersPermission(BasePermission):
             return False
         target_role = request.data.get('role')
         if not target_role:
-            return technique
+            # Sans rôle dans la requête : modification technique, jamais d'un champ d'autorité ou de périmètre.
+            return technique and not self._champs_d_autorite_presents(request)
         return target_role in self.MANAGE_MAP.get(profile.role, set())
 
     def has_object_permission(self, request, view, obj):
@@ -138,15 +156,15 @@ class ManageUsersPermission(BasePermission):
             return False
         if profile.role == Roles.MASTER_ADMIN:
             return True
-        if getattr(obj, 'user_id', None) == request.user.pk and (
-            self._modifie_droits_techniques(request) or ('role' in request.data and request.data['role'] != obj.role)
-        ):
+        modifies = [champ for champ in self._champs_d_autorite_presents(request) if self._change(obj, champ, request.data.get(champ))]
+        if getattr(obj, 'user_id', None) == request.user.pk and (self._modifie_droits_techniques(request) or modifies):
+            return False
+        if "fonction_coma" in modifies and user_role_level(request.user) < RoleLevel.COMMANDANT:
             return False
         technique = est_administrateur_technique(request.user)
         dans_la_matrice = obj.role in self.MANAGE_MAP.get(profile.role, set())
         if request.data.get('role'):
             return dans_la_matrice
-        # Modification sans changement de rôle : administrateur technique, sur son bâtiment, jamais sur un administrateur général.
         technique_sur_son_batiment = (
             technique and obj.role != Roles.MASTER_ADMIN and not obj.user.is_superuser and obj.ship_id == profile.ship_id
         )

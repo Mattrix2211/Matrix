@@ -46,7 +46,7 @@ class AdminNavireLimitesTests(TestCase):
         super_bord.is_superuser = True
         super_bord.save()
         client = self._api()
-        self.assertEqual(client.patch(f"/api/accounts/profiles/{super_bord.profile.pk}/", {"ship": self.navire.pk}, format="json").status_code, 404)
+        self.assertEqual(client.patch(f"/api/accounts/profiles/{super_bord.profile.pk}/", {"grade": "X"}, format="json").status_code, 404)
         self.assertNotIn(super_bord.profile.pk, [p["id"] for p in client.get("/api/accounts/profiles/").json()])
 
     def test_api_refuse_de_designer_une_autorite_metier(self):
@@ -56,9 +56,13 @@ class AdminNavireLimitesTests(TestCase):
         self.equipier.profile.refresh_from_db()
         self.assertEqual(self.equipier.profile.role, "EQUIPIER")
 
-    def test_api_modification_sans_role_dans_le_payload_reste_possible(self):
-        r = self._api().patch(f"/api/accounts/profiles/{self.equipier.profile.pk}/", {"ship": self.navire.pk}, format="json")
+    def test_api_modification_sans_champ_d_autorite_reste_possible(self):
+        r = self._api().patch(f"/api/accounts/profiles/{self.equipier.profile.pk}/", {"grade": "X"}, format="json")
         self.assertEqual(r.status_code, 200)
+
+    def test_api_refuse_de_modifier_le_perimetre(self):
+        r = self._api().patch(f"/api/accounts/profiles/{self.equipier.profile.pk}/", {"ship": self.navire.pk}, format="json")
+        self.assertEqual(r.status_code, 403)
 
     def test_web_refuse_dattribuer_master_admin(self):
         self.client.login(username="admin_lim", password="pass")

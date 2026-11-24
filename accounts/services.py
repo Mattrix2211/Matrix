@@ -28,13 +28,31 @@ def peut_reinitialiser(acteur):
     return niveau_pour_action(acteur, "mot_de_passe_reinitialisation") >= niveau_requis_pour(acteur, "mot_de_passe_reinitialisation")
 
 
+def peut_reinitialiser_cible(acteur, cible):
+    return peut_reinitialiser(acteur) and acteur.pk != cible.pk and _reinitialisable_par_technique(acteur, cible)
+
+
 def _reinitialisable_par_technique(acteur, cible):
     """Un administrateur technique sans autorité métier ne reprend pas le compte d'une autorité : au-delà de chef de section,
     ou d'un autre administrateur technique, la réinitialisation revient à l'administrateur général."""
     if is_master_admin(acteur) or user_role_level(acteur) >= RoleLevel.COMMANDANT:
         return True
     profil = getattr(cible, "profile", None)
-    return not cible.is_superuser and user_role_level(cible) <= RoleLevel.CHEF_SECTION and not (profil and profil.administrateur_technique)
+    return (
+        not cible.is_superuser and user_role_level(cible) <= RoleLevel.CHEF_SECTION
+        and not (profil and (profil.administrateur_technique or profil.fonction_coma)) and not porte_une_designation(cible)
+    )
+
+
+# Désignations indépendantes du rôle : qui les porte exerce une autorité que le rôle ne montre pas.
+DESIGNATIONS = (
+    "designations_chef_de_liste", "redactions_feuille_service", "delegations_programme", "formations_referentes",
+    "specialites_dont_il_est_responsable", "classes_navire_dont_il_est_responsable",
+)
+
+
+def porte_une_designation(utilisateur):
+    return any(getattr(utilisateur, relation).exists() for relation in DESIGNATIONS)
 
 
 def reinitialiser_mot_de_passe(acteur, cible):
@@ -42,7 +60,7 @@ def reinitialiser_mot_de_passe(acteur, cible):
 
     L'appelant a déjà borné `cible` au périmètre navire de l'acteur. Le mot de passe n'est ni
     enregistré en clair ni écrit dans le journal d'audit."""
-    if not peut_reinitialiser(acteur) or acteur.pk == cible.pk or not _reinitialisable_par_technique(acteur, cible):
+    if not peut_reinitialiser_cible(acteur, cible):
         raise PermissionDenied
     mot_de_passe = generer_mot_de_passe()
     cible.set_password(mot_de_passe)

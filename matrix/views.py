@@ -864,6 +864,8 @@ class SettingsView(LoginRequiredMixin, View):
                         nouveau_role = request.POST.get('nouveau_role')
                         if nouveau_role not in dict(ROLES_POUR_SEUILS):
                             messages.error(request, "Rôle invalide.")
+                        elif not is_master_admin(request.user) and not action_seuil.technique and RoleLevel[nouveau_role] > RoleLevel.COMMANDANT:
+                            messages.error(request, "Un seuil ne peut pas être relevé au-dessus du commandant : cela retirerait l'autorité aux titulaires.")
                         elif not seuil_autorise(cle_action, RoleLevel[nouveau_role]):
                             messages.error(request, "Ce seuil ne peut pas descendre sous l'autorité minimale de l'action : il ne peut qu'être renforcé.")
                         else:

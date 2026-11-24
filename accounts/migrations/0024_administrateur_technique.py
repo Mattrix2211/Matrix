@@ -13,13 +13,17 @@ def separer(apps, schema_editor):
     UserProfile = apps.get_model("accounts", "UserProfile")
     AuditLog = apps.get_model("accounts", "AuditLog")
     for profil in UserProfile.objects.filter(role="ADMIN_NAVIRE"):
-        fonction = bool(profil.fonction_coma)
-        profil.role = "ETAT_MAJOR" if fonction else "EQUIPIER"
+        # Une fonction déjà tenue par un autre titulaire du bâtiment n'est pas dédoublée : elle reste à confirmer.
+        deja_tenue = bool(profil.fonction_coma) and UserProfile.objects.filter(
+            role="ETAT_MAJOR", ship_id=profil.ship_id, fonction_coma=profil.fonction_coma, user__is_active=True,
+        ).exists()
+        etablie = bool(profil.fonction_coma) and not deja_tenue
+        profil.role = "ETAT_MAJOR" if etablie else "EQUIPIER"
         profil.administrateur_technique = True
         profil.save(update_fields=["role", "administrateur_technique"])
         AuditLog.objects.create(
             actor=None, action=ACTION, target_user_id=profil.user_id,
-            details=f"avant=ADMIN_NAVIRE; apres={profil.role}; fonction_etablie={'oui' if fonction else 'non'}",
+            details=f"avant=ADMIN_NAVIRE; apres={profil.role}; fonction_etablie={'oui' if etablie else 'non'}",
         )
 
 
@@ -27,7 +31,9 @@ def restaurer(apps, schema_editor):
     UserProfile = apps.get_model("accounts", "UserProfile")
     AuditLog = apps.get_model("accounts", "AuditLog")
     for journal in AuditLog.objects.filter(action=ACTION):
-        UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_technique=True).update(
+        apres = journal.details.split("apres=")[1].split(";")[0]
+        # Un rôle modifié depuis la migration n'est pas écrasé.
+        UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_technique=True, role=apres).update(
             role="ADMIN_NAVIRE", administrateur_technique=False)
         journal.delete()
 

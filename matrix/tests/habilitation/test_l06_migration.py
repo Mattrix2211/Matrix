@@ -58,3 +58,19 @@ class MigrationAdministrateursTests(TransactionTestCase):
         self.assertEqual(self._etat(retour, comptes)["admin_coma"][0], "ADMIN_NAVIRE")
         self.assertEqual(self._etat(retour, comptes)["commandant"][0], "COMMANDANT")
         self.assertFalse(retour.get_model("accounts", "AuditLog").objects.filter(action="l06_migration_role").exists())
+
+    def test_fonction_deja_tenue_n_est_pas_dedoublee_et_retour_arriere_respecte_un_role_modifie(self):
+        base = self._migrer(AVANT)
+        User, Profil = base.get_model("auth", "User"), base.get_model("accounts", "UserProfile")
+        navire = base.get_model("org", "Ship").objects.create(name="Fictif", code="FIC")
+        for nom, role, fonction in (("titulaire", "ETAT_MAJOR", "COMANAV"), ("admin_doublon", "ADMIN_NAVIRE", "COMANAV"),
+                                    ("admin_modifie", "ADMIN_NAVIRE", "")):
+            utilisateur = User.objects.create(username=nom)
+            Profil.objects.update_or_create(user=utilisateur, defaults={"role": role, "fonction_coma": fonction, "ship": navire})
+        etat = self._etat(self._migrer(APRES), {n: User.objects.get(username=n).pk for n in ("titulaire", "admin_doublon", "admin_modifie")})
+        self.assertEqual(etat["admin_doublon"], ("EQUIPIER", True))  # fonction déjà tenue : à confirmer, pas de doublon
+        Profil.objects.filter(user__username="admin_modifie").update(role="CHEF_SECTION")
+        retour = self._migrer(AVANT)
+        profils = {p.user.username: p.role for p in retour.get_model("accounts", "UserProfile").objects.select_related("user")}
+        self.assertEqual(profils["admin_doublon"], "ADMIN_NAVIRE")
+        self.assertEqual(profils["admin_modifie"], "CHEF_SECTION")  # rôle changé depuis : jamais écrasé

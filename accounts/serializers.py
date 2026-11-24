@@ -16,6 +16,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = "__all__"
+        # Posé par la vue après contrôle de l'autorité et tracé : un formulaire sans la clé ne le retire jamais.
+        read_only_fields = ("administrateur_technique",)
 
     def validate_role(self, valeur):
         if valeur == "ADMIN_NAVIRE":
