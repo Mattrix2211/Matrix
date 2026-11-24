@@ -16,5 +16,8 @@
 | ANO-012 | Notifications | Limitation | OUVERTE |
 | ANO-013 | Rappels d'activation | Limitation | OUVERTE |
 | ANO-014 | Lancement Windows | Information | NON VÉRIFIÉE |
+| ANO-015 | API de maintenance : écritures atteintes sans compte connecté | Majeure | CORRIGÉE (L29) |
+| ANO-016 | API de formation : sessions modifiables sans compte connecté | Majeure | CORRIGÉE (L29) |
+| ANO-017 | Administration : actions « archiver » et « restaurer » ouvertes à qui ne peut que voir | Moyenne | CORRIGÉE (L29) |
 
 Détail (reproduction, attendu, constat) : `04_REGISTRE_ANOMALIES.csv`.

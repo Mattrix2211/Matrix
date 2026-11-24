@@ -1,9 +1,11 @@
 """Le dispositif détecte réellement un accès insuffisamment protégé ou un point d'entrée oublié (lot L29)."""
+from pathlib import Path
+
 from django.test import override_settings
 
 from matrix.core import points_entree
 
-from .outils import MondeFictif, Verification, acces_anonymes_non_refuses, comparer, points_non_couverts
+from .outils import MondeFictif, Verification, acces_anonymes_non_refuses, comparer, lignes_routes_ecriture, points_non_couverts
 
 URLCONF_PIEGE = "matrix.tests.habilitation.urls_piege"
 
@@ -25,3 +27,9 @@ class DetectionTests(MondeFictif):
         verification = Verification("piege", "WEB-QUARTS", "get", "/quarts/piege-ouvert/", attendu={"equipier_b1": "acces"},
                                     ecarts_connus={"equipier_b1": "refus"}, lot_correctif="L00")
         self.assertEqual(comparer(verification, self), [("equipier_b1", "refus", "acces")])
+
+    def test_une_nouvelle_route_d_ecriture_dans_une_famille_connue_change_l_instantane(self):
+        """Une route ajoutée sous un préfixe déjà couvert (`quarts/`) passe la couverture par règle ; l'instantané la signale."""
+        attendu = (Path(__file__).parent / "instantane_routes_ecriture.txt").read_text(encoding="utf-8").splitlines()
+        ajoutees = set(lignes_routes_ecriture(points_entree.routes())) - set(attendu)
+        self.assertEqual(ajoutees, {"web|piege/ouvert/|?|SANS-REGLE", "web|quarts/piege-ouvert/|?|WEB-QUARTS"})

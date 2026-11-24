@@ -67,7 +67,8 @@ def _methodes_et_declarations(callback):
     if cls is None:
         return None, (f"fonction:{getattr(callback, '__name__', '?')}",)
     if actions:
-        methodes = tuple(sorted(m.upper() for m in actions))
+        # DRF ajoute « head » à la table des actions à la première requête : on l'écarte pour un inventaire stable.
+        methodes = tuple(sorted(m.upper() for m in actions if m not in ("options", "head")))
     else:
         methodes = tuple(sorted(m.upper() for m in cls.http_method_names if m not in ("options", "head") and hasattr(cls, m)))
     declare = [f"permission:{c.__name__}" for c in getattr(cls, "permission_classes", ())]

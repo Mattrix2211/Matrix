@@ -197,3 +197,17 @@ def acces_anonymes_non_refuses(points, methodes=("get", "post", "put", "patch", 
             if not refuse:
                 anomalies.append((methode, point.url_exemple, reponse.status_code))
     return anomalies
+
+
+def lignes_routes_ecriture(points):
+    """Instantané des routes web et API capables d'écrire : nature, clé, méthodes, règle du registre."""
+    from matrix.core.registre_acces import regle_de
+
+    return sorted(
+        f"{p.nature}|{p.cle}|{','.join(p.methodes) if p.methodes else '?'}|{(regle_de(p) or Regle0).identifiant}"
+        for p in points if p.nature in ("web", "api") and p.ecriture_possible and not p.variante_format
+    )
+
+
+class Regle0:
+    identifiant = "SANS-REGLE"

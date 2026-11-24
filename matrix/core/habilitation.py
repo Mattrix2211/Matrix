@@ -1,15 +1,8 @@
 """Point de contrôle commun des habilitations : lire ou écrire par n'importe quel point d'entrée.
 
-Il compose les mécanismes existants (compte actif, module activé, niveau d'écriture sur le service) et rend une décision
-explicable. Il n'ajoute aucune règle.
-
-- Lecture : seuls le compte et le module sont contrôlés ici. Borner ce qu'un marin lit reste le travail de la requête de
-  périmètre (`scope_filters_for_user`) ; passer un objet à une lecture est refusé pour qu'aucun appelant ne croie le contraire.
-- Écriture : s'ajoute le niveau d'écriture sur le service de l'objet. Une validation est une écriture avec `niveau_requis`.
-- L'équipage à terre et le soutien à terre ne sont pas redits ici : `EquipageATerreMiddleware` refuse toute écriture par défaut
-  et reste la seule source de ses exemptions de chemins.
-
-Les lots suivants ajoutent un facteur à `FACTEURS` (plancher non contournable, délégation, suppléance) sans toucher aux appelants.
+Il compose compte actif, module activé et niveau d'écriture sur le service, et rend une décision explicable ; il n'ajoute
+aucune règle. La lecture d'une liste reste bornée par les requêtes de périmètre : lui passer un objet à lire est refusé.
+L'équipage à terre reste du seul ressort du middleware. Les lots suivants ajoutent un facteur à `FACTEURS`.
 """
 from dataclasses import dataclass
 from enum import Enum

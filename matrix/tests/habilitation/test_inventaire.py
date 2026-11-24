@@ -12,7 +12,7 @@ from matrix.core import points_entree
 from matrix.core.modules import REGISTRE_PAR_CLE
 from matrix.core.registre_acces import REGLES, VOCABULAIRE, regle_de
 
-from .outils import points_non_couverts
+from .outils import lignes_routes_ecriture, points_non_couverts
 
 PLAN = (Path(settings.BASE_DIR) / "docs" / "PLAN_LOTS_REPRISE.md").read_text(encoding="utf-8")
 
@@ -83,3 +83,10 @@ class InventaireTests(TestCase):
         for p in self.points:
             if p.nature == points_entree.API and not p.variante_format and p.methodes:
                 self.assertTrue(any(d.startswith("permission:") for d in p.declare), p.cle)
+
+    def test_toute_route_d_ecriture_est_validee_explicitement(self):
+        """Les règles couvrent par préfixe : une nouvelle route d'écriture hériterait des contrôles de sa famille sans qu'on
+        les vérifie. Cet instantané oblige à la relire (règle attendue, preuve par exécution) avant de le mettre à jour."""
+        actuel = lignes_routes_ecriture(self.points)
+        attendu = (Path(__file__).parent / "instantane_routes_ecriture.txt").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(actuel, attendu, "Route d'écriture ajoutée, retirée ou reclassée : la valider puis régénérer l'instantané.")

@@ -85,6 +85,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Objectif et périmètre.** Séparer l'administration technique de l'échelle métier ; interdire l'auto-attribution ; planchers non abaissables ; prérogatives du commandant en second ; traces.
 - **Décisions.** ARB-01 ; A1, A3, A4, B2.
 - **Composants.** `accounts.UserProfile` et rôles, seuils, `quarts/models.py` (supervision, publication), API, administration Django, `org/admin.py`, création d'administrateur (`create_admin.bat`).
+- **Preuve de recette héritée de L29.** Règles du registre d'accès (`matrix/core/registre_acces.py`) dont l'exécution reste à prouver ici : `ADMIN-ORGANISATION`, `WEB-QUARTS`.
 - **Complexité.** L. **Migration.** Oui : indicateur technique distinct, reprise des comptes `ADMIN_NAVIRE` existants (sort à confirmer, `docs/DECISIONS_PO.md` §8).
 - **Risques.** 46 références à `ADMIN_NAVIRE` ; perte d'accès légitime à la configuration ; rupture des démonstrations et seeds ; incompatibilité PostgreSQL non vue en SQLite.
 - **Critères.** CA-L06-1 : un administrateur seul ne valide, ne publie ni ne vise aucun acte. CA-L06-2 : un administrateur ne s'attribue pas de fonction métier. CA-L06-3 : cumul administrateur + fonction métier possible. CA-L06-4 : seuil inférieur au plancher refusé à la configuration. CA-L06-5 : le second n'a que ses prérogatives, délégations et suppléance. CA-L06-6 : tout changement d'habilitation tracé.
@@ -94,6 +95,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Objectif et périmètre.** Visibilité par périmètre de responsabilité, partage ciblé, équipage à terre sans limite de durée.
 - **Décisions.** ARB-02 ; A14, NE-06.
 - **Composants.** `dashboard/passation.py` (`syntheses_visibles`, `contenu_passation`), `org.SynthesePassation`, `scopes.py`, gabarits de passation.
+- **Preuve de recette héritée de L29.** Règles du registre d'accès (`matrix/core/registre_acces.py`) dont l'exécution reste à prouver ici : `API-TABLEAUX`, `WEB-MEDIA`, `WEB-TABLEAUX`.
 - **Complexité.** M. **Migration.** Probable (partage ciblé).
 - **Risques.** Contenu figé à l'échelle du bâtiment : filtrage à la lecture ligne par ligne, coût en requêtes ; fuite par un export ou une notification ; ne pas régresser les passations déjà générées.
 - **Critères.** CA-L30-1 : chaque échelon ne lit que son périmètre (marin, section, secteur, service, adjoint, second et commandant). CA-L30-2 : administrateur sans droit supplémentaire. CA-L30-3 : partage ciblé sans ouvrir la passation entière. CA-L30-4 : équipage à terre : lecture dans son périmètre, aucune écriture sur l'équipage embarqué, sans limite de durée. CA-L30-5 : autre bâtiment toujours invisible.
@@ -112,6 +114,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Objectif et périmètre.** Étendre le bornage déjà en place (matériel, logistique, maintenance, calendrier) aux tâches, formations, absences, documents, RETEX, à l'API et aux traitements internes ; protéger les motifs d'absence.
 - **Décisions.** ARB-06 ; R1 étendu, `DEC-DRT-03`, `DEC-DRT-04`.
 - **Composants.** `taches`, `training`, `absences`, `assets` (documents), `retex`, API REST, `calendar_app`, `matrix/core/ecriture_service.py`.
+- **Preuve de recette héritée de L29.** Règles du registre d'accès (`matrix/core/registre_acces.py`) dont l'exécution reste à prouver ici : `API-DISCUSSIONS`, `API-FORMATIONS`, `API-MAINTENANCE`, `API-MATERIEL`, `WEB-ABSENCES`, `WEB-DOCUMENTATION`, `WEB-FORMATIONS`, `WEB-LOGISTIQUE`, `WEB-MAINTENANCE`, `WEB-MATERIEL`, `WEB-RAPPORTS`, `WEB-RETEX`.
 - **Complexité.** L. **Migration.** Non.
 - **Risques.** Casser des enchaînements légitimes entre modules (création automatique d'un ticket depuis une exécution) ; domaines sans service rattaché (formation, dialogue : règle `strict`) ; performance (services rattachés recalculés).
 - **Critères.** CA-L32-1 : hors périmètre → refus identique par interface, calendrier, API et traitement. CA-L32-2 : motif d'absence masqué hors périmètre ; disponibilité visible selon les droits. CA-L32-3 à 6 : un critère par module (tâches, formations, absences, documents, RETEX).
@@ -121,6 +124,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Objectif et périmètre.** Circuit à six étapes, instruction distincte, validation finale COMAEQ ou délégué, effet seulement après validation.
 - **Décisions.** ARB-04 ; A2, `DEC-FDS-07`, `-13`.
 - **Composants.** `quarts/echanges.py`, `EchangeService` (statuts, vues, notifications), contrôles de qualifications et de disponibilité.
+- **Preuve de recette héritée de L29.** Règles du registre d'accès (`matrix/core/registre_acces.py`) dont l'exécution reste à prouver ici : `WEB-ECHANGES`.
 - **Complexité.** M. **Migration.** Possible (statut d'instruction).
 - **Risques.** Échanges déjà en cours au changement de règle ; COMAEQ absent sans suppléant ; périmètre à la mer (B3) non décidé.
 - **Critères.** CA-L10-1 : aucun effet avant validation finale. CA-L10-2 : le chef de liste instruit sans valider seul. CA-L10-3 : le COMAEQ ou son suppléant valide. CA-L10-4 : le chef de liste délégué valide. CA-L10-5 : contrôles automatiques bloquants rendus lisibles. CA-L10-6 : circuit tracé.
@@ -129,6 +133,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 ### L33 — BSC : suppléant habilité et recours
 - **Objectif et périmètre.** Suppléant habilité du COMAEQ pour désigner et relever le BSC ; recours du commandant ; absence de visa supplémentaire.
 - **Décisions.** ARB-05. **Composants.** `quarts/models.py` (`peut_designer_redacteurs`), `feuille_service_views.py`.
+- **Preuve de recette héritée de L29.** Règles du registre d'accès (`matrix/core/registre_acces.py`) dont l'exécution reste à prouver ici : `WEB-FEUILLE-SERVICE`.
 - **Complexité.** S. **Migration.** Non. **Prérequis.** L08.
 - **Risques.** Étendre involontairement les droits de rédaction (grade ou fonction ne suffit jamais).
 - **Critères.** CA-L33-1 suppléant habilité désigne et relève ; CA-L33-2 commandant recours sans visa ; CA-L33-3 droits de rédaction inchangés.
@@ -138,6 +143,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Objectif et périmètre.** Navigation, recherche, tableau de bord, calendrier, API, notifications, tâches automatiques, création et modification : tous fermés pour un module désactivé ; données conservées ; dépendances contrôlées ; configuration et état visibles pour l'administration ; consultation exceptionnelle des archives ; traces.
 - **Décisions.** ARB-03 ; A25.
 - **Composants.** `matrix/core/modules.py`, `middleware.py`, API, `dashboard/`, `calendar_app/`, `notifications/`, tâches Celery, `org.ModuleActivation`, administration.
+- **Preuve de recette héritée de L29.** Règles du registre d'accès (`matrix/core/registre_acces.py`) dont l'exécution reste à prouver ici : `ADMIN-AUTRES`, `WEB-PERSONNEL`.
 - **Complexité.** M à L. **Migration.** Probable (table des dépendances si stockée en base).
 - **Risques.** Enchaînements métier entre modules (maintenance ↔ logistique) ; notifications orphelines ; Celery qui continue de créer des données ; réactivation avec incohérences.
 - **Critères.** CA-L34-1 : module fermé sur tous les points d'entrée. CA-L34-2 : données conservées. CA-L34-3 : réactivation sans perte. CA-L34-4 : désactivation refusée si un module actif en dépend. CA-L34-5 : l'administrateur voit l'état, sans droit métier. CA-L34-6 : changement tracé.

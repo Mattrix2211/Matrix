@@ -14,14 +14,31 @@ from .verifications import VERIFICATIONS
 
 PLAN = (Path(settings.BASE_DIR) / "docs" / "PLAN_LOTS_REPRISE.md").read_text(encoding="utf-8")
 
-# Règles sensibles ou à écart dont la preuve par exécution reste à produire : liste explicite, jamais implicite.
-# Elles sont couvertes par des suites existantes (champ `couverture` du registre) ou relèvent d'un lot suivant.
-SANS_PREUVE_EXECUTEE = frozenset({
-    "ADMIN-AUTRES", "ADMIN-ORGANISATION", "API-DISCUSSIONS", "API-FORMATIONS", "API-MAINTENANCE", "API-MATERIEL",
-    "API-TABLEAUX", "WEB-ABSENCES", "WEB-DOCUMENTATION", "WEB-ECHANGES",
-    "WEB-FEUILLE-SERVICE", "WEB-FORMATIONS", "WEB-LOGISTIQUE", "WEB-MAINTENANCE", "WEB-MATERIEL", "WEB-MEDIA", "WEB-PERSONNEL",
-    "WEB-QUARTS", "WEB-RAPPORTS", "WEB-RETEX", "WEB-TABLEAUX",
-})
+# Règles sensibles ou à écart sans preuve exécutée dans L29 : chacune nomme le lot qui produira cette preuve (jamais implicite).
+# Elles sont couvertes en attendant par des suites existantes (champ `couverture` du registre) ou par un lot suivant.
+SANS_PREUVE_EXECUTEE = {
+    "ADMIN-AUTRES": "L34",  # administration : fermeture par module et écriture par modèle
+    "ADMIN-ORGANISATION": "L06",  # organisation et habilitations : droits, traces, planchers
+    "API-DISCUSSIONS": "L32",
+    "API-FORMATIONS": "L32",
+    "API-MAINTENANCE": "L32",
+    "API-MATERIEL": "L32",
+    "API-TABLEAUX": "L30",
+    "WEB-ABSENCES": "L32",
+    "WEB-DOCUMENTATION": "L32",
+    "WEB-ECHANGES": "L10",
+    "WEB-FEUILLE-SERVICE": "L33",
+    "WEB-FORMATIONS": "L32",
+    "WEB-LOGISTIQUE": "L32",
+    "WEB-MAINTENANCE": "L32",
+    "WEB-MATERIEL": "L32",
+    "WEB-MEDIA": "L30",
+    "WEB-PERSONNEL": "L34",  # accueil, recherche, notifications : fermeture par module (notifications : L35)
+    "WEB-QUARTS": "L06",
+    "WEB-RAPPORTS": "L32",
+    "WEB-RETEX": "L32",
+    "WEB-TABLEAUX": "L30",
+}
 
 
 class MatriceProfilsTests(MondeFictif):
@@ -58,6 +75,10 @@ class MatriceProfilsTests(MondeFictif):
             if (r.lecture_sensible or r.ecarts) and r.classe in ("authentifie", "administration") and r.identifiant not in exercees
         }
         self.assertEqual(a_prouver, set(SANS_PREUVE_EXECUTEE), "Toute règle sensible est soit exercée, soit déclarée sans preuve exécutée.")
+
+    def test_chaque_regle_sans_preuve_nomme_son_lot_dans_le_plan(self):
+        for regle, lot in SANS_PREUVE_EXECUTEE.items():
+            self.assertIn(f"**{lot}**", PLAN, regle)
 
     def test_une_ecriture_refusee_ne_laisse_aucune_trace(self):
         verification = next(v for v in VERIFICATIONS if v.identifiant == "V07-elevation-de-role-api")

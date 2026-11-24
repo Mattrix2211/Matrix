@@ -66,3 +66,12 @@ class AdministrationTests(MondeFictif):
             for nom in model_admin.actions or ():
                 action = getattr(model_admin, nom) if isinstance(nom, str) else nom
                 self.assertTrue(getattr(action, "allowed_permissions", ()), f"{modele._meta.label} : action « {nom} » sans permission")
+
+    def test_un_compte_avec_la_permission_de_modification_peut_archiver(self):
+        """Témoin positif : la correction ne ferme pas l'action à qui a le droit."""
+        reference = ReferenceBatiment.objects.create(nom="Bâtiment témoin")
+        gestionnaire = get_user_model().objects.create_user(username="gestionnaire_admin", password="pass", is_staff=True)
+        gestionnaire.user_permissions.add(*Permission.objects.filter(codename__in=("view_referencebatiment", "change_referencebatiment")))
+        self.client_de("gestionnaire_admin").post("/admin/org/referencebatiment/", {"action": "archiver", "_selected_action": [reference.pk]})
+        reference.refresh_from_db()
+        self.assertTrue(reference.archive)
