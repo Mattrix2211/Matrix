@@ -1,8 +1,9 @@
 from django.urls import path
-from .web_views import UserDirectoryView, UserFormView, MonProfilView, BasculerThemeView, ChoisirBatimentView, MemoriserBarreLateraleView, EnregistrerPreferenceView
+from .web_views import UserDirectoryView, UserFormView, MonProfilView, BasculerThemeView, ChoisirBatimentView, MemoriserBarreLateraleView, EnregistrerPreferenceView, FonctionsAConfirmerView
 
 urlpatterns = [
     path("", UserDirectoryView.as_view(), name="user-directory"),
+    path("fonctions-a-confirmer/", FonctionsAConfirmerView.as_view(), name="fonctions-a-confirmer"),
     path("nouveau/", UserFormView.as_view(), name="user-create"),
     path("<int:pk>/modifier/", UserFormView.as_view(), name="user-edit"),
     path("profil/", MonProfilView.as_view(), name="mon-profil"),

@@ -5,7 +5,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 AVANT = ("accounts", "0023_protection_suppression_unites")
-APRES = ("accounts", "0024_administrateur_technique")
+APRES = ("accounts", "0025_fonctions_a_confirmer")
 
 
 class MigrationAdministrateursTests(TransactionTestCase):
@@ -54,6 +54,9 @@ class MigrationAdministrateursTests(TransactionTestCase):
         self.assertTrue(all("ADMIN_NAVIRE" in ligne.details for ligne in journal))
         self.assertTrue(journal.filter(details__contains="fonction_a_confirmer=COMANAV").exists())
         self.assertEqual(apres.get_model("accounts", "UserProfile").objects.get(user_id=comptes["admin_coma"]).fonction_coma, "")
+
+        demandes = apres.get_model("accounts", "FonctionAConfirmer").objects.all()
+        self.assertEqual([(d.user_id, d.fonction_ancienne, d.statut) for d in demandes], [(comptes["admin_coma"], "COMANAV", "EN_ATTENTE")])
 
         retour = self._migrer(AVANT)
         self.assertEqual(self._etat(retour, comptes)["admin_seul"][0], "ADMIN_NAVIRE")

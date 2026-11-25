@@ -25,6 +25,7 @@ from matrix.core.scopes import (
     resoudre_affectation_dans_perimetre,
 )
 from org.archivage import exclure_archives
+from org.models import CommandantAdjoint
 from training.models import CandidatureFormation
 from training.services import qualifications_validees_de
 from matrix.core.organisation import votre_niveau
@@ -193,6 +194,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["peut_gerer_metier"] = user_role_level(self.request.user) >= RoleLevel.COMMANDANT
         ctx["peut_reinitialiser"] = peut_reinitialiser(self.request.user)
+        from . import fonctions
+        ctx["peut_confirmer_fonctions"] = fonctions.peut_decider(self.request.user)
+        ctx["fonctions_en_attente"] = fonctions.nombre_en_attente(self.request.user)
         # Colonnes d'actions affichées : autorité métier, ou administrateur technique qui peut réinitialiser un mot de passe.
         ctx["peut_gerer"] = ctx["peut_gerer_metier"] or (est_administrateur_technique(self.request.user) and ctx["peut_reinitialiser"])
         # Actions proposées seulement sur les comptes que le serveur accepterait de modifier.
@@ -822,3 +826,37 @@ class ChangerMotDePasseView(LoginRequiredMixin, PasswordChangeView):
         AuditLog.objects.create(actor=self.request.user, action="changement_mot_de_passe", target_user=self.request.user)
         messages.success(self.request, "Mot de passe modifié.")
         return reponse
+
+
+class FonctionsAConfirmerView(LoginRequiredMixin, View):
+    """Espace « Fonctions à confirmer » : confirmer, corriger ou refuser les fonctions héritées de la migration L06."""
+
+    def _contexte(self, request):
+        from . import fonctions
+        from .models import FonctionAConfirmer
+        demandes = list(fonctions.demandes_visibles_par(request.user))
+        return {
+            "en_attente": [d for d in demandes if d.statut == FonctionAConfirmer.Statut.EN_ATTENTE],
+            "historique": [d for d in demandes if d.statut != FonctionAConfirmer.Statut.EN_ATTENTE],
+            "fonctions": [c for c in CommandantAdjoint.choices],
+        }
+
+    def dispatch(self, request, *args, **kwargs):
+        from . import fonctions
+        if request.user.is_authenticated and not fonctions.peut_decider(request.user):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        return render(request, "accounts/fonctions_a_confirmer.html", self._contexte(request))
+
+    def post(self, request):
+        from . import fonctions
+        try:
+            fonctions.decider(
+                request.user, entier_ou_none(request.POST.get("pk")), request.POST.get("decision", ""), request.POST.get("fonction", ""),
+            )
+            messages.success(request, "Décision enregistrée.")
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        return redirect("fonctions-a-confirmer")

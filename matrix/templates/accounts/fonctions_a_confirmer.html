@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h1 class="h3 mb-0">Fonctions à confirmer</h1>
+  <a class="btn btn-outline-secondary" href="{% url 'user-directory' %}">Retour à l'annuaire</a>
+</div>
+<p class="text-muted">Ces fonctions de commandant adjoint figuraient sur la fiche d'un ancien administrateur d'unité. Elles ne confèrent aucun droit tant que vous ne les avez pas confirmées ; les droits techniques du compte ne sont pas modifiés.</p>
+<div class="card mb-4">
+  <div class="card-header">En attente ({{ en_attente|length }})</div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Marin</th><th>Ancienne fonction</th><th>Décision</th></tr></thead>
+      <tbody>
+      {% for d in en_attente %}
+        <tr>
+          <td>{{ d.user.get_full_name|default:d.user.username }}</td>
+          <td>{{ d.get_fonction_ancienne_display }}</td>
+          <td>
+            {% if d.user_id == request.user.id %}<small class="text-muted">Vous ne pouvez pas décider pour vous-même.</small>{% else %}
+            <form method="post" class="d-flex flex-wrap gap-2 align-items-center">
+              {% csrf_token %}
+              <input type="hidden" name="pk" value="{{ d.pk }}" />
+              <button class="btn btn-sm btn-success" name="decision" value="confirmer" type="submit">Confirmer</button>
+              <select name="fonction" class="form-select form-select-sm w-auto" aria-label="Fonction corrigée">
+                {% for code, libelle in fonctions %}<option value="{{ code }}">{{ libelle }}</option>{% endfor %}
+              </select>
+              <button class="btn btn-sm btn-outline-primary" name="decision" value="corriger" type="submit">Corriger</button>
+              <button class="btn btn-sm btn-outline-danger" name="decision" value="refuser" type="submit">Refuser</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3" class="text-muted">Aucune fonction en attente.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">Décisions prises</div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Marin</th><th>Ancienne fonction</th><th>Décision</th><th>Fonction retenue</th><th>Par</th><th>Le</th></tr></thead>
+      <tbody>
+      {% for d in historique %}
+        <tr><td>{{ d.user.get_full_name|default:d.user.username }}</td><td>{{ d.get_fonction_ancienne_display }}</td><td>{{ d.get_statut_display }}</td><td>{{ d.fonction_retenue|default:"—" }}</td><td>{{ d.decide_par.get_full_name|default:d.decide_par.username }}</td><td>{{ d.decide_le|date:"d/m/Y H:i" }}</td></tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-muted">Aucune décision pour le moment.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
