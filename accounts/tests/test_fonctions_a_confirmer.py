@@ -84,3 +84,12 @@ class FonctionsAConfirmerTests(TestCase):
             self.client.force_login(compte)
             self.assertEqual(self.client.get(reverse("fonctions-a-confirmer")).status_code, 403)
             self.assertEqual(self.client.post(reverse("fonctions-a-confirmer"), {"pk": self.demande.pk, "decision": "refuser"}).status_code, 403)
+
+    def test_decision_inconnue_et_acteur_sans_batiment_refuses(self):
+        with self.assertRaises(ValidationError):
+            fonctions.decider(self.cdt, self.demande.pk, "xyz")
+        sans_batiment = _compte("cdt_sans_batiment", "COMMANDANT", None)
+        sans = FonctionAConfirmer.objects.create(user=self.technique, ship=None, fonction_ancienne="COMOPS")
+        with self.assertRaises(PermissionDenied):
+            fonctions.decider(sans_batiment, sans.pk, fonctions.CONFIRMER)
+        self.assertEqual(self._profil(self.technique).role, "EQUIPIER")

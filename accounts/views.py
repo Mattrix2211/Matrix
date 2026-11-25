@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.fields import BooleanField
 from django.contrib.auth.models import User
 from .models import AuditLog, UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
@@ -55,6 +56,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         ancien_role, ancienne_fonction = serializer.instance.role, serializer.instance.fonction_coma
         nouveau = BooleanField().to_internal_value(self.request.data["administrateur_technique"]) \
             if "administrateur_technique" in self.request.data else None
+        if nouveau is False and serializer.instance.administrateur_technique and not is_master_admin(self.request.user):
+            raise PermissionDenied("Seul l'administrateur général retire les droits techniques d'un administrateur technique.")
         profil = serializer.save()
         if profil.role != ancien_role:
             AuditLog.objects.create(

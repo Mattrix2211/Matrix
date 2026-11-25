@@ -116,8 +116,29 @@ class ApiProfilsTests(MondeFictif):
         self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(), 1)
         self.assertEqual(self._patch("admin_navire", self.admin_navire, {"administrateur_technique": False}).status_code, 403)
         self.assertTrue(UserProfile.objects.get(user=self.admin_navire).administrateur_technique)  # jamais sur soi-même
-        self.assertEqual(self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": False}).status_code, 200)
+        # Retirer les droits d'un administrateur technique existant revient à l'administrateur général (AC-11).
+        self.assertEqual(self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": False}).status_code, 403)
+        self.assertTrue(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
+        self.assertEqual(self._patch("master_admin", self.equipier_b1, {"administrateur_technique": False}).status_code, 200)
+        self.assertFalse(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
         self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(), 2)
+
+    def test_le_technique_ne_peut_pas_retirer_les_droits_d_un_pair_pour_reprendre_son_compte(self):
+        self.assertEqual(self._patch("admin_navire", self.bsc_admin, {"administrateur_technique": False}).status_code, 403)
+        web = self.client_de("admin_navire").post("/users/", {"action": "set_technique", "pk": self.bsc_admin.pk, "valeur": "0"})
+        self.assertEqual(web.status_code, 403)
+        self.assertTrue(UserProfile.objects.get(user=self.bsc_admin).administrateur_technique)
+        reponse = self.client_de("admin_navire").post("/users/", {"action": "set_password", "pk": self.bsc_admin.pk})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertTrue(User.objects.get(pk=self.bsc_admin.pk).check_password("pass"))
+
+    def test_l_echeance_du_mot_de_passe_provisoire_n_est_pas_modifiable_par_l_api(self):
+        UserProfile.objects.filter(user=self.equipier_b1).update(mot_de_passe_provisoire=True)
+        avant = UserProfile.objects.get(user=self.equipier_b1).mot_de_passe_provisoire_expire_le
+        for nom in ("admin_navire", "cdt_b", "chef_service_b"):
+            self._patch(nom, self.equipier_b1, {"mot_de_passe_provisoire_expire_le": "2099-01-01T00:00:00Z", "mot_de_passe_provisoire": False})
+        profil = UserProfile.objects.get(user=self.equipier_b1)
+        self.assertEqual((profil.mot_de_passe_provisoire_expire_le, profil.mot_de_passe_provisoire), (avant, True))
 
     def test_les_valeurs_de_formulaire_du_drapeau_sont_interpretees(self):
         for valeur in ("on", "true"):
@@ -126,9 +147,14 @@ class ApiProfilsTests(MondeFictif):
             UserProfile.objects.filter(user=self.equipier_b1).update(administrateur_technique=False)
 
     def test_un_envoi_multipart_ne_retire_pas_le_drapeau_technique(self):
-        client = self.client_de("admin_navire")
-        client.put(f"/api/accounts/profiles/{self.equipier_b1.profile.pk}/", {"grade": ""})
-        self.assertTrue(UserProfile.objects.get(user=self.admin_navire).administrateur_technique)
+        from django.test.client import MULTIPART_CONTENT, BOUNDARY, encode_multipart
+        UserProfile.objects.filter(user=self.admin_abe).update(ship=self.navire)  # compte technique rattaché à ce bâtiment
+        cible = UserProfile.objects.get(user=self.admin_abe)
+        corps = encode_multipart(BOUNDARY, {"role": "EQUIPIER", "grade": "X"})  # le champ booléen est absent du formulaire
+        reponse = self.client_de("cdt_b").put(f"/api/accounts/profiles/{cible.pk}/", data=corps, content_type=MULTIPART_CONTENT)
+        self.assertEqual(reponse.status_code, 200)
+        profil = UserProfile.objects.get(user=self.admin_abe)
+        self.assertEqual((profil.grade, profil.administrateur_technique), ("X", True))
 
     def test_la_reinitialisation_de_masse_ignore_les_comptes_non_reinitialisables(self):
         from accounts.services import peut_reinitialiser_cible

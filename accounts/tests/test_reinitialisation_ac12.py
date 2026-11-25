@@ -2,12 +2,11 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import AuditLog, UserProfile
+from accounts.models import AuditLog, EchecConnexion, UserProfile
 from accounts.services import (
     PROTECTION_GENERALE, PROTECTION_RECUPERATION, PROTECTION_TECHNIQUE, niveau_de_protection, peut_reinitialiser_cible,
     reinitialiser_mot_de_passe,
@@ -60,8 +59,6 @@ class RepartitionTests(TestCase):
 @override_settings(DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES=1, TENTATIVES_CONNEXION_MAX=3)
 class MecanismeTests(TestCase):
     def setUp(self):
-        cache.clear()
-        self.addCleanup(cache.clear)
         navire = Ship.objects.create(name="Bretagne", code="BRE")
         self.tech = _compte("tech", navire=navire, technique=True)
         self.marin = _compte("marin", navire=navire)
@@ -102,5 +99,12 @@ class MecanismeTests(TestCase):
         for _ in range(3):
             self.assertFalse(Client().login(username="marin", password="mauvais"))
         self.assertFalse(Client().login(username="marin", password="ancien-mdp-123"))
-        cache.clear()
+        self.assertEqual(EchecConnexion.objects.get(identifiant="marin").essais, 3)  # compteur en base, donc partagé entre processus
+        EchecConnexion.objects.all().delete()
+        self.assertTrue(Client().login(username="marin", password="ancien-mdp-123"))
+
+    def test_le_verrouillage_expire_avec_la_fenetre(self):
+        for _ in range(3):
+            Client().login(username="marin", password="mauvais")
+        EchecConnexion.objects.update(debut=timezone.now() - timedelta(minutes=16))
         self.assertTrue(Client().login(username="marin", password="ancien-mdp-123"))

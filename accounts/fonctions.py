@@ -43,6 +43,10 @@ def decider(acteur, demande_id, decision, fonction=""):
             demande = demandes_visibles_par(acteur).select_for_update(of=("self",)).get(pk=demande_id)
         except FonctionAConfirmer.DoesNotExist:
             raise PermissionDenied
+        if decision not in (CONFIRMER, CORRIGER, REFUSER):
+            raise ValidationError("Décision inconnue.")
+        if not is_master_admin(acteur) and ship_id_for_user(acteur) is None:
+            raise PermissionDenied
         if demande.statut != FonctionAConfirmer.Statut.EN_ATTENTE:
             raise ValidationError("Cette demande a déjà été traitée.")
         if demande.user_id == acteur.pk:

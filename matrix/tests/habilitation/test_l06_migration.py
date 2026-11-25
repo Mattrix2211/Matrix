@@ -5,7 +5,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 AVANT = ("accounts", "0023_protection_suppression_unites")
-APRES = ("accounts", "0025_fonctions_a_confirmer")
+APRES = ("accounts", "0027_echec_connexion")
 
 
 class MigrationAdministrateursTests(TransactionTestCase):

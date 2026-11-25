@@ -92,3 +92,25 @@ class RecuperationTests(TestCase):
         with self.assertRaises(CommandError):
             call_command("recuperer_acces_administrateur", identifiant="marin", autorisation="NOTE-9", stdout=StringIO())
         self.assertTrue(simple.check_password("pass"))
+
+
+class ContraintesTests(TestCase):
+    def setUp(self):
+        self.navire = Ship.objects.create(name="Bretagne", code="BRE")
+
+    def test_la_contrainte_d_unicite_verrouille_meme_sans_commandant_actif(self):
+        premier = _compte("premier")
+        _initialiser(batiment="BRE", commandant="premier", autorisation="NOTE-001")
+        User.objects.filter(pk=premier.pk).update(is_active=False)  # plus de commandant actif : seul le verrou en base reste
+        _compte("second_essai")
+        with self.assertRaises(CommandError):
+            _initialiser(batiment="BRE", commandant="second_essai", autorisation="NOTE-002")
+        self.assertEqual(InitialisationBatiment.objects.count(), 1)
+
+    def test_un_compte_deja_technique_n_est_pas_commandant_sans_cumul_explicite(self):
+        _compte("technique_existant").profile  # noqa: B018
+        UserProfile.objects.filter(user__username="technique_existant").update(administrateur_technique=True)
+        _compte("autre")
+        with self.assertRaises(CommandError):
+            _initialiser(batiment="BRE", commandant="technique_existant", technique="autre", autorisation="NOTE-001")
+        self.assertFalse(InitialisationBatiment.objects.exists())

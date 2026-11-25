@@ -219,6 +219,14 @@ class FonctionAConfirmer(TimeStampedModel):
         ]
 
 
+class EchecConnexion(models.Model):
+    """Essais de connexion échoués par identifiant, en base : partagé entre processus et redémarrages (AC-12)."""
+
+    identifiant = models.CharField(max_length=150, unique=True)
+    essais = models.PositiveIntegerField(default=0)
+    debut = models.DateTimeField()
+
+
 class InitialisationBatiment(TimeStampedModel):
     """Trace unique de l'initialisation des premières autorités d'un bâtiment (AC-09) : l'unicité par bâtiment verrouille la
     procédure, y compris contre deux exécutions simultanées."""

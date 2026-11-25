@@ -41,10 +41,6 @@ DESIGNATIONS = (
 )
 
 
-def porte_une_designation(utilisateur):
-    return any(getattr(utilisateur, relation).exists() for relation in DESIGNATIONS)
-
-
 # Niveaux de protection d'un compte face à la réinitialisation de son mot de passe (AC-12). Le plus élevé l'emporte.
 PROTECTION_TECHNIQUE = 1  # administrateur technique du bâtiment : équipier à chef de service sans autre autorité
 PROTECTION_GENERALE = 2  # administrateur général : autorités du bâtiment, administrateurs techniques, désignations

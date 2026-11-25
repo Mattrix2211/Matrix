@@ -10,11 +10,10 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from accounts.authentification import _cle
+from accounts.authentification import effacer_echecs
 from accounts.models import AuditLog, UserProfile
 from accounts.services import PROTECTION_RECUPERATION, generer_mot_de_passe, niveau_de_protection
 
@@ -41,7 +40,7 @@ class Command(BaseCommand):
         profil.mot_de_passe_provisoire = True
         profil.mot_de_passe_provisoire_expire_le = timezone.now() + timedelta(hours=settings.DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES)
         profil.save(update_fields=["mot_de_passe_provisoire", "mot_de_passe_provisoire_expire_le"])
-        cache.delete(_cle(compte.username))
+        effacer_echecs(compte.username)
         AuditLog.objects.create(
             actor=None, action="recuperation_acces", target_user=compte,
             details=f"operateur={operateur}; autorisation={options['autorisation']}; valide jusqu'au {profil.mot_de_passe_provisoire_expire_le:%d/%m/%Y %H:%M}",

@@ -1,6 +1,6 @@
 # L06 — Proposition : initialisation des premières autorités métier d'un bâtiment
 
-> **DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE.** **Proposition soumise au PO. Rien n'est implémenté** (AC-01 : « si la procédure nécessite une nouvelle décision de sécurité, soumettre une proposition avant de l'implémenter »).
+> **DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE.** **Option A retenue par le PO (AC-09) et implémentée** : `manage.py initialiser_autorites_batiment` et `manage.py recuperer_acces_administrateur`. Les réponses du PO aux questions du §4 figurent dans `docs/DECISIONS_PO.md` §10 (AC-09 à AC-12) ; ce document est conservé comme historique de la proposition.
 
 ## 1. Problème
 

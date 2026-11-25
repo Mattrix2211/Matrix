@@ -620,7 +620,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.error(request, "Vous ne modifiez pas vos propres droits techniques.")
             else:
                 valeur = request.POST.get("valeur") == "1"
-                profil = cible.profile
+                profil, _ = UserProfile.objects.get_or_create(user=cible)
+                if profil.administrateur_technique and not valeur and not is_master_admin(request.user):
+                    # La gestion des administrateurs techniques existants revient à l'administrateur général (AC-11).
+                    raise PermissionDenied
                 if profil.administrateur_technique != valeur:
                     profil.administrateur_technique = valeur
                     profil.save(update_fields=["administrateur_technique"])

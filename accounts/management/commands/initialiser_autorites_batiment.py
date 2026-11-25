@@ -60,7 +60,7 @@ class Command(BaseCommand):
         profil_cdt, _ = UserProfile.objects.get_or_create(user=commandant)
         if profil_cdt.role == Roles.MASTER_ADMIN or commandant.is_superuser:
             raise CommandError("Un administrateur général ne peut pas être désigné commandant par cette procédure.")
-        if profil_cdt.administrateur_technique and technique is None and not cumul:
+        if profil_cdt.administrateur_technique and (technique is None or technique.pk != commandant.pk) and not cumul:
             raise CommandError("Ce compte porte déjà les droits techniques : le cumul doit être explicite (--accepter-cumul).")
         if profil_cdt.ship_id not in (None, navire.pk):
             raise CommandError("Le compte appartient à un autre bâtiment.")

@@ -6,12 +6,16 @@ Décisions : `docs/DECISIONS_PO.md` ARB-01, ARB-06, AC-01, AC-02. Plan : `docs/P
 
 ## 1. Ce que fait le lot
 
-- **Deux rôles indépendants.** `UserProfile.administrateur_technique` (droits techniques d'unité) est distinct du rôle métier (`role`). Ils se cumulent explicitement ; un administrateur technique seul a le niveau métier d'un équipier. Le rôle `ADMIN_NAVIRE` (niveau 8 qui franchissait tous les seuils) est retiré de l'échelle métier : conservé uniquement comme valeur obsolète, `UserProfile.save()` le refuse. `RoleLevel.ADMIN_NAVIRE` n'est plus que le palier des droits techniques (`niveau_pour_action`).
-- **Aucune déduction.** Un nouvel administrateur ne reçoit aucun droit métier. La migration ne déduit jamais une fonction du statut d'administrateur.
-- **Planchers d'autorité (AC-02).** `ActionSeuil.plancher` : structure et administration de l'unité, activation des modules, types de programme exigent au moins le commandant ; le paramétrage peut renforcer, jamais abaisser (`seuil_role`, `seuil_autorise`, refus dans « Sécurité »).
-- **Auto-attribution refusée.** Personne ne modifie son propre rôle ni ses droits techniques ; seul un administrateur technique attribue les droits techniques d'un autre compte ; l'administrateur technique ne désigne aucune autorité métier ; l'état-major ne désigne plus les chefs de service (commandant, AC-02).
-- **Reprise de compte évitée.** Un administrateur technique sans autorité métier ne réinitialise le mot de passe que d'un compte jusqu'à chef de section et non technique (`accounts/services.py`).
-- **Réutilisation du socle L29** : registre d'accès, matrice exécutée (`matrix/tests/habilitation/`), vérifications V01 à V25.
+- **Deux rôles indépendants.** `UserProfile.administrateur_technique` (droits techniques d'unité) est distinct du rôle métier (`role`). Ils se cumulent explicitement ; un administrateur technique seul a le niveau métier d'un équipier. Le rôle `ADMIN_NAVIRE` est retiré de l'échelle métier : conservé uniquement comme valeur obsolète pour les migrations historiques, `UserProfile.save()` le refuse. `RoleLevel.ADMIN_NAVIRE` n'est plus que le palier des droits techniques (`niveau_pour_action`).
+- **Trois statuts d'administration distincts (AC-11)** : administrateur général Matrix (rôle `MASTER_ADMIN`), administrateur technique du bâtiment (indicateur), superutilisateur Django (`is_superuser`) ; `matrix.core.roles.statuts_d_administration`. Voir les limites au §12 et la question n° 1 du §13.
+- **Aucune déduction.** Un nouvel administrateur ne reçoit aucun droit métier. La migration ne déduit jamais une fonction du statut d'administrateur et n'en promeut aucun (AC-01, AC-14).
+- **Planchers d'autorité (AC-02).** `ActionSeuil.plancher` : structure et administration de l'unité, activation des modules, types de programme exigent au moins le commandant ; le paramétrage peut renforcer, jamais abaisser.
+- **Seuils métier (AC-13).** Seul le commandement (ou l'administrateur général) modifie un seuil métier ; l'administrateur technique seul consulte les seuils (lecture seule dans l'onglet « Sécurité ») et règle les seuils techniques.
+- **Auto-attribution refusée.** Personne ne modifie son propre rôle ni ses droits techniques ; l'administrateur technique ne désigne aucune autorité métier ; le commandant (et l'administrateur général) désigne et révoque le commandant en second (AC-10), le second ne s'attribue rien et ne désigne pas son successeur.
+- **Réinitialisation des mots de passe (AC-12).** Niveaux de protection (`accounts/services.py`) : équipier à chef de service sans autre autorité → administrateur technique ; commandant adjoint, second, commandant, administrateur technique, compte cumulant une autorité, une désignation ou des droits Django → administrateur général ; administrateur général et superutilisateur → procédure de récupération locale. Mot de passe provisoire expirant, remplacé par le titulaire, sessions invalidées, titulaire notifié, essais répétés verrouillés (compteur en base `EchecConnexion`, partagé entre processus, `accounts/authentification.py`) ; l'échéance n'est pas modifiable par l'API.
+- **Initialisation des premières autorités (AC-09)** : `manage.py initialiser_autorites_batiment` (une fois par bâtiment, verrou en base) ; récupération exceptionnelle : `manage.py recuperer_acces_administrateur`.
+- **Fonctions à confirmer (AC-14)** : migration `0025` ; espace « Fonctions à confirmer » dans l'annuaire, compteur, décisions historisées.
+- **Réutilisation du socle L29** : registre d'accès, matrice exécutée (`matrix/tests/habilitation/`), vérifications V01 à V26 ; aucun système d'autorisation parallèle.
 
 ## 2. Inventaire initial des usages
 
@@ -52,25 +56,30 @@ Procédure rejouée sur les deux moteurs, depuis une base créée par le code `c
 
 Conditions de retour arrière : le retour arrière du schéma restaure les rôles d'origine **tant que le journal n'est pas purgé** ; les comptes créés ou modifiés après migration ne sont pas reconstitués. La seule garantie de retour est la sauvegarde préalable. Aucun retour arrière sur une base sans sauvegarde. Un merge ne vaut pas garantie de réversibilité.
 
-## 5. Droits avant / après
+## 5. Droits avant / après (matrice complète)
 
-| Acte | Administrateur d'unité (avant) | Administrateur technique seul (après) | Commandant (après) |
-|---|---|---|---|
-| Publier, viser, valider échanges et listes ; déplacer un ticket ; faire avancer un ticket | oui (niveau 8) | non | selon ses droits (inchangés) |
-| Lire la passation, le tableau COMANAV, les délais d'activation | oui | non | passation et COMANAV : oui ; délais : modification selon sa fonction |
-| Relève d'équipage, onglet Équipage | oui | non | oui |
-| Structure de l'unité, archivage, double équipage, fuseau | oui | non | oui (plancher) |
-| Types d'événements du programme | oui | non | oui (plancher) |
-| Activer ou désactiver un module | oui | non | oui (plancher) ; le commandant en second ne le fait plus |
-| Désigner une autorité (rôle) | tous les rôles jusqu'au sien | aucun | adjoints, chefs de service, de secteur, de section, équipiers |
-| Se donner un rôle ou des droits | oui | non | non |
-| Attribuer les droits techniques d'un autre compte | n/a | oui (API) | non |
-| Réinitialiser un mot de passe | tout compte | comptes jusqu'à chef de section, non techniques | non (seuil technique) |
-| Créer une formation du catalogue | oui | oui | non |
-| Seuils de rôle (« Sécurité ») | tout abaissement | renforcer seulement un seuil métier ; régler les seuils techniques | abaisser dans les planchers (s'il atteint l'onglet) |
-| Annuaire | lecture et écriture | lecture et réinitialisation | lecture et écriture |
+| Acte | Admin d'unité (avant) | Administrateur technique seul | Commandant | Administrateur général |
+|---|---|---|---|---|
+| Publier, viser, valider échanges et listes ; déplacer un ticket | oui (niveau 8) | non | selon ses droits | niveau 9 (voir §12) |
+| Lire la passation, le tableau COMANAV | oui | non | oui | oui |
+| Relève d'équipage, onglet Équipage | oui | non | oui | oui |
+| Structure de l'unité, archivage, double équipage, fuseau, modules, types de programme | oui | non | oui (plancher) | oui |
+| Seuils de rôle métier | tout abaissement | lecture seule | modifier, jamais sous un plancher | oui |
+| Seuils techniques (ex. réinitialisation) | oui | oui | non (sauf cumul) | oui |
+| Désigner une autorité (rôle) | jusqu'au sien | aucune | second, adjoints, chefs, équipiers | tous sauf lui-même |
+| Désigner le commandant | oui | non | non | oui |
+| Se donner un rôle ou des droits | oui | non | non | non (tiers seulement) |
+| Attribuer les droits techniques à un compte qui n'en a pas | n/a | oui (annuaire, API) | non | oui |
+| Retirer les droits techniques d'un administrateur technique | n/a | non (administrateur général) | non | oui |
+| Confirmer, corriger, refuser une fonction à confirmer | n/a | non | oui (son bâtiment) | oui |
+| Réinitialiser le mot de passe : équipier à chef de service | oui | oui | non | oui |
+| Réinitialiser : adjoint, second, commandant, administrateur technique, compte cumulant | oui | non | non | oui |
+| Réinitialiser : administrateur général | oui | non | non | récupération locale |
+| Créer une formation du catalogue | oui | oui | non | oui |
+| Annuaire | lecture et écriture | lecture, droits techniques, mots de passe | lecture et écriture | oui |
+| Initialiser un bâtiment, récupérer l'accès | n/a | non (commande serveur) | non | non (commande serveur) |
 
-L'administrateur général (superutilisateur) n'est pas modifié (hors périmètre, à instruire).
+Superutilisateur Django : accès à l'administration Django et, aujourd'hui, mêmes droits d'application que l'administrateur général (§12).
 
 ## 6. Critères d'acceptation
 
@@ -133,16 +142,39 @@ Journaux : `l06_final_cand_sqlite.log`, `l06_final_cand_pg.log`, `l06_full_base_
 
 Réserve non reprise : un test énumérant toutes les relations du modèle utilisateur pour détecter une désignation oubliée (voir §11). Les corrections de la troisième relecture sont limitées ; l'état final `326387b` est couvert par les suites complètes et par la preuve de migration, mais n'a pas fait l'objet d'une quatrième relecture écrite.
 
-## 11. Anomalies résiduelles et points à arbitrer
+## 11. Réserves du rapport intermédiaire : corrigées et résiduelles
 
-- **Administrateur général et superutilisateur Django** : cumulent encore tous les droits ; séparation non traitée.
-- **Initialisation des premières autorités** : proposition à valider (`docs/recette/L06_PROPOSITION_INITIALISATION.md`) ; en attendant, seul l'administrateur général désigne le premier commandant.
-- **Désignation du commandant en second** : n'apparaît pas dans AC-02 ; proposition à valider.
-- **Fonction métier à confirmer** : aucun outil de confirmation par une autorité habilitée n'est livré ; la migration ne promeut aucun administrateur.
-- **Abaissement de seuils par un administrateur technique** : sans autorité de commandement il ne peut que renforcer un seuil métier ; à valider par le PO.
-- **Navigation** : l'entrée « Annuaire » et l'onglet « Sécurité » ne sont pas proposés à l'administrateur technique dans le menu (accès par adresse) ; à traiter avec L08/L30.
-- **Cohérence API / web** : le web masque les comptes techniques aux non-techniques, l'API non ; à aligner.
-- **Comptes d'administration Django** : un technique ne réinitialise pas le mot de passe d'un compte `is_staff`, de groupe ou de droits Django.
-- **Désignations** : la liste des désignations qui interdisent la réinitialisation d'un mot de passe par un technique est tenue à la main (`accounts/services.py`) ; un registre unique est à prévoir (L08).
-- **Commentaires anciens** mentionnant « ADMIN_NAVIRE » dans le code : non réécrits (règle de projet : seules les lignes modifiées sont touchées).
-- **Interface** : le drapeau `administrateur_technique` n'a pas d'écran de gestion ; il s'attribue par l'API ou l'administration Django.
+| Réserve | État |
+|---|---|
+| Cohérence web / API sur le rôle d'un compte technique | **corrigée** : le commandant modifie la fonction métier, jamais le drapeau technique (web et API) ; la suppression d'un compte technique reste à l'administrateur général |
+| Annuaire absent de la navigation du technique ; gestion des droits techniques par l'API seulement | **corrigées** : entrée « Annuaire » ; menu « Attribuer / Retirer les droits techniques » (jamais sur soi-même, audité) ; l'onglet « Sécurité » est joint depuis « Paramètres » |
+| Liste manuelle des désignations sensibles | **centralisée** (`niveaux_de_protection`) ; un test échoue si une relation vers le compte n'est ni dans `DESIGNATIONS` ni dans la liste des relations examinées |
+| Test dépendant de l'heure | **corrigé** : instant de référence maîtrisé pour la démonstration et le jour testé (le défaut venait d'un écart entre l'instant de création des créneaux et la date calculée ensuite, autour de minuit) ; assertions inchangées |
+| Références obsolètes à `ADMIN_NAVIRE` | **corrigées** dans le code, les gabarits et la documentation vivante ; restent la valeur obsolète du modèle, la migration 0024 et l'historique des documents archivés |
+| Conservation des preuves | **archive** `L06_preuves.tar.gz` avec empreinte SHA-256 (§14) |
+
+Résiduelles : `statuts_d_administration` et `anomalies_de_coherence` ne sont utilisées que par les tests et les rapports (classification et contrôle de cohérence, sans comportement d'exécution) ; navigation (le lien « Paramètres » ouvre l'onglet notifications ; l'onglet « Sécurité » se choisit dans la page) ; confirmation d'une fonction : la fonction n'est appliquée que si aucun autre titulaire actif ne la tient ; les comptes Django `is_staff` ou à droits Django sont protégés au niveau « administrateur général » ; l'administrateur général et le superutilisateur Django restent équivalents dans l'application (§12).
+
+## 12. Frontière de confiance et mesures d'exploitation
+
+Les contrôles de Matrix sont **applicatifs**. Un superutilisateur Django, un opérateur qui a accès au serveur, à la base de données ou aux sauvegardes, ou qui peut exécuter du code, **peut contourner ces contrôles** : cela n'est pas empêché techniquement et ce document ne le prétend pas. Mesures d'exploitation nécessaires :
+- limiter le nombre de superutilisateurs Django et d'opérateurs système ; comptes nominatifs, jamais partagés ;
+- exécuter l'initialisation et la récupération (commandes de gestion) uniquement depuis le serveur, sur autorisation écrite dont la référence est consignée (`--autorisation`) ;
+- protéger et journaliser l'accès au serveur et à la base ; sauvegardes chiffrées ou à accès restreint ; contrôle périodique du journal d'audit (`AuditLog`) : `initialisation_batiment`, `recuperation_acces`, `changement_droits_techniques`, `changement_role`, `reinitialisation_mot_de_passe`, `fonction_a_confirmer_*` ;
+- ne jamais ouvrir l'administration Django au réseau du bord en dehors d'une intervention ;
+- limite de portée de L06 : l'administrateur général (rôle `MASTER_ADMIN`) et le superutilisateur Django conservent le niveau 9 dans l'application, y compris sur des actes métier courants. Le retirer exige de classer chaque acte (gouvernance ou métier) : voir la question n° 1 du §13. La migration 0024/0025 n'attribue aucun droit à ces comptes.
+
+## 13. Questions au PO et points à arbitrer
+
+1. **Administrateur général : retrait des droits métier courants (AC-11).** Un essai de retrait du niveau 9 sur les écritures métier fait échouer 32 tests existants, qui sont des actes de gouvernance (créer ou supprimer un bâtiment, configurer le plan d'un navire, rattacher des marins à une section, définir des exigences de formation de la flotte). Quels actes relèvent de la gouvernance (maintenus) et lesquels du métier courant (retirés) ? Faut-il aussi dissocier le superutilisateur Django de l'administrateur général dans l'application ? Non implémenté sans cette classification.
+2. **Remise du mot de passe provisoire (AC-12).** Il est remis oralement par l'autorité habilitée (affiché une seule fois). Un autre moyen de remise sans messagerie (pli, jeton imprimé) est-il souhaité ?
+3. **Récupération d'un administrateur général** : commande serveur avec autorisation consignée ; une double validation (deux opérateurs) est-elle exigée ?
+4. **Durée de validité du mot de passe provisoire** (48 h par défaut) et **seuil d'essais** (5 essais, 15 minutes) : configurables par l'environnement ; valeurs à confirmer.
+5. **Gestion des administrateurs techniques** : l'administrateur technique d'un bâtiment attribue les droits techniques à un compte qui n'en a pas ; **le retrait** des droits d'un administrateur technique existant est réservé à l'administrateur général (sinon un technique pourrait retirer les droits d'un pair puis réinitialiser son mot de passe). Faut-il aussi réserver l'attribution à l'administrateur général ?
+7. **Catalogue de formations** : tout administrateur technique de bâtiment écrit le catalogue commun à la flotte (comportement hérité de l'ancien administrateur d'unité). Est-ce compatible avec « aucun droit métier automatique » ?
+8. **Risques acceptés** : (a) un administrateur technique obtient l'autorité complète d'un chef de service en réinitialisant son compte (garde-fous : trace et notification du titulaire) ; (b) quiconque connaît un identifiant peut le verrouiller 15 minutes ; (c) le mot de passe provisoire ouvre plusieurs sessions jusqu'au changement obligatoire ou à l'expiration ; (d) un retour arrière de la migration ne restaure pas un compte dont le rôle a changé depuis (par exemple après confirmation d'une fonction).
+6. **Délégations** : la désignation d'une autorité habilitée à modifier les seuils (AC-13, AC-02) attend L08.
+
+## 14. Archive des preuves
+
+`L06_preuves.tar.gz` : références Git testées, environnements, commandes, résultats complets, journaux de migration et de restauration, rapports de relecture, empreinte SHA-256 (fichier `SHA256SUMS`), après vérification de l'absence de secrets. Fournie séparément au PO ; un chemin temporaire n'est pas un archivage durable.
