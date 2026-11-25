@@ -186,7 +186,8 @@ class ManageUsersPermissionTests(TestCase):
             self.assertFalse(self.permission.has_permission(req, self.view), role)
 
     def test_administrateur_technique_modifie_sans_changer_de_role_et_attribue_les_droits_techniques(self):
-        self.assertTrue(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"ship": 1}), self.view))
+        self.assertTrue(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"grade": "X"}), self.view))
+        self.assertFalse(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"ship": 1}), self.view))
         self.assertTrue(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"administrateur_technique": True}), self.view))
         # Sans droits techniques, personne ne les attribue, même un commandant.
         self.assertFalse(self.permission.has_permission(fake_request("PATCH", self.commandant, {"administrateur_technique": True}), self.view))

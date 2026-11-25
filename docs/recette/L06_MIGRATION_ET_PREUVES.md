@@ -29,20 +29,19 @@ Destination de chaque usage : droit **technique** (indicateur : réinitialisatio
 
 | Compte avant migration | Après migration | Justification |
 |---|---|---|
-| `ADMIN_NAVIRE`, aucune fonction de commandant adjoint renseignée | rôle `EQUIPIER` + `administrateur_technique` | fonction inconnue : droits techniques seuls (AC-01) |
-| `ADMIN_NAVIRE` avec une fonction de commandant adjoint déjà renseignée sur la fiche | rôle `ETAT_MAJOR` (fonction conservée) + `administrateur_technique` | fonction explicitement établie : deux rôles indépendants |
+| `ADMIN_NAVIRE`, avec ou sans fonction de commandant adjoint renseignée sur la fiche | rôle `EQUIPIER` + `administrateur_technique` | un administrateur d'unité n'exerçait aucune fonction (le champ n'est actif que pour l'état-major) : rien n'est déduit (AC-01). La valeur de la fiche est journalisée (`fonction_a_confirmer`) pour confirmation par une autorité habilitée |
 | Tout autre rôle | inchangé, `administrateur_technique` faux | aucune élévation |
 | Désignations indépendantes du rôle (chef de liste, rédacteur BSC, référent de formation, responsable de spécialité) | inchangées | elles ne dérivent pas du rôle |
 
-Chaque conversion écrit une ligne d'audit `l06_migration_role` (ancien rôle, nouveau rôle, fonction établie ou non, sans mot de passe). Une fonction métier non établie doit être **confirmée par une autorité habilitée** après migration : aucun outil de confirmation n'est livré (voir `docs/recette/L06_PROPOSITION_INITIALISATION.md`).
+Chaque conversion écrit une ligne d'audit `l06_migration_role` (ancien rôle, nouveau rôle, fonction à confirmer, sans mot de passe). Une fonction métier non établie doit être **confirmée par une autorité habilitée** après migration : aucun outil de confirmation n'est livré (voir `docs/recette/L06_PROPOSITION_INITIALISATION.md`).
 
-**Absence d'élévation, démontrée** : aucun compte ne change de rôle autrement que de `ADMIN_NAVIRE` (niveau 8) vers `ETAT_MAJOR` (5) ou `EQUIPIER` (1) ; sur la base fictive de 11 comptes, 8 comptes non administrateurs sont inchangés, 3 administrateurs convertis, 3 lignes d'audit.
+**Absence d'élévation, démontrée** : aucun compte ne change de rôle autrement que de `ADMIN_NAVIRE` (niveau 8) vers `EQUIPIER` (1) ; sur la base fictive de 11 comptes, 8 comptes non administrateurs sont inchangés, 3 administrateurs convertis, 3 lignes d'audit.
 
 ## 4. Migration, sauvegarde, restauration (environnements de test, données fictives)
 
 Migration `accounts/0024_administrateur_technique` : ajout du champ, mise à jour des choix, conversion des comptes (`RunPython`), sens inverse restaurant `ADMIN_NAVIRE` d'après le journal.
 
-Procédure rejouée sur les deux moteurs, depuis une base créée par le code `c355310` et peuplée de comptes fictifs (trois administrateurs, dont un avec fonction de commandant adjoint) :
+Procédure rejouée sur les deux moteurs, depuis une base créée par le code `c355310` et peuplée de comptes fictifs (trois administrateurs, dont un avec fonction de commandant adjoint sur la fiche, et un autre titulaire de la même fonction) :
 
 | Étape | SQLite | PostgreSQL 16 |
 |---|---|---|
@@ -68,7 +67,7 @@ Conditions de retour arrière : le retour arrière du schéma restaure les rôle
 | Attribuer les droits techniques d'un autre compte | n/a | oui (API) | non |
 | Réinitialiser un mot de passe | tout compte | comptes jusqu'à chef de section, non techniques | non (seuil technique) |
 | Créer une formation du catalogue | oui | oui | non |
-| Seuils de rôle (« Sécurité ») | tout abaissement | oui, dans les planchers | non |
+| Seuils de rôle (« Sécurité ») | tout abaissement | renforcer seulement un seuil métier ; régler les seuils techniques | abaisser dans les planchers (s'il atteint l'onglet) |
 | Annuaire | lecture et écriture | lecture et réinitialisation | lecture et écriture |
 
 L'administrateur général (superutilisateur) n'est pas modifié (hors périmètre, à instruire).
@@ -80,7 +79,7 @@ L'administrateur général (superutilisateur) n'est pas modifié (hors périmèt
 | CA-L06-1 Un administrateur seul ne valide, ne publie ni ne vise aucun acte | V01, V05, V06, `test_l06_autorites` (`peut_publier_liste`, `peut_gerer_liste`) |
 | CA-L06-2 Un administrateur ne s'attribue pas d'autorité | V08, V17, V09, V20 |
 | CA-L06-3 Cumul administrateur + fonction possible | `cdt_admin` : V01, V05, V13, V15, V18 ; `test_le_cumul_garde_les_deux_roles_independants` |
-| CA-L06-4 Seuil inférieur au plancher refusé | V21, `test_les_autorites_minimales_ne_peuvent_pas_etre_abaissees`, V24 (jumeau sans plancher) |
+| CA-L06-4 Seuil inférieur au plancher refusé ; pas d'auto-élévation par abaissement | V21, V26, `test_les_autorites_minimales_ne_peuvent_pas_etre_abaissees`, V24 (jumeau sans plancher) |
 | CA-L06-5 Le second n'a que ses prérogatives | V05, V06, V15 (le second ne gère plus les modules) |
 | CA-L06-6 Tout changement d'habilitation est tracé | audit `changement_role`, `update_role_threshold`, `l06_migration_role` |
 | CA-L06-7 Migration des comptes sans élévation, réversible | `test_l06_migration`, procédure du §4 sur SQLite et PostgreSQL |
@@ -99,7 +98,7 @@ L'administrateur général (superutilisateur) n'est pas modifié (hors périmèt
 | A25 sur l'alerte de stock | tâche planifiée active malgré le module désactivé | **restant** (L34) |
 | A3 (seuil de publication), A4 (second, écran et API) | | **restants** (L08) |
 
-Nouvelles vérifications : V13 (organisation), V15 (modules), V16, V25 (attribution de rôle par le web), V18 (désignation légitime par l'API), V19, V20 (droits techniques), V21, V24 (seuils), V22, V23 (mot de passe).
+Nouvelles vérifications : V13 (organisation), V15 (modules), V16, V25 (attribution de rôle par le web), V18 (désignation légitime par l'API), V19, V20 (droits techniques), V21, V24, V26 (seuils), V22, V23 (mot de passe).
 
 ## 8. Tests existants adaptés
 
@@ -120,6 +119,10 @@ __RELECTURES__
 - **Administrateur général et superutilisateur Django** : cumulent encore tous les droits ; séparation non traitée.
 - **Initialisation des premières autorités** : proposition à valider (`docs/recette/L06_PROPOSITION_INITIALISATION.md`) ; en attendant, seul l'administrateur général désigne le premier commandant.
 - **Désignation du commandant en second** : n'apparaît pas dans AC-02 ; proposition à valider.
-- **Fonction métier à confirmer** : aucun outil de confirmation par une autorité habilitée n'est livré.
+- **Fonction métier à confirmer** : aucun outil de confirmation par une autorité habilitée n'est livré ; la migration ne promeut aucun administrateur.
+- **Abaissement de seuils par un administrateur technique** : sans autorité de commandement il ne peut que renforcer un seuil métier ; à valider par le PO.
+- **Navigation** : l'entrée « Annuaire » et l'onglet « Sécurité » ne sont pas proposés à l'administrateur technique dans le menu (accès par adresse) ; à traiter avec L08/L30.
+- **Cohérence API / web** : le web masque les comptes techniques aux non-techniques, l'API non ; à aligner.
+- **Désignations** : la liste des désignations qui interdisent la réinitialisation d'un mot de passe par un technique est tenue à la main (`accounts/services.py`) ; un registre unique est à prévoir (L08).
 - **Commentaires anciens** mentionnant « ADMIN_NAVIRE » dans le code : non réécrits (règle de projet : seules les lignes modifiées sont touchées).
 - **Interface** : le drapeau `administrateur_technique` n'a pas d'écran de gestion ; il s'attribue par l'API ou l'administration Django.

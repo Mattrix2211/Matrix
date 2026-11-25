@@ -88,7 +88,7 @@ class DeuxProcessusTests(SimpleTestCase):
         self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION), "COMMANDANT")
 
     def test_abaissement_et_revocations_successives(self):
-        for nom in ("ETAT_MAJOR", "COMMANDANT", "ADMIN_NAVIRE"):
+        for nom in ("CHEF_SECTEUR", "ETAT_MAJOR", "COMMANDANT"):
             self.assertNotEqual(self.a("lire_seuil", self.ship_id, ACTION), nom)
             self.b("ecrire_seuil", self.ship_id, ACTION, nom)
             self.assertEqual(self.a("lire_seuil", self.ship_id, ACTION), nom)
@@ -178,9 +178,9 @@ class CheminsDeModificationTests(TestCase):
         self.chauffer()
         config = RoleThresholdConfig.objects.create(ship=self.ship, thresholds={ACTION: "COMMANDANT"})
         self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)
-        config.thresholds = {ACTION: "ADMIN_NAVIRE"}
+        config.thresholds = {ACTION: "COMMANDANT"}
         config.save()
-        self.assertEqual(self.seuil(), RoleLevel.ADMIN_NAVIRE)
+        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)
         config.delete()
         self.assertEqual(self.seuil(), RoleLevel.CHEF_SERVICE)
 
@@ -188,8 +188,8 @@ class CheminsDeModificationTests(TestCase):
         self.chauffer()
         RoleThresholdConfig.objects.bulk_create([RoleThresholdConfig(ship=self.ship, thresholds={ACTION: "COMMANDANT"})])
         self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)
-        RoleThresholdConfig.objects.filter(ship=self.ship).update(thresholds={ACTION: "ADMIN_NAVIRE"})
-        self.assertEqual(self.seuil(), RoleLevel.ADMIN_NAVIRE)
+        RoleThresholdConfig.objects.filter(ship=self.ship).update(thresholds={ACTION: "COMMANDANT"})
+        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)
         config = RoleThresholdConfig.objects.get(ship=self.ship)
         config.thresholds = {ACTION: "ETAT_MAJOR"}
         RoleThresholdConfig.objects.bulk_update([config], ["thresholds"])
@@ -316,9 +316,9 @@ class CheminsWebTests(TestCase):
         self.assertTrue(module_actif("assets", self.ship.id))
         self.client.post(
             reverse("admin:org_rolethresholdconfig_change", args=[config.pk]),
-            {"ship": self.ship.pk, "thresholds": json.dumps({ACTION: "ADMIN_NAVIRE"}), "_save": "Enregistrer"},
+            {"ship": self.ship.pk, "thresholds": json.dumps({ACTION: "COMMANDANT"}), "_save": "Enregistrer"},
         )
-        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.ADMIN_NAVIRE)
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT)
         self.client.post(
             reverse("admin:org_moduleactivation_change", args=[activation.pk]),
             {"ship": self.ship.pk, "module": "assets", "_save": "Enregistrer"},  # case décochée : désactivé
@@ -347,7 +347,7 @@ class IsolationEntreTestsTests(TestCase):
 
     def test_b_ne_retrouve_pas_les_valeurs_du_test_precedent(self):
         ship = Ship.objects.create(name="Isolation", code="ISO")
-        RoleThresholdConfig.objects.create(ship=ship, thresholds={ACTION: "ADMIN_NAVIRE"})
+        RoleThresholdConfig.objects.create(ship=ship, thresholds={ACTION: "COMMANDANT"})
         ModuleActivation.objects.create(ship=ship, module="assets", active=True)
-        self.assertEqual(seuil_role(ACTION, ship.id), RoleLevel.ADMIN_NAVIRE)
+        self.assertEqual(seuil_role(ACTION, ship.id), RoleLevel.COMMANDANT)
         self.assertTrue(module_actif("assets", ship.id))
