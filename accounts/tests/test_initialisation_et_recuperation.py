@@ -1,12 +1,18 @@
 """AC-09 : initialisation unique des premières autorités ; récupération exceptionnelle d'un administrateur général."""
+from datetime import timedelta
 from io import StringIO
+from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import TestCase
+from django.test import Client, TestCase, override_settings
+from django.urls import reverse
+from django.utils import timezone
 
-from accounts.models import AuditLog, InitialisationBatiment, UserProfile
+from accounts import recuperation, reinitialisation
+from accounts.models import AuditLog, DemandeReinitialisation, InitialisationBatiment, OperateurRecuperation, UserProfile
 from org.models import Ship
 
 User = get_user_model()
@@ -77,21 +83,123 @@ class InitialisationTests(TestCase):
 
 
 class RecuperationTests(TestCase):
-    def test_emet_un_mot_de_passe_provisoire_pour_un_administrateur_general_seulement(self):
-        general = _compte("general", "MASTER_ADMIN")
-        simple = _compte("marin")
+    """AC-17 : deux opérateurs habilités, authentifiés séparément, exécutions distinctes, justification, délai, double code."""
+
+    def setUp(self):
+        self.operateur1 = recuperation.habiliter_operateur("Opérateur Un", "systeme-un", "phrase-secrete-un-1")
+        self.operateur2 = recuperation.habiliter_operateur("Opérateur Deux", "systeme-deux", "phrase-secrete-deux-2")
+        self.general = _compte("general")
+        UserProfile.objects.filter(user=self.general).update(administrateur_general=True)
+        self.simple = _compte("marin")
+
+    def _parcours(self, compte="general", attribuer=False):
+        demande, a = recuperation.ouvrir(self.operateur1, compte, "perte du mot de passe, accord du chef d'installation", attribuer)
+        _, b = recuperation.valider(self.operateur2, demande.pk)
+        return demande, a, b
+
+    def test_deux_codes_et_deux_operateurs_distincts_permettent_la_recuperation(self):
+        demande, a, b = self._parcours()
+        with self.assertRaises(ValidationError):
+            reinitialisation.utiliser("general", a, "", "Nouveau-mdp-solide-42")  # un seul code ne suffit pas
+        reinitialisation.utiliser("general", a, b, "Nouveau-mdp-solide-42")
+        self.assertTrue(User.objects.get(pk=self.general.pk).check_password("Nouveau-mdp-solide-42"))
+        textes = " ".join(t.details for t in AuditLog.objects.all())
+        self.assertNotIn(a, textes)
+        self.assertNotIn(b, textes)
+        for action in ("recuperation_ouverte", "recuperation_validee", "reinitialisation_effectuee"):
+            self.assertTrue(AuditLog.objects.filter(action=action, target_user=self.general).exists(), action)
+
+    def test_un_seul_operateur_ne_peut_pas_valider_sa_propre_demande(self):
+        demande, _ = recuperation.ouvrir(self.operateur1, "general", "justification", False)
+        with self.assertRaises(PermissionDenied):
+            recuperation.valider(self.operateur1, demande.pk)
+        # même identité système sous un autre nom d'opérateur : refusée aussi
+        faux = OperateurRecuperation.objects.create(nom="Alias", identifiant_systeme="systeme-un-bis", phrase="x")
+        faux.identifiant_systeme = self.operateur1.identifiant_systeme
+        with self.assertRaises(PermissionDenied):
+            recuperation.valider(faux, demande.pk)
+        demande.refresh_from_db()
+        self.assertEqual(demande.statut, DemandeReinitialisation.Statut.EN_ATTENTE_VERIFICATION)
+
+    def test_authentification_independante_de_chaque_operateur(self):
+        with self.assertRaises(PermissionDenied):
+            recuperation.authentifier_operateur("systeme-un", "mauvaise-phrase")
+        with self.assertRaises(PermissionDenied):
+            recuperation.authentifier_operateur("inconnu", "phrase-secrete-un-1")
+        with self.assertRaises(PermissionDenied):
+            recuperation.authentifier_operateur("systeme-un", "phrase-secrete-deux-2")  # la phrase d'un autre ne vaut pas
+        self.assertEqual(recuperation.authentifier_operateur("systeme-deux", "phrase-secrete-deux-2"), self.operateur2)
+        self.assertTrue(AuditLog.objects.filter(action="recuperation_authentification_refusee").exists())
+
+    def test_justification_obligatoire_compte_cible_et_delai(self):
+        with self.assertRaises(ValidationError):
+            recuperation.ouvrir(self.operateur1, "general", "   ", False)
+        with self.assertRaises(ValidationError):
+            recuperation.ouvrir(self.operateur1, "marin", "justification", False)  # pas un administrateur général
+        demande, _ = recuperation.ouvrir(self.operateur1, "general", "justification", False)
+        DemandeReinitialisation.objects.filter(pk=demande.pk).update(expire_le=timezone.now() - timedelta(seconds=1))
+        with self.assertRaises(ValidationError):
+            recuperation.valider(self.operateur2, demande.pk)
+
+    def test_aucun_administrateur_general_disponible_les_operateurs_en_designent_un(self):
+        UserProfile.objects.filter(user=self.general).update(administrateur_general=False)
+        with self.assertRaises(ValidationError):
+            recuperation.ouvrir(self.operateur1, "marin", "justification", False)
+        demande, a, b = self._parcours("marin", attribuer=True)
+        reinitialisation.utiliser("marin", a, b, "Nouveau-mdp-solide-42")
+        self.assertTrue(UserProfile.objects.get(user=self.simple).administrateur_general)
+        with self.assertRaises(ValidationError):  # un administrateur général existe désormais
+            recuperation.ouvrir(self.operateur1, "general", "justification", True)
+
+    def test_habilitation_limitee_a_deux_operateurs_et_phrase_solide(self):
+        with self.assertRaises(ValidationError):
+            recuperation.habiliter_operateur("Troisième", "systeme-trois", "phrase-secrete-trois-3")
+        OperateurRecuperation.objects.all().delete()
+        with self.assertRaises(ValidationError):
+            recuperation.habiliter_operateur("Court", "systeme-court", "court")
+        self.assertFalse(any("phrase-secrete" in a.details for a in AuditLog.objects.all()))
+
+    def test_les_sessions_anterieures_sont_revoquees(self):
+        session = Client()
+        session.force_login(self.general)
+        _, a, b = self._parcours()
+        reinitialisation.utiliser("general", a, b, "Nouveau-mdp-solide-42")
+        self.assertEqual(session.get(reverse("mon-profil")).status_code, 302)
+
+    def test_commande_en_deux_executions_avec_phrases_saisies_et_identites_distinctes(self):
         sortie = StringIO()
-        call_command("recuperer_acces_administrateur", identifiant="general", autorisation="NOTE-9", stdout=sortie)
-        mot_de_passe = sortie.getvalue().split(": ")[-1].strip()
-        general.refresh_from_db()
-        self.assertTrue(general.check_password(mot_de_passe))
-        profil = UserProfile.objects.get(user=general)
-        self.assertTrue(profil.mot_de_passe_provisoire and profil.mot_de_passe_provisoire_expire_le)
-        trace = AuditLog.objects.get(action="recuperation_acces")
-        self.assertNotIn(mot_de_passe, trace.details)
+        with mock.patch("getpass.getpass", return_value="phrase-secrete-un-1"), \
+                mock.patch("accounts.recuperation.identite_systeme", return_value="systeme-un"):
+            call_command("recuperer_acces_administrateur", "ouvrir", "--identifiant", "general", "--justification", "perte", stdout=sortie)
+        demande = DemandeReinitialisation.objects.get(user=self.general)
+        with mock.patch("getpass.getpass", return_value="phrase-secrete-un-1"), \
+                mock.patch("accounts.recuperation.identite_systeme", return_value="systeme-un"):
+            with self.assertRaises(CommandError):  # même opérateur : refusé
+                call_command("recuperer_acces_administrateur", "valider", "--demande", str(demande.pk), stdout=StringIO())
+        with mock.patch("getpass.getpass", return_value="phrase-secrete-deux-2"), \
+                mock.patch("accounts.recuperation.identite_systeme", return_value="systeme-deux"):
+            call_command("recuperer_acces_administrateur", "valider", "--demande", str(demande.pk), stdout=sortie)
+        demande.refresh_from_db()
+        self.assertEqual(demande.statut, DemandeReinitialisation.Statut.ACTIVE)
+        with mock.patch("getpass.getpass", return_value="phrase-secrete-un-1"), \
+                mock.patch("accounts.recuperation.identite_systeme", return_value="inconnu"):
+            with self.assertRaises(CommandError):  # identité système non habilitée
+                call_command("recuperer_acces_administrateur", "ouvrir", "--identifiant", "general", "--justification", "x", stdout=StringIO())
+
+    @override_settings(DEBUG=False)
+    def test_la_procedure_simplifiee_est_impossible_en_production(self):
         with self.assertRaises(CommandError):
-            call_command("recuperer_acces_administrateur", identifiant="marin", autorisation="NOTE-9", stdout=StringIO())
-        self.assertTrue(simple.check_password("pass"))
+            call_command("recuperer_acces_administrateur", "simplifie", "--identifiant", "general", stdout=StringIO())
+        self.assertFalse(DemandeReinitialisation.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_la_procedure_simplifiee_en_developpement_reste_tracee_et_ne_laisse_aucun_operateur(self):
+        OperateurRecuperation.objects.all().delete()
+        sortie = StringIO()
+        call_command("recuperer_acces_administrateur", "simplifie", "--identifiant", "general", stdout=sortie)
+        self.assertIn("Codes de développement", sortie.getvalue())
+        self.assertFalse(OperateurRecuperation.objects.exists())
+        self.assertTrue(AuditLog.objects.filter(action="recuperation_simplifiee_developpement").exists())
 
 
 class ContraintesTests(TestCase):

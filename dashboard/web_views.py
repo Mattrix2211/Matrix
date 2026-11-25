@@ -515,7 +515,7 @@ def _items_groupes_par_categorie(session, user):
 def _appareillage_en_lecture_seule(user):
     """Le commandant en second consulte la session d'appareillage sans la cocher ni la signer."""
     profil = getattr(user, "profile", None)
-    return bool(profil and profil.role in ROLES_SANS_ECRITURE_HERITEE and not user.is_superuser)
+    return bool(profil and profil.role in ROLES_SANS_ECRITURE_HERITEE and not profil.administrateur_general)
 
 
 def _meme_navire_ou_master_admin(user, ship_id):

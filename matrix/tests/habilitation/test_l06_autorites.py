@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 
 from django.utils import timezone
 
-from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
+from accounts.models import AuditLog, DemandeReinitialisation, ServiceFunctionChoice, UserProfile
 from matrix.core.role_thresholds import REGISTRE_ACTIONS, seuil_autorise, seuil_role
 from matrix.core.roles import RoleLevel, est_administrateur_technique, niveau_ecriture, user_role_level
 from org.models import RoleThresholdConfig
@@ -106,43 +106,43 @@ class ApiProfilsTests(MondeFictif):
         for donnees in ({"service": self.service2.pk}, {"sector": self.secteur2.pk}):
             self.assertEqual(self._patch("admin_navire", self.admin_navire, donnees).status_code, 403, donnees)
 
-    def test_l_attribution_et_le_retrait_du_drapeau_sont_traces(self):
-        reponse = self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": True})
-        self.assertEqual(reponse.status_code, 200)
-        self.assertTrue(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
+    def test_seul_l_administrateur_general_attribue_et_retire_les_droits_techniques_avec_justification(self):
+        """AC-19 : nominatif, justifié, historisé ; ni l'administrateur technique, ni le commandant, ni personne sur soi-même."""
+        for nom in ("admin_navire", "cdt_admin", "cdt_b", "second_b"):
+            reponse = self._patch(nom, self.equipier_b1, {"administrateur_technique": True, "justification": "essai"})
+            self.assertEqual(reponse.status_code, 403, nom)
+        self.assertFalse(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
+        sans = self._patch("master_admin", self.equipier_b1, {"administrateur_technique": True})
+        self.assertEqual(sans.status_code, 400)  # justification obligatoire
+        self.assertFalse(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
+        avec = self._patch("master_admin", self.equipier_b1, {"administrateur_technique": True, "justification": "poste d'administrateur du bâtiment"})
+        self.assertEqual(avec.status_code, 200)
         ligne = AuditLog.objects.get(action="changement_droits_techniques")
-        self.assertEqual(ligne.details, "administrateur_technique=False -> True")
-        self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": True})  # valeur inchangée : pas de trace
+        self.assertIn("administrateur_technique=False -> True", ligne.details)
+        self.assertIn("poste d'administrateur du bâtiment", ligne.details)
+        self.assertEqual((ligne.actor, ligne.target_user), (self.master_admin, self.equipier_b1))
+        self._patch("master_admin", self.equipier_b1, {"administrateur_technique": True, "justification": "inchangé"})  # pas de trace
         self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(), 1)
-        self.assertEqual(self._patch("admin_navire", self.admin_navire, {"administrateur_technique": False}).status_code, 403)
-        self.assertTrue(UserProfile.objects.get(user=self.admin_navire).administrateur_technique)  # jamais sur soi-même
-        # Retirer les droits d'un administrateur technique existant revient à l'administrateur général (AC-11).
-        self.assertEqual(self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": False}).status_code, 403)
-        self.assertTrue(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
-        self.assertEqual(self._patch("master_admin", self.equipier_b1, {"administrateur_technique": False}).status_code, 200)
+        retrait = self._patch("master_admin", self.equipier_b1, {"administrateur_technique": False, "justification": "fin de fonction"})
+        self.assertEqual(retrait.status_code, 200)
         self.assertFalse(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
         self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(), 2)
+        for nom in ("master_admin", "admin_navire"):  # jamais sur soi-même
+            cible = User.objects.get(username=nom)
+            self.assertEqual(self._patch(nom, cible, {"administrateur_technique": False, "justification": "x"}).status_code, 403, nom)
 
     def test_le_technique_ne_peut_pas_retirer_les_droits_d_un_pair_pour_reprendre_son_compte(self):
-        self.assertEqual(self._patch("admin_navire", self.bsc_admin, {"administrateur_technique": False}).status_code, 403)
-        web = self.client_de("admin_navire").post("/users/", {"action": "set_technique", "pk": self.bsc_admin.pk, "valeur": "0"})
+        self.assertEqual(self._patch("admin_navire", self.bsc_admin, {"administrateur_technique": False, "justification": "x"}).status_code, 403)
+        web = self.client_de("admin_navire").post("/users/", {"action": "set_technique", "pk": self.bsc_admin.pk, "valeur": "0", "justification": "x"})
         self.assertEqual(web.status_code, 403)
         self.assertTrue(UserProfile.objects.get(user=self.bsc_admin).administrateur_technique)
         reponse = self.client_de("admin_navire").post("/users/", {"action": "set_password", "pk": self.bsc_admin.pk})
         self.assertEqual(reponse.status_code, 302)
-        self.assertTrue(User.objects.get(pk=self.bsc_admin.pk).check_password("pass"))
-
-    def test_l_echeance_du_mot_de_passe_provisoire_n_est_pas_modifiable_par_l_api(self):
-        UserProfile.objects.filter(user=self.equipier_b1).update(mot_de_passe_provisoire=True)
-        avant = UserProfile.objects.get(user=self.equipier_b1).mot_de_passe_provisoire_expire_le
-        for nom in ("admin_navire", "cdt_b", "chef_service_b"):
-            self._patch(nom, self.equipier_b1, {"mot_de_passe_provisoire_expire_le": "2099-01-01T00:00:00Z", "mot_de_passe_provisoire": False})
-        profil = UserProfile.objects.get(user=self.equipier_b1)
-        self.assertEqual((profil.mot_de_passe_provisoire_expire_le, profil.mot_de_passe_provisoire), (avant, True))
+        self.assertFalse(DemandeReinitialisation.objects.filter(user=self.bsc_admin).exists())
 
     def test_les_valeurs_de_formulaire_du_drapeau_sont_interpretees(self):
         for valeur in ("on", "true"):
-            self._patch("admin_navire", self.equipier_b1, {"administrateur_technique": valeur})
+            self._patch("master_admin", self.equipier_b1, {"administrateur_technique": valeur, "justification": "essai"})
             self.assertTrue(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique, valeur)
             UserProfile.objects.filter(user=self.equipier_b1).update(administrateur_technique=False)
 

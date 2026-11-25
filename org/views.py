@@ -9,7 +9,7 @@ from matrix.core.equipage import changer_fuseau, equipage_a_bord, tracer_changem
 from matrix.core.fuseau import MESSAGE_FUSEAU_OBLIGATOIRE, fuseau_valide
 from matrix.core.mixins import EcritureTraceeMixin
 from matrix.core.permissions import RolePermission
-from matrix.core.role_thresholds import niveau_requis_pour
+from matrix.core.role_thresholds import niveau_pour_action, niveau_requis_pour
 from matrix.core.roles import user_role_level
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -21,10 +21,8 @@ def _is_master_admin(user):
     ou rôle MASTER_ADMIN (administrateur général). Tous les autres comptes, administrateurs
     techniques compris, sont rattachés à un navire précis et ne doivent gérer que celui-ci.
     """
-    if getattr(user, "is_superuser", False):
-        return True
-    profile = getattr(user, "profile", None)
-    return bool(profile and profile.role == "MASTER_ADMIN")
+    from matrix.core.roles import est_administrateur_general
+    return est_administrateur_general(user)
 
 
 def _user_ship_id(user):
@@ -112,7 +110,7 @@ class ShipViewSet(StructureViewSet):
         if donnees.get("equipage_a_bord", a_bord) != a_bord:
             raise PermissionDenied("L'équipage à bord change par une relève validée par les deux commandants.")
         sensibles = [c for c in ("double_equipage", "archived") if c in donnees and donnees[c] != getattr(navire, c)]
-        if sensibles and user_role_level(user) < niveau_requis_pour(user, "unite_administration"):
+        if sensibles and niveau_pour_action(user, "unite_administration") < niveau_requis_pour(user, "unite_administration"):
             raise PermissionDenied("Archiver une unité ou changer son double équipage est réservé à l'administration.")
         if "double_equipage" in sensibles:
             _controler_double_equipage(navire, donnees["double_equipage"])

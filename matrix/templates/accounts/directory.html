@@ -100,7 +100,7 @@
             {% url 'user-edit' u.id as url_modifier %}
             {% if peut_gerer_metier and u.id in gerables_ids %}{% include "components/menu_item.html" with libelle="Modifier" url=url_modifier icone="modification" %}{% endif %}
             {% if u.id in droits_techniques_ids %}
-            <li><form method="post" class="px-3 py-1">{% csrf_token %}<input type="hidden" name="action" value="set_technique" /><input type="hidden" name="pk" value="{{ u.id }}" />{% if u.profile.administrateur_technique %}<input type="hidden" name="valeur" value="0" /><button type="submit" class="btn btn-link btn-sm p-0">Retirer les droits techniques</button>{% else %}<input type="hidden" name="valeur" value="1" /><button type="submit" class="btn btn-link btn-sm p-0">Attribuer les droits techniques</button>{% endif %}</form></li>
+            <li><form method="post" class="px-3 py-1">{% csrf_token %}<input type="hidden" name="action" value="set_technique" /><input type="hidden" name="pk" value="{{ u.id }}" /><input class="form-control form-control-sm mb-1" name="justification" placeholder="Justification (obligatoire)" aria-label="Justification" required />{% if u.profile.administrateur_technique %}<input type="hidden" name="valeur" value="0" /><button type="submit" class="btn btn-link btn-sm p-0">Retirer les droits techniques</button>{% else %}<input type="hidden" name="valeur" value="1" /><button type="submit" class="btn btn-link btn-sm p-0">Attribuer les droits techniques</button>{% endif %}</form></li>
             {% endif %}
             {% if u.id in reinitialisables_ids %}
             <li><button type="button" class="dropdown-item mx-menu__item" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-pk="{{ u.id }}" data-username="{{ u.username }}">{% icone "mot_de_passe" %}<span>Réinitialiser le mot de passe</span></button></li>
@@ -138,7 +138,7 @@
             <label class="form-label" for="resetUsername">Utilisateur</label>
             <input class="form-control" id="resetUsername" disabled />
           </div>
-          <p class="text-muted mb-0">Un mot de passe provisoire sera généré et affiché une seule fois. Le marin devra le remplacer à sa prochaine connexion.</p>
+          <p class="text-muted mb-0">Un code de réinitialisation à usage unique sera généré et affiché une seule fois. Remettez-le au marin après avoir vérifié son identité : il définira lui-même son nouveau mot de passe. Pour un compte porteur d'une autorité, un second responsable doit aussi valider son identité.</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>

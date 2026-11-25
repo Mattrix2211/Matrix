@@ -18,7 +18,7 @@ class StatutsTests(MondeFictif):
         self.assertEqual(statuts_d_administration(self.cdt_b), set())
         self.assertEqual(statuts_d_administration(self.cdt_admin), {TECHNIQUE})
         self.assertIn(GENERAL, statuts_d_administration(self.master_admin))
-        self.assertIn(SUPERUTILISATEUR_DJANGO, statuts_d_administration(self.master_admin))
+        self.assertNotIn(SUPERUTILISATEUR_DJANGO, statuts_d_administration(User.objects.get(username="staff_sans_droit")))
         simple_superutilisateur = User.objects.create_superuser("su_django", password="x", email="s@s.fr")
         self.assertEqual(statuts_d_administration(simple_superutilisateur), {SUPERUTILISATEUR_DJANGO})  # pas administrateur général
 
@@ -57,16 +57,20 @@ class InterfaceTechniqueTests(MondeFictif):
         self.assertContains(self.client_de("admin_navire").get(reverse("home")), reverse("user-directory"))
         self.assertNotContains(self.client_de("equipier_b1").get(reverse("home")), 'href="' + reverse("user-directory") + '"')
 
-    def test_le_technique_gere_les_droits_techniques_par_l_annuaire_sans_le_menu_metier(self):
-        client = self.client_de("admin_navire")
-        page = client.get(reverse("user-directory"))
-        self.assertContains(page, "Attribuer les droits techniques")
-        self.assertNotContains(page, "Nouvel utilisateur")
-        client.post(reverse("user-directory"), {"action": "set_technique", "pk": self.equipier_b1.pk, "valeur": "1"})
+    def test_seul_l_administrateur_general_voit_et_utilise_la_gestion_des_droits_techniques(self):
+        technique = self.client_de("admin_navire").get(reverse("user-directory"))
+        self.assertNotContains(technique, "Attribuer les droits techniques")
+        self.assertNotContains(technique, "Nouvel utilisateur")
+        general = self.client_de("master_admin")
+        self.assertContains(general.get(reverse("user-directory")), "Attribuer les droits techniques")
+        sans = general.post(reverse("user-directory"), {"action": "set_technique", "pk": self.equipier_b1.pk, "valeur": "1"})
+        self.assertEqual(sans.status_code, 302)  # justification obligatoire : refusé avec un message
+        self.assertFalse(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
+        general.post(reverse("user-directory"), {"action": "set_technique", "pk": self.equipier_b1.pk, "valeur": "1", "justification": "poste"})
         self.assertTrue(UserProfile.objects.get(user=self.equipier_b1).administrateur_technique)
-        self.assertEqual(AuditLog.objects.filter(action="changement_droits_techniques").count(), 1)
-        client.post(reverse("user-directory"), {"action": "set_technique", "pk": self.admin_navire.pk, "valeur": "0"})
-        self.assertTrue(UserProfile.objects.get(user=self.admin_navire).administrateur_technique)  # jamais sur soi-même
+        self.assertIn("poste", AuditLog.objects.get(action="changement_droits_techniques").details)
+        general.post(reverse("user-directory"), {"action": "set_technique", "pk": self.master_admin.pk, "valeur": "1", "justification": "moi"})
+        self.assertFalse(UserProfile.objects.get(user=self.master_admin).administrateur_technique)  # jamais sur soi-même
 
     def test_acces_direct_aux_fonctions_masquees(self):
         for nom in ("cdt_b", "second_b", "chef_service_b", "equipier_b1"):

@@ -45,6 +45,7 @@ class ScopeLeakUsersWebTests(TestCase):
         self.master_admin = User.objects.create_superuser(
             username="master_admin_anw", password="pass", email="master_admin_anw@example.com"
         )
+        UserProfile.objects.filter(user=self.master_admin).update(administrateur_general=True)  # le statut d'administrateur général est un indicateur (AC-15)
 
     def test_commandant_ne_voit_pas_le_personnel_dun_autre_navire_par_defaut(self):
         self.client.login(username="commandant_a_anw", password="pass")

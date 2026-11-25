@@ -28,8 +28,9 @@ def _effet_role(attribut, role="COMMANDANT"):
     return lambda monde: type(getattr(monde, attribut).profile).objects.get(pk=getattr(monde, attribut).profile.pk).role == role
 
 
-def _effet_mot_de_passe_provisoire(attribut):
-    return lambda monde: type(getattr(monde, attribut).profile).objects.get(pk=getattr(monde, attribut).profile.pk).mot_de_passe_provisoire
+def _effet_demande_de_reinitialisation(attribut):
+    from accounts.models import DemandeReinitialisation
+    return lambda monde: DemandeReinitialisation.objects.filter(user=getattr(monde, attribut)).exists()
 
 
 def _effet_module_desactive(monde):
@@ -53,7 +54,7 @@ VERIFICATIONS = (
             "equipier_b1": "refus", "equipier_a": "refus", "equipier_abe": "refus",
             "chef_section_b1": "acces-", "chef_section_b2": "acces+", "chef_secteur_b": "acces+", "chef_service_b": "acces+",
             "chef_service_sec": "acces-", "comanav_b": "acces+", "comaeq_b": "acces-", "cdt_b": "acces+", "second_b": "acces+",
-            "admin_navire": "refus", "bsc_admin": "refus", "cdt_admin": "acces+",
+            "admin_navire": "refus", "bsc_admin": "refus", "cdt_admin": "acces+", "master_admin": "refus",
         },
         ecarts_connus={"chef_section_b1": "acces+", "chef_service_sec": "acces+", "comaeq_b": "acces+"},
         lot_correctif="L30 (confidentialité par périmètre)",
@@ -83,13 +84,13 @@ VERIFICATIONS = (
         "V05-calendrier-deplacement-ticket", "WEB-CALENDRIER", "post", "/calendar/events/move/",
         donnees=lambda m: {"type": "ticket", "id": str(m.ticket_sec.pk), "date": _demain()},
         attendu={**REFUS_HORS_SERVICE, "comanav_b": "refus", "second_b": "refus", "comaeq_b": "acces", "cdt_b": "acces",
-                 "admin_navire": "refus", "bsc_admin": "refus"},
+                 "admin_navire": "refus", "bsc_admin": "refus", "master_admin": "refus"},
     ),
     Verification(
         "V06-ticket-transition-api", "API-LOGISTIQUE", "post", lambda m: f"/api/logistics/tickets/{m.ticket_sec.pk}/transition/",
         donnees={"status": "IN_REPAIR"},
         attendu={**REFUS_HORS_SERVICE, "comanav_b": "refus", "second_b": "refus", "comaeq_b": "acces", "cdt_b": "acces",
-                 "admin_navire": "refus", "bsc_admin": "refus"},
+                 "admin_navire": "refus", "bsc_admin": "refus", "master_admin": "refus"},
     ),
     Verification(
         "V07-elevation-de-role-api", "API-COMPTES", "patch", lambda m: f"/api/accounts/profiles/{m.equipier_b1.profile.pk}/",
@@ -153,7 +154,7 @@ VERIFICATIONS = (
         attendu={
             "equipier_b1": "refus", "chef_service_b": "refus", "comaeq_b": "refus", "equipier_a": "refus",
             "cdt_a": "refus", "equipier_abe": "refus", "soutien_terre": "refus", "second_b": "refus", "admin_navire": "refus",
-            "bsc_admin": "refus", "cdt_b": "acces", "cdt_admin": "acces", "master_admin": "acces",
+            "bsc_admin": "refus", "cdt_b": "acces", "cdt_admin": "acces", "master_admin": "refus",
         },
     ),
     Verification(
@@ -175,16 +176,30 @@ VERIFICATIONS = (
         donnees={"role": "CHEF_SECTION"}, effet=_effet_role("equipier_b1", "CHEF_SECTION"),
         attendu={
             "cdt_b": "acces", "cdt_admin": "acces", "chef_service_b": "acces", "equipier_b1": "refus", "second_b": "refus",
-            "admin_navire": "refus", "bsc_admin": "refus", "admin_abe": "refus", "cdt_abe": "refus", "master_admin": "acces",
+            "admin_navire": "refus", "bsc_admin": "refus", "admin_abe": "refus", "cdt_abe": "refus", "master_admin": "refus",
         },
     ),
     Verification(
         "V19-attribution-des-droits-techniques", "API-COMPTES", "patch", lambda m: f"/api/accounts/profiles/{m.equipier_b2.profile.pk}/",
-        donnees={"administrateur_technique": True}, effet=lambda m: type(m.equipier_b2.profile).objects.get(pk=m.equipier_b2.profile.pk).administrateur_technique,
+        donnees={"administrateur_technique": True, "justification": "besoin d'exploitation"}, effet=lambda m: type(m.equipier_b2.profile).objects.get(pk=m.equipier_b2.profile.pk).administrateur_technique,
         attendu={
-            "admin_navire": "acces", "cdt_admin": "acces", "master_admin": "acces", "cdt_b": "refus", "second_b": "refus",
+            "master_admin": "acces", "admin_navire": "refus", "cdt_admin": "refus", "cdt_b": "refus", "second_b": "refus",
             "chef_service_b": "refus", "equipier_b1": "refus", "admin_abe": "refus", "cdt_abe": "refus", "soutien_terre": "refus",
         },
+    ),
+    Verification(
+        "V27-designation-du-commandant-en-second-api", "API-COMPTES", "patch", lambda m: f"/api/accounts/profiles/{m.equipier_b1.profile.pk}/",
+        donnees={"role": "COMMANDANT_EN_SECOND"}, effet=_effet_role("equipier_b1", "COMMANDANT_EN_SECOND"),
+        attendu={"cdt_b": "acces", "cdt_admin": "acces", "master_admin": "acces", "second_b": "refus", "admin_navire": "refus",
+                 "bsc_admin": "refus", "comanav_b": "refus", "chef_service_b": "refus", "equipier_b1": "refus", "cdt_abe": "refus",
+                 "admin_abe": "refus"},
+    ),
+    Verification(
+        "V28-creation-d-un-batiment-gouvernance", "WEB-REGLAGES", "post", "/parametre/",
+        donnees={"action": "add_ship", "name": "Unité nouvelle", "code": "NEW", "fuseau_horaire": "Europe/Paris"},
+        effet=lambda m: __import__("org.models", fromlist=["Ship"]).Ship.objects.filter(code="NEW").exists(),
+        attendu={"master_admin": "acces", "cdt_b": "refus", "cdt_admin": "refus", "admin_navire": "refus", "second_b": "refus",
+                 "equipier_b1": "refus"},
     ),
     Verification(
         "V20-auto-attribution-droits-techniques", "API-COMPTES", "patch", lambda m: f"/api/accounts/profiles/{m.equipier_b1.profile.pk}/",
@@ -208,24 +223,24 @@ VERIFICATIONS = (
         "V26-seuil-de-circuit-fermé-à-l-administrateur-technique-seul", "WEB-REGLAGES", "post", "/parametre/",
         donnees=lambda m: {"action": "update_role_threshold", "cle_action": "liste_service_publication", "nouveau_role": "EQUIPIER", "ship_id": m.navire.pk},
         effet=lambda m: __import__("matrix.core.role_thresholds", fromlist=["x"]).seuil_role("liste_service_publication", m.navire.pk) < 2,
-        attendu={"admin_navire": "refus", "bsc_admin": "refus", "admin_abe": "refus", "cdt_admin": "acces", "master_admin": "acces"},
+        attendu={"admin_navire": "refus", "bsc_admin": "refus", "admin_abe": "refus", "cdt_admin": "acces", "master_admin": "refus"},
     ),
     Verification(
         "V22-reinitialisation-mot-de-passe-d-un-equipier", "WEB-COMPTES", "post", "/users/",
-        donnees=lambda m: {"action": "set_password", "pk": m.equipier_b1.pk}, effet=_effet_mot_de_passe_provisoire("equipier_b1"),
-        attendu={"admin_navire": "acces", "cdt_admin": "acces", "cdt_b": "refus", "second_b": "refus", "equipier_b1": "refus",
-                 "admin_abe": "refus", "chef_service_b": "refus"},
+        donnees=lambda m: {"action": "set_password", "pk": m.equipier_b1.pk}, effet=_effet_demande_de_reinitialisation("equipier_b1"),
+        attendu={"admin_navire": "acces", "cdt_admin": "acces", "master_admin": "acces", "cdt_b": "refus", "second_b": "refus",
+                 "equipier_b1": "refus", "admin_abe": "refus", "chef_service_b": "refus"},
     ),
     Verification(
         "V23-reinitialisation-mot-de-passe-d-une-autorite", "WEB-COMPTES", "post", "/users/",
-        donnees=lambda m: {"action": "set_password", "pk": m.cdt_b.pk}, effet=_effet_mot_de_passe_provisoire("cdt_b"),
+        donnees=lambda m: {"action": "set_password", "pk": m.cdt_b.pk}, effet=_effet_demande_de_reinitialisation("cdt_b"),
         attendu={"admin_navire": "refus", "bsc_admin": "refus", "cdt_b": "refus", "master_admin": "acces"},
     ),
     Verification(
         "V25-designation-legitime-web", "WEB-COMPTES", "post", "/users/",
         donnees=lambda m: {"action": "bulk_update_role", "role": "CHEF_SECTION", "selected_ids": [m.equipier_b1.pk]},
         effet=_effet_role("equipier_b1", "CHEF_SECTION"),
-        attendu={"cdt_b": "acces", "cdt_admin": "acces", "master_admin": "acces", "admin_navire": "refus", "second_b": "refus",
+        attendu={"cdt_b": "acces", "cdt_admin": "acces", "master_admin": "refus", "admin_navire": "refus", "second_b": "refus",
                  "bsc_admin": "refus", "equipier_b1": "refus", "admin_abe": "refus", "cdt_abe": "refus"},
     ),
 )

@@ -35,7 +35,7 @@ class AdminNavireLimitesTests(TestCase):
         r = self._api().patch(f"/api/accounts/profiles/{self.maitre.profile.pk}/", {"role": "EQUIPIER"}, format="json")
         self.assertEqual(r.status_code, 403)
         self.maitre.profile.refresh_from_db()
-        self.assertEqual(self.maitre.profile.role, "MASTER_ADMIN")
+        self.assertTrue(self.maitre.profile.administrateur_general)  # l'administrateur général reste intact
 
     def test_api_refuse_de_modifier_un_master_admin_sans_changer_son_role(self):
         r = self._api().patch(f"/api/accounts/profiles/{self.maitre.profile.pk}/", {"ship": self.navire.pk}, format="json")
@@ -78,7 +78,7 @@ class AdminNavireLimitesTests(TestCase):
             "action": "bulk_update_role", "selected_ids": [self.maitre.id], "role": "EQUIPIER",
         })
         self.maitre.profile.refresh_from_db()
-        self.assertEqual(self.maitre.profile.role, "MASTER_ADMIN")
+        self.assertTrue(self.maitre.profile.administrateur_general)
         self.client.post("/users/", {"action": "set_password", "pk": self.maitre.id, "password": "NouveauMotDePasse123!"})
         self.maitre.refresh_from_db()
         self.assertTrue(self.maitre.check_password("pass"))

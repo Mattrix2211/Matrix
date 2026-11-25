@@ -1,5 +1,5 @@
 from rest_framework import viewsets, permissions
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError
 from rest_framework.fields import BooleanField
 from django.contrib.auth.models import User
 from .models import AuditLog, UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
@@ -56,8 +56,9 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         ancien_role, ancienne_fonction = serializer.instance.role, serializer.instance.fonction_coma
         nouveau = BooleanField().to_internal_value(self.request.data["administrateur_technique"]) \
             if "administrateur_technique" in self.request.data else None
-        if nouveau is False and serializer.instance.administrateur_technique and not is_master_admin(self.request.user):
-            raise PermissionDenied("Seul l'administrateur général retire les droits techniques d'un administrateur technique.")
+        justification = (self.request.data.get("justification") or "").strip()
+        if nouveau is not None and nouveau != serializer.instance.administrateur_technique and not justification:
+            raise ValidationError({"justification": "Une justification est obligatoire pour attribuer ou révoquer des droits techniques."})
         profil = serializer.save()
         if profil.role != ancien_role:
             AuditLog.objects.create(
@@ -76,7 +77,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 profil.save(update_fields=["administrateur_technique"])
                 AuditLog.objects.create(
                     actor=self.request.user, action="changement_droits_techniques", target_user=profil.user,
-                    details=f"administrateur_technique={avant} -> {nouveau}",
+                    details=f"administrateur_technique={avant} -> {nouveau}; justification={justification[:300]}",
                 )
 
 

@@ -27,7 +27,6 @@ ROLE_TO_LEVEL = {
     "ETAT_MAJOR": RoleLevel.ETAT_MAJOR,
     "COMMANDANT_EN_SECOND": RoleLevel.COMMANDANT_EN_SECOND,
     "COMMANDANT": RoleLevel.COMMANDANT,
-    "MASTER_ADMIN": RoleLevel.MASTER_ADMIN,
 }
 
 
@@ -37,8 +36,8 @@ NIVEAU_VISION_COMMANDEMENT = RoleLevel.COMMANDANT_EN_SECOND
 
 
 def user_role_level(user) -> RoleLevel:
-    if getattr(user, "is_superuser", False):
-        return RoleLevel.MASTER_ADMIN
+    """Niveau MÉTIER du compte : le seul rôle hiérarchique attribué. Ni l'administration générale ni le statut de
+    superutilisateur Django ne donnent de niveau métier (AC-15)."""
     profile = getattr(user, "profile", None)
     if not profile or not profile.role:
         return RoleLevel.EQUIPIER
@@ -49,14 +48,21 @@ def user_role_level(user) -> RoleLevel:
 ROLES_SANS_ECRITURE_HERITEE = ("COMMANDANT_EN_SECOND",)
 
 
-def est_administrateur_technique(user) -> bool:
-    """Droits techniques d'unité : indicateur du profil, ou administrateur général. N'ouvre aucun droit métier."""
+def est_administrateur_general(user) -> bool:
+    """Gouvernance globale de Matrix (AC-15) : indicateur du profil. Le superutilisateur Django n'en est pas un."""
     if not getattr(user, "is_authenticated", False) or not user.is_active:
         return False
-    if user.is_superuser:
-        return True
     profile = getattr(user, "profile", None)
-    return bool(profile and (profile.administrateur_technique or profile.role == "MASTER_ADMIN"))
+    return bool(profile and profile.administrateur_general)
+
+
+def est_administrateur_technique(user) -> bool:
+    """Droits techniques d'unité : indicateur du profil, ou administrateur général (administration technique globale).
+    N'ouvre aucun droit métier."""
+    if not getattr(user, "is_authenticated", False) or not user.is_active:
+        return False
+    profile = getattr(user, "profile", None)
+    return bool(profile and (profile.administrateur_technique or profile.administrateur_general))
 
 
 GENERAL, TECHNIQUE, SUPERUTILISATEUR_DJANGO = "general", "technique", "superutilisateur_django"
@@ -70,7 +76,7 @@ def statuts_d_administration(user) -> frozenset:
         return frozenset()
     profile = getattr(user, "profile", None)
     statuts = set()
-    if profile and profile.role == "MASTER_ADMIN":
+    if profile and profile.administrateur_general:
         statuts.add(GENERAL)
     if profile and profile.administrateur_technique:
         statuts.add(TECHNIQUE)
@@ -86,8 +92,6 @@ def niveau_ecriture(user) -> RoleLevel:
     from .scopes import soutien_a_terre
 
     niveau = user_role_level(user)
-    if niveau == RoleLevel.MASTER_ADMIN:
-        return niveau
     profile = getattr(user, "profile", None)
     if soutien_a_terre(user) or (profile and profile.role in ROLES_SANS_ECRITURE_HERITEE):
         return RoleLevel.EQUIPIER

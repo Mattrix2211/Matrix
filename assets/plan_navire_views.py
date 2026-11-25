@@ -21,7 +21,8 @@ from django.views.generic import View
 
 from matrix.core.ecriture_service import niveau_ecriture_ui
 from matrix.core.saisie import entier_ou_none, message_longueurs, uuid_ou_none
-from matrix.core.role_thresholds import niveau_requis_pour
+from matrix.core.role_thresholds import niveau_pour_action, niveau_requis_pour
+from matrix.core.roles import RoleLevel
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_photo
 from org.models import Ship
@@ -35,7 +36,9 @@ def _peut_configurer_plan_navire(user):
     "plan_navire_configuration") peuvent configurer les ponts et zones du
     plan visuel du navire : une action de configuration structurante, pas
     une simple consultation."""
-    return niveau_ecriture_ui(user) >= niveau_requis_pour(user, "plan_navire_configuration")
+    # Configuration structurelle du bâtiment : acte de gouvernance exercé explicitement par l'administrateur général (AC-15).
+    return (niveau_pour_action(user, "plan_navire_configuration") >= RoleLevel.MASTER_ADMIN
+            or niveau_ecriture_ui(user) >= niveau_requis_pour(user, "plan_navire_configuration"))
 
 
 def _valider_coordonnee_pourcent(valeur):

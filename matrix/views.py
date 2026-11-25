@@ -40,9 +40,9 @@ from matrix.core.equipage import (
     releve_en_attente, releve_planifiee, valider_releve_secours,
 )
 from matrix.core.fuseau import MESSAGE_FUSEAU_OBLIGATOIRE, champ_local, formater, fuseau_herite, fuseau_valide, fuseaux_disponibles, libelle_fuseau, lire_champ_local, nom_fuseau
-from matrix.core.roles import RoleLevel, est_administrateur_technique, user_role_level
+from matrix.core.roles import RoleLevel, est_administrateur_general, est_administrateur_technique, user_role_level
 from matrix.core.role_thresholds import (
-    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_autorise, seuil_role, niveau_requis_pour,
+    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, niveau_pour_action, seuil_autorise, seuil_role, niveau_requis_pour,
 )
 from matrix.core.modules import (
     REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif, module_actif_pour_user,
@@ -63,10 +63,9 @@ def peut_voir_securite(user):
 def peut_modifier_seuil(user, action_seuil):
     """Un seuil technique relève de l'administration technique, un seuil métier du commandement (AC-13) ;
     l'administrateur technique seul ne touche à aucun seuil métier, ni pour le renforcer ni pour l'abaisser."""
-    if is_master_admin(user):
-        return True
-    if action_seuil.technique:
-        return est_administrateur_technique(user)
+    if action_seuil.technique or action_seuil.gouvernance:
+        return est_administrateur_technique(user) if action_seuil.technique else (
+            est_administrateur_general(user) or user_role_level(user) >= RoleLevel.COMMANDANT)
     return user_role_level(user) >= RoleLevel.COMMANDANT
 
 
@@ -293,7 +292,7 @@ class SettingsView(LoginRequiredMixin, View):
         # commandement ou l'administration générale peut abaisser. Factorisé ici pour être
         # utilisé à la fois côté contrôle d'accès (dispatch) et côté contexte
         # (get), sans dupliquer le calcul.
-        return user_role_level(user) >= niveau_requis_pour(user, 'responsabilite_transverse_gestion')
+        return niveau_pour_action(user, 'responsabilite_transverse_gestion') >= niveau_requis_pour(user, 'responsabilite_transverse_gestion')
 
     @staticmethod
     def _peut_gerer_modules(user):
@@ -306,9 +305,7 @@ class SettingsView(LoginRequiredMixin, View):
 
     @staticmethod
     def _peut_voir_equipage(user):
-        # Onglet Équipage : commandant et son second d'un bâtiment à double équipage.
-        if is_master_admin(user):
-            return True
+        # Onglet Équipage : commandant et son second d'un bâtiment à double équipage (la relève est un acte de commandement).
         profil = getattr(user, 'profile', None)
         navire = profil.ship if profil else None
         return bool(
@@ -316,7 +313,7 @@ class SettingsView(LoginRequiredMixin, View):
         )
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_superuser:
+        if not est_administrateur_general(request.user):
             # Seules les sections "Notification quotidienne" (réglage personnel
             # de chaque marin), "Sécurité" (seuils de rôle : consultation par
             # l'administrateur technique et le commandement, modification des seuils métier par le
@@ -370,6 +367,10 @@ class SettingsView(LoginRequiredMixin, View):
 
     def get(self, request):
         tab = request.GET.get('tab', 'generale')
+        if est_administrateur_general(request.user) and (
+                (tab == 'modules' and not self._peut_gerer_modules(request.user))
+                or (tab == 'equipage' and not self._peut_voir_equipage(request.user))):
+            raise PermissionDenied  # actes de commandement : non conférés par le statut d'administrateur général (AC-15)
 
         # Valeur d'heure de notification de l'utilisateur courant (format HH:MM)
         def fmt_time(t):
@@ -378,7 +379,7 @@ class SettingsView(LoginRequiredMixin, View):
             except Exception:
                 return '08:00'
 
-        if not request.user.is_superuser:
+        if not est_administrateur_general(request.user):
             # Vue restreinte : réglage personnel des horaires de notification,
             # (si habilité) l'onglet Sécurité limité à SON navire, et (si
             # habilité par le seuil configurable) l'onglet Utilisateurs limité
@@ -516,8 +517,8 @@ class SettingsView(LoginRequiredMixin, View):
             'user_notification_time_soir': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time_soir', None)),
             'peut_gerer_seuils': True,
             'peut_gerer_responsables': True,
-            'peut_gerer_modules': True,
-            'peut_voir_equipage': True,
+            'peut_gerer_modules': self._peut_gerer_modules(request.user),  # acte de commandement (AC-15)
+            'peut_voir_equipage': self._peut_voir_equipage(request.user),
             'inactivite_delai_minutes': delai_inactivite() // 60,
             'inactivite_preavis_secondes': delai_avertissement(),
             # Responsables transverses (dashboards par spécialité / par classe de
@@ -870,7 +871,7 @@ class SettingsView(LoginRequiredMixin, View):
             else:
                 if action_seuil.portee == PORTEE_GLOBALE:
                     ship = None
-                elif request.user.is_superuser:
+                elif est_administrateur_general(request.user):
                     ship = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
                 else:
                     ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
@@ -980,15 +981,14 @@ class SettingsView(LoginRequiredMixin, View):
             # supprimée : seuls le menu et les vues web du module sont masqués
             # tant qu'il reste désactivé (cf. matrix/core/modules.py).
             next_tab = 'modules'
+            if not self._peut_gerer_modules(request.user):
+                raise PermissionDenied  # acte de commandement : l'administrateur général ne l'exerce pas par son statut (AC-15)
             cle_module = request.POST.get('cle_module')
             module_info = MODULES_PAR_CLE.get(cle_module)
             if module_info is None:
                 messages.error(request, "Module inconnu.")
             else:
-                if request.user.is_superuser:
-                    ship = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
-                else:
-                    ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
+                ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
                 if ship is None:
                     messages.error(request, "Aucune unité sélectionnée.")
                 else:
@@ -1009,10 +1009,7 @@ class SettingsView(LoginRequiredMixin, View):
         elif action in ACTIONS_ONGLET_EQUIPAGE:
             # Relève : proposée par un commandant, appliquée à la validation de l'autre.
             next_tab = 'equipage'
-            if is_master_admin(request.user):
-                navire = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
-            else:
-                navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
+            navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
             if navire is None:
                 raise PermissionDenied
             proposition = releve_en_attente(navire)

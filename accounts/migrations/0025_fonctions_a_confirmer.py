@@ -27,11 +27,10 @@ def expirer_provisoires(apps, schema_editor):
     """Un mot de passe provisoire émis avant ce lot n'avait pas d'échéance : il expire à partir de la migration."""
     from datetime import timedelta
 
-    from django.conf import settings
     from django.utils import timezone
 
     apps.get_model("accounts", "UserProfile").objects.filter(mot_de_passe_provisoire=True, mot_de_passe_provisoire_expire_le__isnull=True).update(
-        mot_de_passe_provisoire_expire_le=timezone.now() + timedelta(hours=settings.DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES))
+        mot_de_passe_provisoire_expire_le=timezone.now() + timedelta(hours=48))
 
 
 def supprimer_demandes(apps, schema_editor):

@@ -48,7 +48,7 @@ from .web_views import (
 )
 from matrix.core.mixins import EcritureDansLePerimetreMixin, EcritureTraceeMixin
 from matrix.core.permissions import RolePermission
-from matrix.core.roles import est_administrateur_technique, niveau_ecriture, user_role_level
+from matrix.core.roles import est_administrateur_general, niveau_ecriture, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_navire_q, resoudre_affectation_dans_perimetre
 from matrix.core.saisie import entier_ou_none
 
@@ -59,14 +59,14 @@ class DefaultPermission(permissions.IsAuthenticated):
     pass
 
 class CatalogueFormationPermission(RolePermission):
-    """Écriture du catalogue : le seuil de rôle habituel, ou les droits techniques (sans grade métier) ; le détail est
+    """Écriture du catalogue commun : le seuil de rôle habituel, ou l'administrateur général (AC-20) ; le détail est
     revérifié par `_exiger_catalogue` et le périmètre des formations gérées par un bord."""
 
     def has_permission(self, request, view):
-        return super().has_permission(request, view) or est_administrateur_technique(request.user)
+        return super().has_permission(request, view) or est_administrateur_general(request.user)
 
     def has_object_permission(self, request, view, obj):
-        return super().has_object_permission(request, view, obj) or est_administrateur_technique(request.user)
+        return super().has_object_permission(request, view, obj) or est_administrateur_general(request.user)
 
 
 class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
@@ -118,7 +118,7 @@ class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
 
     def _exiger_catalogue(self):
         # Le catalogue « organisme » est commun à toute la flotte : même seuil que la création web.
-        if not est_administrateur_technique(self.request.user):
+        if not est_administrateur_general(self.request.user):
             raise ApiPermissionDenied("Le catalogue des formations est réservé à l'administration.")
 
     def perform_create(self, serializer):

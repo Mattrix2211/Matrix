@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.views.generic import ListView, View
 
 from matrix.core.commandants_adjoints import commandant_adjoint_du_service, est_commandant_adjoint_du_service, service_de
-from matrix.core.roles import RoleLevel, est_administrateur_technique, niveau_ecriture, user_role_level
+from matrix.core.roles import RoleLevel, est_administrateur_general, niveau_ecriture, user_role_level
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import is_master_admin, perimetre_hierarchique_q, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_document
@@ -56,7 +56,7 @@ User = get_user_model()
 # déjà appliqué côté API sur TrainingCourseViewSet.
 NIVEAU_REQUIS_GESTION_PREREQUIS = RoleLevel.CHEF_SECTION
 
-# Réservée aux administrateurs techniques (indicateur distinct du rôle métier) : `est_administrateur_technique`.
+# Référentiel commun à la flotte : réservé à l'administrateur général (AC-20) ; l'administrateur technique ne le modifie pas.
 
 # Seuil de rôle générique à partir duquel un chef peut RÉSERVER (mais pas
 # VALIDER) une place de session pour un marin de son propre périmètre
@@ -82,7 +82,7 @@ def _peut_gerer_prerequis(user):
 
 
 def _peut_creer_formation(user):
-    return est_administrateur_technique(user)
+    return est_administrateur_general(user)
 
 
 def _peut_valider_formation(user):

@@ -43,17 +43,14 @@ def passation_activee():
 
 
 def peut_generer_passation(user, navire):
-    """Commandement du bâtiment (commandant, second) ou administrateur général."""
-    if is_master_admin(user):
-        return True
+    """Commandement du bâtiment (commandant, second) ; l'administrateur général n'y accède pas par son statut (AC-15)."""
     profil = getattr(user, "profile", None)
     return bool(profil and profil.navire_id_effectif == navire.pk and user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT)
 
 
 def syntheses_visibles(user):
-    """Commandement du bâtiment ; chefs des deux équipages concernés par la relève ; jamais un autre bâtiment."""
-    if is_master_admin(user):
-        return SynthesePassation.objects.all()
+    """Commandement du bâtiment ; chefs des deux équipages concernés par la relève ; jamais un autre bâtiment ni, par son
+    seul statut, l'administrateur général (consultation systématique non conférée, AC-15)."""
     profil = getattr(user, "profile", None)
     navire_id = profil.navire_id_effectif if profil else None
     if not navire_id:

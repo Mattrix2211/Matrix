@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">{% if verificateur %}Code du vérificateur{% else %}Code de réinitialisation{% endif %}</h1>
+<div class="alert alert-warning">
+  Notez ce code maintenant : il ne sera <strong>plus jamais affiché</strong> et n'est conservé que sous forme d'empreinte.
+  Remettez-le au titulaire <strong>après avoir vérifié son identité</strong>. Il ne permet pas de se connecter : le titulaire définit
+  lui-même son nouveau mot de passe sur la page <a href="{% url 'reinitialisation-mot-de-passe' %}">Réinitialisation du mot de passe</a>,
+  dans les {{ demande_validite|default:"30" }} minutes, en 5 essais au plus.
+</div>
+<div class="card mb-3">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Marin</th><th>Identifiant</th><th>Code</th><th>Valable jusqu'à</th></tr></thead>
+      <tbody>
+        {% for utilisateur, demande, code in codes %}
+        <tr>
+          <td>{{ utilisateur.get_full_name|default:utilisateur.username }}</td>
+          <td class="font-mono">{{ utilisateur.username }}</td>
+          <td class="font-mono fs-5">{{ code }}</td>
+          <td>{{ demande.expire_le|date:"H:i" }}</td>
+        </tr>
+        {% if demande.verification_requise and not verificateur %}
+        <tr><td colspan="4" class="text-muted">Ce compte porte une autorité : un second responsable distinct doit valider l'identité du titulaire depuis la page <a href="{% url 'verifications-identite' %}">Vérifications d'identité</a>. Le titulaire aura besoin des deux codes.</td></tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<a class="btn btn-outline-secondary" href="{% url 'user-directory' %}">Retour à l'annuaire</a>
+{% endblock %}

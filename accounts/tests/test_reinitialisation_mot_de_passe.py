@@ -1,11 +1,12 @@
-"""Réinitialisation du mot de passe par l'administrateur du bâtiment : droits, mot de passe provisoire à usage unique."""
+"""Réinitialisation du mot de passe : droits de l'initiateur et code à usage unique (AC-12, AC-16)."""
 import base64
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
-from accounts.models import AuditLog
+from accounts import reinitialisation
+from accounts.models import AuditLog, UserProfile
 from matrix.core.role_thresholds import invalidate_cache
 from org.models import RoleThresholdConfig, Sector, Service, Ship
 
@@ -38,20 +39,22 @@ class ReinitialisationTests(TestCase):
         self.client.force_login(acteur)
         return self.client.post(self.url, {"action": action, "pk": cible.pk})
 
-    def test_l_administrateur_obtient_un_mot_de_passe_provisoire_affiche_une_fois(self):
+    def test_l_administrateur_obtient_un_code_a_usage_unique_affiche_une_fois(self):
         reponse = self.reinitialiser(self.admin, self.marin)
         self.assertEqual(reponse.status_code, 200)
         self.assertEqual(reponse["Cache-Control"], "no-store")
-        (utilisateur, mot_de_passe), = reponse.context["provisoires"]
-        self.assertContains(reponse, mot_de_passe)
+        (utilisateur, demande, code), = reponse.context["codes"]
+        self.assertContains(reponse, code)
         self.marin.refresh_from_db()
-        self.assertTrue(self.marin.check_password(mot_de_passe))
-        self.assertTrue(self.marin.profile.mot_de_passe_provisoire)
-        self.assertNotIn(mot_de_passe, self.marin.password)
-        journal = AuditLog.objects.get(action="reinitialisation_mot_de_passe")
+        self.assertTrue(self.marin.check_password("ancien-mdp-123"))  # rien n'est changé tant que le titulaire n'a pas agi
+        self.assertFalse(Client().login(username="marin_mdp", password=code))  # le code n'authentifie jamais
+        demande.refresh_from_db()
+        for champ in (demande.code_initiateur, demande.code_verificateur):
+            self.assertNotIn(code.replace("-", ""), champ.upper())
+        journal = AuditLog.objects.get(action="reinitialisation_demandee")
         self.assertEqual((journal.actor, journal.target_user), (self.admin, self.marin))
-        self.assertFalse(any(mot_de_passe in (a.details or "") for a in AuditLog.objects.all()))
-        self.assertNotContains(self.client.get(self.url), mot_de_passe)
+        self.assertFalse(any(code in (a.details or "") for a in AuditLog.objects.all()))
+        self.assertNotContains(self.client.get(self.url), code)
 
     def test_commandant_et_chef_de_service_ne_peuvent_pas(self):
         for acteur in (self.commandant, self.chef, self.marin):
@@ -59,7 +62,7 @@ class ReinitialisationTests(TestCase):
         self.assertEqual(self.reinitialiser(self.commandant, self.marin).status_code, 403)
         self.marin.refresh_from_db()
         self.assertTrue(self.marin.check_password("ancien-mdp-123"))
-        self.assertFalse(AuditLog.objects.filter(action="reinitialisation_mot_de_passe").exists())
+        self.assertFalse(AuditLog.objects.filter(action="reinitialisation_demandee").exists())
 
     def test_marin_d_un_autre_navire_et_soi_meme_refuses(self):
         self.assertEqual(self.reinitialiser(self.admin, self.etranger).status_code, 302)
@@ -67,13 +70,13 @@ class ReinitialisationTests(TestCase):
         for user in (self.etranger, self.admin):
             user.refresh_from_db()
             self.assertTrue(user.check_password("ancien-mdp-123"))
-        self.assertFalse(AuditLog.objects.filter(action="reinitialisation_mot_de_passe").exists())
+        self.assertFalse(AuditLog.objects.filter(action="reinitialisation_demandee").exists())
 
     def test_action_groupee_borne_au_batiment(self):
         self.client.force_login(self.admin)
         reponse = self.client.post(self.url, {
             "action": "bulk_reset_passwords", "selected_ids": [self.marin.pk, self.etranger.pk, self.admin.pk]})
-        self.assertEqual([u.username for u, _ in reponse.context["provisoires"]], ["marin_mdp"])
+        self.assertEqual([u.username for u, _, _ in reponse.context["codes"]], ["marin_mdp"])
         self.etranger.refresh_from_db()
         self.assertTrue(self.etranger.check_password("ancien-mdp-123"))
         refus = self.client.post(self.url, {"action": "bulk_reset_passwords", "selected_ids": [self.etranger.pk]})
@@ -94,46 +97,30 @@ class ReinitialisationTests(TestCase):
         self.assertNotContains(self.client.get(self.url), "resetPasswordModal\" data-pk")
 
 
-class ChangementObligatoireTests(TestCase):
+class CodeEtConnexionTests(TestCase):
+    """Le code de réinitialisation n'est pas un mot de passe : aucune session ni authentification par API ne l'accepte."""
+
     def setUp(self):
-        self.marin = User.objects.create_user(username="provisoire_mdp", password="Provisoire-123!")
-        self.marin.profile.mot_de_passe_provisoire = True
-        self.marin.profile.save()
+        navire = Ship.objects.create(name="Navire code", code="COD")
+        self.technique = User.objects.create_user(username="tech_code", password="ancien-mdp-123")
+        UserProfile.objects.filter(user=self.technique).update(administrateur_technique=True, ship=navire)
+        self.marin = User.objects.create_user(username="marin_code", password="ancien-mdp-123")
+        UserProfile.objects.filter(user=self.marin).update(ship=navire)
+        self.technique, self.marin = User.objects.get(pk=self.technique.pk), User.objects.get(pk=self.marin.pk)
+
+    def test_le_code_ne_permet_pas_de_se_connecter_ni_d_appeler_l_api(self):
+        _, code = reinitialisation.initier(self.technique, self.marin)
+        self.assertFalse(Client().login(username="marin_code", password=code))
+        self.assertFalse(Client().login(username="marin_code", password=code.replace("-", "")))
+        jeton = base64.b64encode(f"marin_code:{code}".encode()).decode()
+        self.assertIn(Client().get("/api/notifications/", HTTP_AUTHORIZATION=f"Basic {jeton}").status_code, (401, 403))
+
+    def test_changer_son_mot_de_passe_depuis_le_profil_reste_possible(self):
         self.client.force_login(self.marin)
-
-    def test_toute_page_renvoie_vers_le_changement(self):
-        for url in ("/", "/taches/", "/notifications/"):
-            self.assertRedirects(self.client.get(url), reverse("password_change"), fetch_redirect_response=False)
-        self.assertEqual(self.client.get("/api/notifications/").status_code, 403)
-        reponse = self.client.get("/", HTTP_HX_REQUEST="true")
-        self.assertEqual(reponse["HX-Redirect"], reverse("password_change"))
-
-    def test_l_authentification_basic_de_l_api_n_echappe_pas_a_l_obligation(self):
-        self.client.logout()
-        jeton = base64.b64encode(b"provisoire_mdp:Provisoire-123!").decode()
-        reponse = self.client.get("/api/notifications/", HTTP_AUTHORIZATION=f"Basic {jeton}")
-        self.assertEqual(reponse.status_code, 403)
-        self.assertIn("mot de passe", reponse.json()["detail"])
-
-    def test_page_de_changement_et_deconnexion_restent_accessibles(self):
-        self.assertContains(self.client.get(reverse("password_change")), "Votre mot de passe est provisoire")
-        self.assertEqual(self.client.post(reverse("logout")).status_code, 302)
-
-    def test_le_changement_leve_l_obligation(self):
         reponse = self.client.post(reverse("password_change"), {
-            "old_password": "Provisoire-123!", "new_password1": "Nouveau-mdp-solide-42", "new_password2": "Nouveau-mdp-solide-42"})
+            "old_password": "ancien-mdp-123", "new_password1": "Nouveau-mdp-solide-42", "new_password2": "Nouveau-mdp-solide-42"})
         self.assertRedirects(reponse, reverse("home"), fetch_redirect_response=False)
-        self.marin.refresh_from_db()
-        self.assertFalse(self.marin.profile.mot_de_passe_provisoire)
-        self.assertTrue(self.marin.check_password("Nouveau-mdp-solide-42"))
-        self.assertEqual(self.client.get("/taches/").status_code, 200)
         self.assertTrue(AuditLog.objects.filter(action="changement_mot_de_passe", actor=self.marin).exists())
-
-    def test_un_mot_de_passe_refuse_ne_leve_pas_l_obligation(self):
-        self.client.post(reverse("password_change"), {
-            "old_password": "Provisoire-123!", "new_password1": "123", "new_password2": "123"})
-        self.marin.refresh_from_db()
-        self.assertTrue(self.marin.profile.mot_de_passe_provisoire)
 
 
 class RoutesExposeesTests(TestCase):

@@ -131,8 +131,6 @@ MIDDLEWARE = [
     "matrix.core.middleware.HabillageErreur400Middleware",
     # Bâtiment choisi dans le sélecteur : borne les listes de l'utilisateur à terre
     "matrix.core.middleware.BatimentCourantMiddleware",
-    # Mot de passe provisoire : changement obligatoire avant toute autre page
-    "matrix.core.middleware.MotDePasseProvisoireMiddleware",
     # Modules activables par bâtiment : bloque l'accès direct par URL aux
     # vues web d'un module désactivé sur le navire du marin connecté (voir
     # matrix/core/middleware.py et matrix/core/modules.py).
@@ -214,10 +212,23 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Mot de passe provisoire (réinitialisation par une autorité) : durée de validité, puis verrouillage des essais répétés.
-DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES = int(os.environ.get("MATRIX_DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES", "48"))
-TENTATIVES_CONNEXION_MAX = int(os.environ.get("MATRIX_TENTATIVES_CONNEXION_MAX", "5"))
-VERROUILLAGE_CONNEXION_MINUTES = int(os.environ.get("MATRIX_VERROUILLAGE_CONNEXION_MINUTES", "15"))
+def _entier_borne(nom, defaut, mini, maxi):
+    """Paramètre de sécurité réglable par l'environnement, toujours ramené dans des bornes non contournables (AC-18)."""
+    try:
+        valeur = int(os.environ.get(nom, defaut))
+    except ValueError:
+        valeur = defaut
+    return max(mini, min(maxi, valeur))
+
+
+# Réinitialisation par code à usage unique, limitation progressive des connexions et conservation des compteurs (AC-16 à AC-18).
+CODE_REINITIALISATION_VALIDITE_MINUTES = _entier_borne("MATRIX_CODE_REINITIALISATION_VALIDITE_MINUTES", 30, 5, 120)
+TENTATIVES_CODE_MAX = _entier_borne("MATRIX_TENTATIVES_CODE_MAX", 5, 3, 10)
+TENTATIVES_CONNEXION_MAX = _entier_borne("MATRIX_TENTATIVES_CONNEXION_MAX", 5, 3, 10)
+VERROUILLAGE_CONNEXION_MINUTES = _entier_borne("MATRIX_VERROUILLAGE_CONNEXION_MINUTES", 15, 5, 240)
+VERROUILLAGE_CONNEXION_PLAFOND_MINUTES = _entier_borne("MATRIX_VERROUILLAGE_CONNEXION_PLAFOND_MINUTES", 240, 15, 1440)
+CONSERVATION_COMPTEURS_JOURS = _entier_borne("MATRIX_CONSERVATION_COMPTEURS_JOURS", 30, 7, 365)
+RECUPERATION_VALIDITE_MINUTES = _entier_borne("MATRIX_RECUPERATION_VALIDITE_MINUTES", 30, 10, 120)
 AUTHENTICATION_BACKENDS = ["accounts.authentification.ConnexionSurveilleeBackend"]
 
 LANGUAGE_CODE = "fr"
@@ -277,6 +288,11 @@ DOCUMENT_TAILLE_MAX_MO = int(os.getenv("DOCUMENT_TAILLE_MAX_MO", "20"))
 INACTIVITE_AVERTISSEMENT_SECONDES = os.getenv("INACTIVITE_AVERTISSEMENT_SECONDES", "60")
 
 CELERY_BEAT_SCHEDULE = {
+    # Compteurs techniques de connexion inactifs : jamais les journaux d'audit (AC-18).
+    "purger_compteurs_connexion_daily": {
+        "task": "accounts.tasks.purger_compteurs_connexion",
+        "schedule": 60 * 60 * 24,
+    },
     "purger_sessions_daily": {
         "task": "matrix.core.tasks.purger_sessions",
         "schedule": 60 * 60 * 24,

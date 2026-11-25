@@ -9,7 +9,7 @@ from matrix.core.models import TimeStampedModel
 User = get_user_model()
 
 class Roles(models.TextChoices):
-    MASTER_ADMIN = "MASTER_ADMIN", "Administrateur général"
+    MASTER_ADMIN = "MASTER_ADMIN", "Administrateur général (obsolète : indicateur)"
     # Obsolète depuis L06 : l'administration technique est l'indicateur `administrateur_technique`, indépendant du rôle métier.
     ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur d'unité (obsolète)"
     COMMANDANT = "COMMANDANT", "Commandant"
@@ -57,12 +57,8 @@ class UserProfile(TimeStampedModel):
     barre_laterale_repliee = models.BooleanField(default=False)
     # Préférences d'interface (groupes du menu, aides vues) : voir accounts/preferences.py. Jamais un contrôle d'accès.
     preferences_interface = models.JSONField(default=dict, blank=True)
-    mot_de_passe_provisoire = models.BooleanField(
-        default=False, verbose_name="Mot de passe provisoire",
-        help_text="Le marin doit choisir un nouveau mot de passe à sa prochaine connexion.",
-    )
-    # Au-delà, le mot de passe provisoire n'ouvre plus de session : une nouvelle réinitialisation est nécessaire.
-    mot_de_passe_provisoire_expire_le = models.DateTimeField(null=True, blank=True)
+    # Gouvernance globale de Matrix (AC-15) : indépendant du rôle métier, qu'il ne remplace pas ni ne donne.
+    administrateur_general = models.BooleanField(default=False, verbose_name="Administrateur général")
 
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="profiles")
@@ -77,6 +73,13 @@ class UserProfile(TimeStampedModel):
     def save(self, *args, **kwargs):
         if self.role == Roles.ADMIN_NAVIRE:
             raise ValueError("Le rôle « administrateur d'unité » n'existe plus : utiliser l'indicateur administrateur_technique.")
+        if self.role == Roles.MASTER_ADMIN:
+            # Valeur historique acceptée en entrée seulement : l'administration générale est un indicateur, le rôle métier reste
+            # celui qui a été explicitement attribué (équipier à défaut) ; aucun droit métier n'en découle.
+            self.role, self.administrateur_general = Roles.EQUIPIER, True
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "administrateur_general" not in update_fields:
+                kwargs["update_fields"] = [*update_fields, "administrateur_general"]
         super().save(*args, **kwargs)
 
     @property
@@ -219,12 +222,75 @@ class FonctionAConfirmer(TimeStampedModel):
         ]
 
 
-class EchecConnexion(models.Model):
-    """Essais de connexion échoués par identifiant, en base : partagé entre processus et redémarrages (AC-12)."""
+class CompteurConnexion(models.Model):
+    """Compteur technique temporaire de la limitation des connexions (AC-18) — distinct des journaux d'audit.
 
-    identifiant = models.CharField(max_length=150, unique=True)
+    Une ligne par couple (identifiant, source) ; la source « * » porte le compteur global de l'identifiant.
+    Purgé après `CONSERVATION_COMPTEURS_JOURS` d'inactivité : sa purge n'efface jamais l'`AuditLog`."""
+
+    identifiant = models.CharField(max_length=150)
+    source = models.CharField(max_length=64)
     essais = models.PositiveIntegerField(default=0)
-    debut = models.DateTimeField()
+    niveau = models.PositiveIntegerField(default=0)
+    bloque_jusqua = models.DateTimeField(null=True, blank=True)
+    derniere_reussite = models.DateTimeField(null=True, blank=True)
+    derniere_activite = models.DateTimeField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["identifiant", "source"], name="un_compteur_par_identifiant_et_source")]
+
+
+class DemandeReinitialisation(TimeStampedModel):
+    """Réinitialisation de mot de passe à usage unique (AC-16) ou récupération d'un administrateur général (AC-17).
+
+    Le code n'authentifie jamais : il ne sert qu'à définir un nouveau mot de passe. Seules des empreintes salées sont
+    conservées. Pour un compte porteur d'autorité, deux codes (initiateur, vérificateur indépendant) sont exigés."""
+
+    class Statut(models.TextChoices):
+        EN_ATTENTE_VERIFICATION = "EN_ATTENTE_VERIFICATION", "En attente de vérification d'identité"
+        ACTIVE = "ACTIVE", "Active"
+        UTILISEE = "UTILISEE", "Utilisée"
+        EXPIREE = "EXPIREE", "Expirée"
+        ANNULEE = "ANNULEE", "Annulée"
+        BLOQUEE = "BLOQUEE", "Bloquée (trop d'essais)"
+
+    class Nature(models.TextChoices):
+        REINITIALISATION = "REINITIALISATION", "Réinitialisation"
+        RECUPERATION = "RECUPERATION", "Récupération d'un administrateur général"
+
+    OUVERTES = ("EN_ATTENTE_VERIFICATION", "ACTIVE")
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="demandes_reinitialisation")
+    nature = models.CharField(max_length=16, choices=Nature.choices, default=Nature.REINITIALISATION)
+    initiateur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reinitialisations_initiees")
+    verificateur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reinitialisations_verifiees")
+    operateur_initiateur = models.CharField(max_length=128, blank=True, default="")
+    operateur_verificateur = models.CharField(max_length=128, blank=True, default="")
+    justification = models.TextField(blank=True, default="")
+    verification_requise = models.BooleanField(default=False)
+    attribuer_administrateur_general = models.BooleanField(default=False)
+    code_initiateur = models.CharField(max_length=255)
+    code_verificateur = models.CharField(max_length=255, blank=True, default="")
+    statut = models.CharField(max_length=24, choices=Statut.choices, default=Statut.ACTIVE)
+    expire_le = models.DateTimeField()
+    essais = models.PositiveIntegerField(default=0)
+    utilisee_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user"], condition=models.Q(statut__in=["EN_ATTENTE_VERIFICATION", "ACTIVE"]),
+                                    name="une_demande_ouverte_par_compte"),
+        ]
+
+
+class OperateurRecuperation(TimeStampedModel):
+    """Opérateur habilité à la récupération d'un administrateur général (AC-17) : identité système et phrase secrète
+    personnelle (empreinte salée), indépendantes des comptes applicatifs."""
+
+    nom = models.CharField(max_length=128)
+    identifiant_systeme = models.CharField(max_length=128, unique=True)
+    phrase = models.CharField(max_length=255)
+    actif = models.BooleanField(default=True)
 
 
 class InitialisationBatiment(TimeStampedModel):

@@ -1,48 +1,67 @@
-"""Récupération exceptionnelle de l'accès d'un administrateur général (AC-12, AC-09).
+"""Récupération exceptionnelle d'un administrateur général (AC-17), en deux exécutions locales d'opérateurs distincts.
 
-Procédure locale, sur le serveur, par un exploitant autorisé : elle émet un mot de passe provisoire à usage unique, affiché
-une seule fois sur la console de l'exploitant, valide pour une durée limitée, que le titulaire remplace à sa première connexion.
-Elle ne s'applique qu'à un compte d'administrateur général et efface le verrouillage de connexion de ce compte.
+    manage.py recuperer_acces_administrateur ouvrir --identifiant ID --justification "..." [--attribuer]
+    manage.py recuperer_acces_administrateur valider --demande N
+
+Chaque exécution demande la phrase secrète personnelle de l'opérateur, qui doit être habilité (`habiliter_operateur_recuperation`)
+et exécuter la commande avec sa propre identité système. La procédure simplifiée (`simplifie`) n'existe qu'en développement :
+elle est refusée dès que l'application tourne en production (DJANGO_DEBUG absent ou nul).
 """
 import getpass
-import socket
-from datetime import timedelta
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone
 
-from accounts.authentification import effacer_echecs
-from accounts.models import AuditLog, UserProfile
-from accounts.services import PROTECTION_RECUPERATION, generer_mot_de_passe, niveau_de_protection
+from accounts import recuperation
+from accounts.models import AuditLog, OperateurRecuperation
 
 
 class Command(BaseCommand):
-    help = "Émet un mot de passe provisoire pour un compte d'administrateur général (procédure exceptionnelle, locale)."
+    help = "Récupération d'un administrateur général : ouverture puis validation par un second opérateur."
 
     def add_arguments(self, parser):
-        parser.add_argument("--identifiant", required=True)
-        parser.add_argument("--autorisation", required=True, help="Référence de l'autorisation préalable de récupération.")
+        sous = parser.add_subparsers(dest="etape", required=True)
+        ouvrir = sous.add_parser("ouvrir")
+        ouvrir.add_argument("--identifiant", required=True)
+        ouvrir.add_argument("--justification", required=True)
+        ouvrir.add_argument("--attribuer", action="store_true", help="Seulement si aucun administrateur général n'est disponible.")
+        valider = sous.add_parser("valider")
+        valider.add_argument("--demande", type=int, required=True)
+        sous.add_parser("simplifie").add_argument("--identifiant", required=True)
+
+    def _operateur(self):
+        phrase = getpass.getpass("Phrase secrète de l'opérateur : ")
+        try:
+            return recuperation.authentifier_operateur(recuperation.identite_systeme(), phrase)
+        except PermissionDenied:
+            raise CommandError("Opérateur non reconnu.")
 
     def handle(self, *args, **options):
         try:
-            compte = get_user_model().objects.get(username=options["identifiant"], is_active=True)
-        except get_user_model().DoesNotExist:
-            raise CommandError("Compte introuvable ou inactif.")
-        if niveau_de_protection(compte) != PROTECTION_RECUPERATION:
-            raise CommandError("Cette procédure ne concerne que les comptes d'administrateur général.")
-        operateur = f"{getpass.getuser()}@{socket.gethostname()}"
-        mot_de_passe = generer_mot_de_passe()
-        compte.set_password(mot_de_passe)
-        compte.save(update_fields=["password"])
-        profil, _ = UserProfile.objects.get_or_create(user=compte)
-        profil.mot_de_passe_provisoire = True
-        profil.mot_de_passe_provisoire_expire_le = timezone.now() + timedelta(hours=settings.DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES)
-        profil.save(update_fields=["mot_de_passe_provisoire", "mot_de_passe_provisoire_expire_le"])
-        effacer_echecs(compte.username)
-        AuditLog.objects.create(
-            actor=None, action="recuperation_acces", target_user=compte,
-            details=f"operateur={operateur}; autorisation={options['autorisation']}; valide jusqu'au {profil.mot_de_passe_provisoire_expire_le:%d/%m/%Y %H:%M}",
-        )
-        self.stdout.write(f"Mot de passe provisoire (affiché une seule fois) : {mot_de_passe}")
+            if options["etape"] == "simplifie":
+                self._simplifie(options["identifiant"])
+            elif options["etape"] == "ouvrir":
+                demande, code = recuperation.ouvrir(self._operateur(), options["identifiant"], options["justification"], options["attribuer"])
+                self.stdout.write(f"Demande {demande.pk} ouverte, valable jusqu'à {demande.expire_le:%H:%M}. Premier code (affiché une seule fois) : {code}")
+            else:
+                demande, code = recuperation.valider(self._operateur(), options["demande"])
+                self.stdout.write(f"Demande {demande.pk} validée. Second code (affiché une seule fois) : {code}")
+        except PermissionDenied:
+            raise CommandError("Opération refusée : un second opérateur distinct est exigé.")
+        except ValidationError as exc:
+            raise CommandError(" ".join(exc.messages))
+
+    def _simplifie(self, identifiant):
+        if not settings.DEBUG:
+            raise CommandError("La procédure simplifiée est réservée au développement : refusée en production.")
+        un = OperateurRecuperation.objects.create(nom="dev-1", identifiant_systeme="dev-1", phrase="!")
+        deux = OperateurRecuperation.objects.create(nom="dev-2", identifiant_systeme="dev-2", phrase="!")
+        try:
+            demande, a = recuperation.ouvrir(un, identifiant, "développement", attribuer=not recuperation._administrateur_general_disponible())
+            _, b = recuperation.valider(deux, demande.pk)
+        finally:
+            un.delete()
+            deux.delete()
+        AuditLog.objects.create(actor=None, action="recuperation_simplifiee_developpement", target_user=demande.user, details="développement uniquement")
+        self.stdout.write(f"Codes de développement : {a} et {b}")

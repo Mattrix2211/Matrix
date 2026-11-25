@@ -27,10 +27,15 @@ class AnnuaireUtilisateursPermissionsTests(TestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_role_commandant_en_second_visible_dans_l_annuaire(self):
-        # Le commandant ne désigne pas le commandant en second : l'administrateur le voit et peut l'attribuer.
-        User.objects.create_superuser(username="admin_annuaire", password="pass", email="a@a.fr")
+        # AC-10 : le commandant et l'administrateur général désignent et révoquent le commandant en second ; ils le voient
+        # dans la liste des rôles attribuables.
+        general = User.objects.create_user(username="admin_annuaire", password="pass")
+        UserProfile.objects.filter(user=general).update(administrateur_general=True)
         self.client.login(username="admin_annuaire", password="pass")
-        self.assertContains(self.client.get("/users/"), "Commandant en second")
+        codes = {r["code"] for r in self.client.get("/users/").context["roles"]}
+        self.assertIn("COMMANDANT_EN_SECOND", codes)
+        self.assertIn("COMMANDANT", codes)
+        self.assertNotIn("CHEF_SERVICE", codes)  # la gouvernance ne désigne pas les autres autorités de bord
 
     def test_anonyme_redirige_vers_connexion(self):
         r = self.client.get("/users/")

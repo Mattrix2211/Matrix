@@ -37,7 +37,7 @@ CLE_PROPOSITION = "feuille_service_configuration"
 
 
 def _meme_navire(user, ship):
-    return user_role_level(user) >= RoleLevel.MASTER_ADMIN or ship_id_for_user(user) == ship.pk
+    return ship_id_for_user(user) == ship.pk
 
 
 def peut_proposer_organisation_alerte(user, ship):

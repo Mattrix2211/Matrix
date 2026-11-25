@@ -15,7 +15,8 @@ ONGLETS = [
 ]
 # Onglets attendus (200) par acteur, navire sans double équipage, seuils par défaut.
 ONGLETS_AUTORISES = {
-    "master": set(ONGLETS),
+    # L'activation des modules et la relève sont des actes de commandement : non conférés par le statut (AC-15).
+    "master": set(ONGLETS) - {"modules", "equipage"},
     "admin_a": {"seuils_role", "notifications"},
     "admin_b": {"seuils_role", "notifications"},
     "commandant": {"modules", "seuils_role", "notifications"},
@@ -29,7 +30,7 @@ class MatriceDroitsBase(TestCase):
         self.a = Ship.objects.create(name="Navire A matrice", code="MXA")
         self.b = Ship.objects.create(name="Navire B matrice", code="MXB")
         self.acteurs = {
-            "master": User.objects.create_superuser("master_mx", "m@example.com", "pass"),
+            "master": self.marin("master_mx", "EQUIPIER", None, general=True),
             "admin_a": self.marin("admin_a_mx", "EQUIPIER", self.a, technique=True),
             "admin_b": self.marin("admin_b_mx", "EQUIPIER", self.b, technique=True),
             "commandant": self.marin("commandant_mx", "COMMANDANT", self.a),
@@ -39,10 +40,11 @@ class MatriceDroitsBase(TestCase):
         }
         self.equipier_b = self.marin("equipier_b_mx", "EQUIPIER", self.b)
 
-    def marin(self, nom, role, navire, technique=False):
+    def marin(self, nom, role, navire, technique=False, general=False):
         user = User.objects.create_user(nom, password="pass")
         profil = user.profile
         profil.role, profil.ship, profil.administrateur_technique = role, navire, technique
+        profil.administrateur_general = general
         profil.save()
         return user
 
@@ -189,7 +191,7 @@ class ReinitialisationMatriceTests(MatriceDroitsBase):
         for acteur in ("commandant", "chef", "equipier"):
             self.assertEqual(self.reinitialiser(acteur, cible).status_code, 403, acteur)
         self.assertEqual(self.reinitialiser("admin_a", cible).status_code, 200)
-        self.assertTrue(AuditLog.objects.filter(action="reinitialisation_mot_de_passe", actor=self.acteurs["admin_a"], target_user=cible).exists())
+        self.assertTrue(AuditLog.objects.filter(action="reinitialisation_demandee", actor=self.acteurs["admin_a"], target_user=cible).exists())
         self.assertEqual(self.reinitialiser("master", self.equipier_b).status_code, 200)
 
     def test_reinitialisation_hors_navire_ou_maitre_refusee(self):

@@ -63,6 +63,7 @@ creneauservicegardes_affectes
 demandes_a_traiter
 demandes_declarees
 demandes_places_attribuees
+demandes_reinitialisation
 demandes_suivies
 echanges_decides
 echanges_demandes
@@ -93,6 +94,8 @@ propositions_article_verifiees
 push_subscriptions
 quarts_proposees
 quarts_publiees
+reinitialisations_initiees
+reinitialisations_verifiees
 releves_annulees
 releves_decidees
 releves_proposees

@@ -63,7 +63,7 @@ def decider(acteur, demande_id, decision, fonction=""):
             statut = FonctionAConfirmer.Statut.CONFIRMEE if decision == CONFIRMER else FonctionAConfirmer.Statut.CORRIGEE
             if titulaires_commandant_adjoint(profil.ship, retenue, profil.equipage).exclude(pk=demande.user_id).exists():
                 raise ValidationError("Cette fonction est déjà tenue sur le bâtiment : révoquez d'abord le titulaire actuel.")
-            if profil.role in (Roles.COMMANDANT, Roles.COMMANDANT_EN_SECOND, Roles.MASTER_ADMIN):
+            if profil.role in (Roles.COMMANDANT, Roles.COMMANDANT_EN_SECOND):
                 raise ValidationError("Le marin exerce déjà une autorité supérieure : la fonction ne peut pas lui être attribuée ainsi.")
             profil.role, profil.fonction_coma = Roles.ETAT_MAJOR, retenue
             profil.save(update_fields=["role", "fonction_coma"])

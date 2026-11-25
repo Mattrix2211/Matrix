@@ -40,6 +40,7 @@ class ScopeLeakUserProfileAPIDestinationTests(TestCase):
         self.master_admin = User.objects.create_superuser(
             username="master_admin_papi", password="pass", email="master_admin_papi@example.com"
         )
+        UserProfile.objects.filter(user=self.master_admin).update(administrateur_general=True)  # le statut d'administrateur général est un indicateur (AC-15)
 
     def _login(self, username):
         client = APIClient()

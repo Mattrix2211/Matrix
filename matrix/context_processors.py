@@ -49,8 +49,8 @@ def barre_superieure(request):
     if not utilisateur or not utilisateur.is_authenticated:
         return {}
     profil = getattr(utilisateur, "profile", None)
-    if utilisateur.is_superuser:
-        role = Roles.MASTER_ADMIN.label
+    if profil and profil.administrateur_general:
+        role = "Administrateur général"
     else:
         role = profil.get_role_display() if profil and profil.role else Roles.EQUIPIER.label
     a_terre = profil.equipage if equipage_a_terre_lecture_seule(utilisateur) else ""
@@ -73,6 +73,8 @@ def barre_superieure(request):
         # Soutien à terre (sans bâtiment) : consultation et commentaires seulement.
         "soutien_a_terre": soutien,
         "signature_droits": signature,
+        # Gouvernance globale (AC-15) : jamais déduite du statut de superutilisateur Django.
+        "est_administrateur_general": bool(profil and profil.administrateur_general),
         "aide_acces_vue": preferences.aide_vue(utilisateur, "acces", signature),
     }
 

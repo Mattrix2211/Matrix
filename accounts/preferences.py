@@ -25,7 +25,7 @@ def signature_droits(user, a_terre, soutien):
         profil.role if profil else "",
         profil.equipage if profil else "",
         profil.ship_id if profil else None,
-        bool(user.is_superuser),
+        bool(user.is_superuser or (profil and profil.administrateur_general)),
         bool(a_terre),
         bool(soutien),
     )

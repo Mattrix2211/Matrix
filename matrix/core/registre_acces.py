@@ -47,6 +47,9 @@ _ECRITURE = ("authentifie", "queryset_perimetre", "seuil_role", "niveau_sur_serv
 REGLES = (
     _r("PUB-CONNEXION", r"^(accounts/login/|login/|service-worker\.js)$", PUBLIC, (),
        justification="Connexion et script du service worker : nécessaires avant toute authentification."),
+    _r("PUB-REINITIALISATION", r"^reinitialisation/$", PUBLIC, (),
+       justification="Le titulaire sans accès définit son mot de passe avec ses codes à usage unique : essais limités par demande, "
+                     "message d'erreur unique, aucune authentification par le code (AC-16)."),
     _r("WEB-DECONNEXION", r"^logout/$", justification="Déconnexion : sans effet pour un visiteur non connecté."),
     _r("WEB-MEDIA", r"^media/", controles=("authentifie", "proprietaire_objet", "perimetre_batiment"), lecture_sensible=True,
        couverture=("matrix.tests.test_etancheite_equipage_peripherie", "matrix.tests.test_etancheite_equipage_vues")),
@@ -110,6 +113,8 @@ REGLES = (
     _r("ADMIN-ORGANISATION", r"^admin:org\.", ADMINISTRATION, ("droit_admin_django",), lecture_sensible=True,
        couverture=("org.tests.test_archivage", "org.tests.test_suppression_unites")),
     _r("ADMIN-AUTRES", r"^admin:", ADMINISTRATION, ("droit_admin_django",), lecture_sensible=True, ecarts=(ECART_A25,)),
+    _r("TACHE-COMPTEURS", r"^accounts\.tasks\.", TRAITEMENT, (),
+       justification="Purge des compteurs techniques de connexion inactifs : ne touche jamais le journal d'audit (AC-18)."),
     _r("TACHE-GLOBALE", r"^(matrix\.core\.tasks|quarts\.tasks)\.", TRAITEMENT, ("perimetre_batiment",),
        justification="Entretien technique (sessions, brouillons, relèves, échéances) : agit par bâtiment, sans acteur humain."),
     _r("TACHE-MAINTENANCE", r"^maintenance\.tasks\.", TRAITEMENT, ("perimetre_batiment",), module="maintenance", ecarts=(ECART_A25,),

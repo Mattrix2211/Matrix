@@ -14,7 +14,7 @@ from .roles import RoleLevel, niveau_ecriture
 
 def _est_etat_major(user):
     profil = getattr(user, "profile", None)
-    return bool(profil and profil.role == Roles.ETAT_MAJOR and not getattr(user, "is_superuser", False))
+    return bool(profil and profil.role == Roles.ETAT_MAJOR and not profil.administrateur_general)
 
 
 def services_rattaches(user):

@@ -22,7 +22,7 @@ class AccesAnonymeTests(MondeFictif):
 
     def test_les_routes_publiques_sont_les_seules_declarees_telles(self):
         publiques = sorted(p.cle for p in self.points if regle_de(p).classe == PUBLIC)
-        self.assertEqual(publiques, ["accounts/login/", "login/", "service-worker.js"])
+        self.assertEqual(publiques, ["accounts/login/", "login/", "reinitialisation/", "service-worker.js"])
 
     def test_les_routes_publiques_ne_donnent_acces_a_aucune_donnee(self):
         client = Client()

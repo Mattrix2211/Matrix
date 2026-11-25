@@ -185,6 +185,7 @@ web|quarts/quart/<int:pk>/|GET,POST|WEB-QUARTS
 web|quarts/reglages/delais-activation/|GET,POST|WEB-QUARTS
 web|quarts/reglages/|GET,POST|WEB-QUARTS
 web|quarts/|GET,POST|WEB-QUARTS
+web|reinitialisation/|GET,POST|PUB-REINITIALISATION
 web|retex/<int:pk>/action/|POST|WEB-RETEX
 web|retex/domaines/|GET,POST|WEB-RETEX
 web|retex/nouveau/|GET,POST|WEB-RETEX
@@ -200,4 +201,5 @@ web|users/batiment/|POST|WEB-COMPTES
 web|users/fonctions-a-confirmer/|GET,POST|WEB-COMPTES
 web|users/preferences/|POST|WEB-COMPTES
 web|users/theme/|POST|WEB-COMPTES
+web|users/verifications/|GET,POST|WEB-COMPTES
 web|users/|GET,POST|WEB-COMPTES

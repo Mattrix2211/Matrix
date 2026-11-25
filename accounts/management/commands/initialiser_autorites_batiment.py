@@ -58,7 +58,7 @@ class Command(BaseCommand):
 
     def _designer(self, navire, commandant, technique, cumul):
         profil_cdt, _ = UserProfile.objects.get_or_create(user=commandant)
-        if profil_cdt.role == Roles.MASTER_ADMIN or commandant.is_superuser:
+        if profil_cdt.administrateur_general or commandant.is_superuser:
             raise CommandError("Un administrateur général ne peut pas être désigné commandant par cette procédure.")
         if profil_cdt.administrateur_technique and (technique is None or technique.pk != commandant.pk) and not cumul:
             raise CommandError("Ce compte porte déjà les droits techniques : le cumul doit être explicite (--accepter-cumul).")

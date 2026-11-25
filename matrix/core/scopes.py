@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
+from .roles import est_administrateur_general
 from .saisie import entier_ou_none
 
 
@@ -25,15 +26,12 @@ def scope_filters_for_user(user) -> Dict[str, Any]:
 
 def is_master_admin(user) -> bool:
     """Vrai si l'utilisateur a un accès multi-navires (flotte entière) :
-    superutilisateur ou rôle MASTER_ADMIN, administrateur général (matrix/core/roles.py).
+    administrateur général (indicateur du profil, matrix/core/roles.py) ; le superutilisateur Django n'en est pas un.
     Tous les autres comptes, administrateurs techniques compris, sont rattachés à un navire précis. Même règle que celle déjà
     appliquée dans org/views.py::_is_master_admin, centralisée ici pour être
     réutilisée par toute vue nécessitant un périmètre "navire entier" (ex. Vue
     flotte du tableau de bord)."""
-    if getattr(user, "is_superuser", False):
-        return True
-    profile = getattr(user, "profile", None)
-    return bool(profile and profile.role == "MASTER_ADMIN")
+    return est_administrateur_general(user)
 
 
 def soutien_a_terre(user) -> bool:

@@ -34,7 +34,7 @@ def equipage_a_terre_lecture_seule(user):
     Sans équipage renseigné, ou pour un bâtiment à équipage unique, aucune restriction.
     """
     profil = getattr(user, "profile", None)
-    if profil is None or user.is_superuser:
+    if profil is None or profil.administrateur_general:
         return False
     navire = profil.ship
     if navire is None or not navire.double_equipage or not profil.equipage:

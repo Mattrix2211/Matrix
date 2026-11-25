@@ -41,6 +41,9 @@ class ActionSeuil:
     plancher: RoleLevel = None
     # Droit technique : atteint par un administrateur technique, jamais par un grade métier.
     technique: bool = False
+    # Acte de gouvernance globale (AC-15) : l'administrateur général l'exerce explicitement, sans fonction métier ; aucun
+    # autre acte ne lui est ouvert par son statut.
+    gouvernance: bool = False
 
 
 # Registre central : une entrée par action dont le seuil est désormais
@@ -50,12 +53,12 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "structure_navire_ecriture",
         "Modifier ou supprimer la structure de l'unité : services, secteurs, sections, configuration des secteurs, lieux",
-        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.COMMANDANT, plancher=RoleLevel.COMMANDANT,
+        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.COMMANDANT, plancher=RoleLevel.COMMANDANT, gouvernance=True,
     ),
     ActionSeuil(
         "unite_administration",
         "Archiver l'unité, activer/désactiver son double équipage ou changer son fuseau horaire de référence",
-        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.COMMANDANT, plancher=RoleLevel.COMMANDANT,
+        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.COMMANDANT, plancher=RoleLevel.COMMANDANT, gouvernance=True,
     ),
     ActionSeuil(
         "asset_ecriture_simple", "Créer ou modifier un matériel, un dossier",
@@ -98,7 +101,7 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "plan_navire_configuration",
         "Configurer les ponts et le positionnement du matériel sur le plan visuel du navire",
-        "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+        "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE, gouvernance=True,
     ),
     ActionSeuil(
         "stock_ecriture",
@@ -212,12 +215,12 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
-        "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,
+        "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN, gouvernance=True,
     ),
     ActionSeuil(
         "responsabilite_transverse_gestion",
         "Désigner ou retirer un responsable de spécialité ou de classe de navire (dashboards transverses flotte)",
-        "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,
+        "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN, gouvernance=True,
     ),
 ]
 
@@ -291,8 +294,12 @@ def ship_id_de(user):
 def niveau_pour_action(user, cle_action):
     """Niveau de `user` à comparer au seuil de l'action : son niveau d'écriture, ou son grade pour le
     commandant en second sur une action qui lui est explicitement ouverte."""
-    from .roles import ROLES_SANS_ECRITURE_HERITEE, est_administrateur_technique, niveau_ecriture, user_role_level
+    from .roles import (
+        ROLES_SANS_ECRITURE_HERITEE, est_administrateur_general, est_administrateur_technique, niveau_ecriture, user_role_level,
+    )
 
+    if REGISTRE_PAR_CLE[cle_action].gouvernance and est_administrateur_general(user):
+        return RoleLevel.MASTER_ADMIN
     if REGISTRE_PAR_CLE[cle_action].technique:
         niveau = niveau_ecriture(user)
         return max(niveau, RoleLevel.ADMIN_NAVIRE) if est_administrateur_technique(user) else niveau

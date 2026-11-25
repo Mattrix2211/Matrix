@@ -12,13 +12,12 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from .services import (
     PROTECTION_RECUPERATION, niveau_de_competence, niveaux_de_protection, peut_reinitialiser, peut_reinitialiser_cible,
-    reinitialiser_mot_de_passe,
 )
-from . import preferences
+from . import preferences, reinitialisation, securite
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, est_administrateur_technique, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, est_administrateur_general, est_administrateur_technique, user_role_level
 from matrix.core.saisie import entier_ou_none, entiers_valides, identifiant_d_url, verifier_longueurs
 from matrix.core.permissions import ManageUsersPermission
 from matrix.core.scopes import (
@@ -35,7 +34,12 @@ from matrix.core.organisation import votre_niveau
 
 
 # Seules actions de l'annuaire ouvertes à un administrateur technique sans autorité métier ; il ne désigne personne.
-ACTIONS_ANNUAIRE_TECHNIQUES = ("set_password", "bulk_reset_passwords", "set_technique")
+ACTIONS_ANNUAIRE_TECHNIQUES = ("set_password", "bulk_reset_passwords")
+# Gouvernance de l'administrateur général (AC-15, AC-19) : désigner commandant et second, rattacher les marins, droits techniques.
+ACTIONS_ANNUAIRE_GOUVERNANCE = (
+    "create_user", "edit_user", "bulk_update_role", "bulk_update_ship", "bulk_update_service", "bulk_update_sector",
+    "bulk_update_section", "set_technique",
+)
 # Au-delà de chef de service, ou pour un compte cumulant une autorité, la réinitialisation revient à l'administrateur général
 # (niveau de protection : accounts/services.py).
 ROLES_REINITIALISABLES_PAR_TECHNIQUE = (Roles.EQUIPIER, Roles.CHEF_SECTION, Roles.CHEF_SECTEUR, Roles.CHEF_SERVICE)
@@ -49,8 +53,8 @@ def _role_attribution_autorisee(acting_user, role_cible):
     même règle. Empêche par exemple un COMMANDANT de s'auto-attribuer (ou d'attribuer
     à un tiers) le rôle MASTER_ADMIN (l'ancien rôle ADMIN_NAVIRE n'existe plus).
     """
-    if is_master_admin(acting_user):
-        return True
+    if est_administrateur_general(acting_user):
+        return role_cible in ManageUsersPermission.ROLES_DE_GOUVERNANCE
     profile = getattr(acting_user, "profile", None)
     acting_role = profile.role if profile else None
     allowed = ManageUsersPermission.MANAGE_MAP.get(acting_role, set())
@@ -95,7 +99,7 @@ def _utilisateurs_gerables_par(acting_user):
         if est_administrateur_technique(acting_user):
             condition |= Q(profile__role__in=ROLES_REINITIALISABLES_PAR_TECHNIQUE, profile__administrateur_technique=False)
         qs = qs.filter(perimetre_navire_q(acting_user, "profile__"), condition).exclude(
-            Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True))
+            Q(profile__administrateur_general=True) | Q(is_superuser=True))
     return qs
 
 
@@ -138,9 +142,9 @@ def _referentiels_formulaire(user):
     return ctx
 
 
-def _page_mots_de_passe_provisoires(request, provisoires):
-    """Affiche une seule fois les mots de passe provisoires (jamais redirigé, jamais mis en cache)."""
-    reponse = render(request, "accounts/mots_de_passe_provisoires.html", {"provisoires": provisoires})
+def _page_codes_de_reinitialisation(request, codes):
+    """Affiche une seule fois les codes de réinitialisation (jamais redirigé, jamais mis en cache)."""
+    reponse = render(request, "accounts/codes_reinitialisation.html", {"codes": codes})
     reponse["Cache-Control"] = "no-store"
     return reponse
 
@@ -163,10 +167,12 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # déjà connecté mais dont le rôle est insuffisant. Le commandant en
         # second consulte l'annuaire (lecture) sans pouvoir y écrire.
         seuil = NIVEAU_VISION_COMMANDEMENT if request.method in ("GET", "HEAD") else RoleLevel.COMMANDANT
+        action = request.POST.get("action")
         technique = est_administrateur_technique(request.user) and (
-            request.method in ("GET", "HEAD") or request.POST.get("action") in ACTIONS_ANNUAIRE_TECHNIQUES
+            request.method in ("GET", "HEAD") or action in ACTIONS_ANNUAIRE_TECHNIQUES
         )
-        if request.user.is_authenticated and user_role_level(request.user) < seuil and not technique:
+        gouvernance = est_administrateur_general(request.user) and action in ACTIONS_ANNUAIRE_GOUVERNANCE
+        if request.user.is_authenticated and user_role_level(request.user) < seuil and not technique and not gouvernance:
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
@@ -201,12 +207,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         ctx["peut_confirmer_fonctions"] = fonctions.peut_decider(self.request.user)
         ctx["fonctions_en_attente"] = fonctions.nombre_en_attente(self.request.user)
         # Colonnes d'actions affichées : autorité métier, ou administrateur technique qui peut réinitialiser un mot de passe.
-        ctx["peut_gerer"] = ctx["peut_gerer_metier"] or (est_administrateur_technique(self.request.user) and ctx["peut_reinitialiser"])
+        ctx["peut_gouverner"] = est_administrateur_general(self.request.user)
+        ctx["peut_gerer"] = ctx["peut_gerer_metier"] or ctx["peut_gouverner"] or (est_administrateur_technique(self.request.user) and ctx["peut_reinitialiser"])
         comptes = list(ctx["users"])
         niveaux = niveaux_de_protection(comptes)
         competence = niveau_de_competence(self.request.user)
         ctx["reinitialisables_ids"] = {u.pk for u in comptes if u.pk != self.request.user.pk and niveaux[u.pk] <= competence}
-        ctx["peut_gerer_droits_techniques"] = est_administrateur_technique(self.request.user)
+        ctx["peut_gerer_droits_techniques"] = est_administrateur_general(self.request.user)
         ctx["droits_techniques_ids"] = (
             {u.pk for u in comptes if u.pk != self.request.user.pk and niveaux[u.pk] < PROTECTION_RECUPERATION}
             if ctx["peut_gerer_droits_techniques"] else set()
@@ -282,7 +289,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         action = request.POST.get("action")
         if user_role_level(request.user) < RoleLevel.COMMANDANT and not (
             est_administrateur_technique(request.user) and action in ACTIONS_ANNUAIRE_TECHNIQUES
-        ):
+        ) and not (est_administrateur_general(request.user) and action in ACTIONS_ANNUAIRE_GOUVERNANCE):
             raise PermissionDenied
         # Actions groupées
         if action in ("bulk_update_role", "bulk_update_ship", "bulk_update_fonction", "bulk_update_service", "bulk_update_sector", "bulk_update_section", "bulk_update_grade", "bulk_update_specialite", "bulk_delete_users", "bulk_reset_passwords"):
@@ -407,13 +414,14 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     raise PermissionDenied
                 cibles = [u for u in users if u.pk != request.user.pk]
                 niveaux, competence = niveaux_de_protection(cibles), niveau_de_competence(request.user)
-                provisoires = [
-                    (u, reinitialiser_mot_de_passe(request.user, u, verifie=True)) for u in cibles if niveaux[u.pk] <= competence
-                ]
-                if not provisoires:
+                codes = []
+                for u in (c for c in cibles if niveaux[c.pk] <= competence):
+                    demande, code = reinitialisation.initier(request.user, u)
+                    codes.append((u, demande, code))
+                if not codes:
                     messages.warning(request, "Aucun marin de votre bâtiment à réinitialiser.")
                     return redirect("user-directory")
-                return _page_mots_de_passe_provisoires(request, provisoires)
+                return _page_codes_de_reinitialisation(request, codes)
             return redirect("user-directory")
         if action == "create_user":
             email = request.POST.get("email", "").strip()
@@ -608,28 +616,27 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             except User.DoesNotExist:
                 pass
         elif action == "set_technique":
-            # Droits techniques : administrateur technique du bâtiment ou administrateur général (AC-11), jamais sur soi-même.
-            if not est_administrateur_technique(request.user):
+            # Droits techniques : l'administrateur général seul les attribue et les révoque (AC-19), jamais sur soi-même.
+            if not est_administrateur_general(request.user):
                 raise PermissionDenied
             cible = get_user_model().objects.filter(
                 perimetre_navire_q(request.user, "profile__") if not is_master_admin(request.user) else Q()
-            ).exclude(Q(is_superuser=True) | Q(profile__role=Roles.MASTER_ADMIN)).filter(pk=entier_ou_none(request.POST.get("pk"))).first()
+            ).exclude(Q(is_superuser=True) | Q(profile__administrateur_general=True)).filter(pk=entier_ou_none(request.POST.get("pk"))).first()
             if cible is None:
                 messages.error(request, "Marin introuvable dans votre bâtiment.")
             elif cible.pk == request.user.pk:
                 messages.error(request, "Vous ne modifiez pas vos propres droits techniques.")
+            elif not request.POST.get("justification", "").strip():
+                messages.error(request, "Une justification est obligatoire pour attribuer ou révoquer des droits techniques.")
             else:
                 valeur = request.POST.get("valeur") == "1"
                 profil, _ = UserProfile.objects.get_or_create(user=cible)
-                if profil.administrateur_technique and not valeur and not is_master_admin(request.user):
-                    # La gestion des administrateurs techniques existants revient à l'administrateur général (AC-11).
-                    raise PermissionDenied
                 if profil.administrateur_technique != valeur:
                     profil.administrateur_technique = valeur
                     profil.save(update_fields=["administrateur_technique"])
                     AuditLog.objects.create(
                         actor=request.user, action="changement_droits_techniques", target_user=cible,
-                        details=f"administrateur_technique={not valeur} -> {valeur}",
+                        details=f"administrateur_technique={not valeur} -> {valeur}; justification={request.POST['justification'].strip()[:300]}",
                     )
                 messages.success(request, "Droits techniques mis à jour.")
         elif action == "set_password":
@@ -646,7 +653,8 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             if not peut_reinitialiser_cible(request.user, cible):
                 messages.error(request, "Ce compte porte une autorité ou des droits d'administration : seul l'administrateur général le réinitialise.")
                 return redirect("user-directory")
-            return _page_mots_de_passe_provisoires(request, [(cible, reinitialiser_mot_de_passe(request.user, cible))])
+            demande, code = reinitialisation.initier(request.user, cible)
+            return _page_codes_de_reinitialisation(request, [(cible, demande, code)])
         return redirect("user-directory")
 
 
@@ -656,7 +664,8 @@ class UserFormView(LoginRequiredMixin, TemplateView):
     template_name = "accounts/utilisateur_form.html"
 
     def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT:
+        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT \
+                and not est_administrateur_general(request.user):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
@@ -798,7 +807,7 @@ class UserSettingsView(LoginRequiredMixin, ListView):
     context_object_name = "grades"
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_superuser:
+        if not est_administrateur_general(request.user):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
@@ -854,13 +863,10 @@ class ChangerMotDePasseView(LoginRequiredMixin, PasswordChangeView):
         return form
 
     def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx["provisoire"] = bool(getattr(self.request.user.profile, "mot_de_passe_provisoire", False))
-        return ctx
+        return super().get_context_data(**kwargs)
 
     def form_valid(self, form):
         reponse = super().form_valid(form)
-        UserProfile.objects.filter(user=self.request.user).update(mot_de_passe_provisoire=False, mot_de_passe_provisoire_expire_le=None)
         AuditLog.objects.create(actor=self.request.user, action="changement_mot_de_passe", target_user=self.request.user)
         messages.success(self.request, "Mot de passe modifié.")
         return reponse
@@ -898,3 +904,46 @@ class FonctionsAConfirmerView(LoginRequiredMixin, View):
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
         return redirect("fonctions-a-confirmer")
+
+
+class VerificationsIdentiteView(LoginRequiredMixin, View):
+    """Second responsable : valide l'identité du titulaire d'un compte porteur d'autorité et reçoit le second code."""
+
+    def get(self, request):
+        return render(request, "accounts/verifications_identite.html", {"demandes": reinitialisation.demandes_a_verifier_par(request.user)})
+
+    def post(self, request):
+        try:
+            demande, code = reinitialisation.verifier_identite(request.user, entier_ou_none(request.POST.get("pk")))
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+            return redirect("verifications-identite")
+        reponse = render(request, "accounts/codes_reinitialisation.html", {"codes": [(demande.user, demande, code)], "verificateur": True})
+        reponse["Cache-Control"] = "no-store"
+        return reponse
+
+
+class ReinitialisationMotDePasseView(View):
+    """Page publique du titulaire : définit son nouveau mot de passe avec le ou les codes qui lui ont été remis."""
+
+    def get(self, request):
+        return render(request, "registration/reinitialisation.html", {})
+
+    def post(self, request):
+        from django.contrib.auth.password_validation import validate_password  # noqa: F401
+        mot_de_passe, confirmation = request.POST.get("nouveau_mot_de_passe", ""), request.POST.get("confirmation", "")
+        erreurs = []
+        if mot_de_passe != confirmation:
+            erreurs.append("Les deux mots de passe saisis diffèrent.")
+        else:
+            try:
+                reinitialisation.utiliser(
+                    request.POST.get("identifiant", ""), request.POST.get("code_initiateur", ""), request.POST.get("code_verificateur", ""),
+                    mot_de_passe, source=securite.source_de(request))
+                messages.success(request, "Votre mot de passe est défini : vous pouvez vous connecter.")
+                return redirect("login")
+            except ValidationError as exc:
+                erreurs.extend(exc.messages)
+        reponse = render(request, "registration/reinitialisation.html", {"erreurs": erreurs, "identifiant": request.POST.get("identifiant", "")}, status=400)
+        reponse["Cache-Control"] = "no-store"
+        return reponse

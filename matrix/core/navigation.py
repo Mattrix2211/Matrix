@@ -22,7 +22,7 @@ from dashboard.templatetags.dashboard_extras import (
     peut_voir_vue_flotte,
 )
 from matrix.core.modules import module_actif_pour_user
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, est_administrateur_technique, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, est_administrateur_general, est_administrateur_technique, user_role_level
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 
 
@@ -55,7 +55,7 @@ def _url_parametres(user):
     # Seul le superutilisateur voit tous les onglets ; les autres n'ont que leurs
     # réglages personnels (même règle que SettingsView).
     base = reverse("settings")
-    return base if user.is_superuser else f"{base}?tab=notifications"
+    return base if est_administrateur_general(user) else f"{base}?tab=notifications"
 
 
 GROUPES = [

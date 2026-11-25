@@ -3,7 +3,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.views.static import serve as serve_static
 from .views import logout_then_login, SettingsView
-from accounts.web_views import ChangerMotDePasseView
+from accounts.web_views import ChangerMotDePasseView, ReinitialisationMotDePasseView
 from django.conf import settings
 from .views import global_search, recherche_rapide
 from .core.brouillons import BrouillonView
@@ -25,6 +25,7 @@ urlpatterns = [
     ),
     path("accounts/password_change/", ChangerMotDePasseView.as_view(), name="password_change"),
     # Pas de réinitialisation par e-mail (inutilisable à bord) : seules la connexion et le changement sont exposés.
+    path("reinitialisation/", ReinitialisationMotDePasseView.as_view(), name="reinitialisation-mot-de-passe"),
     path("accounts/login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html")),
     path("logout/", logout_then_login, name="logout"),
