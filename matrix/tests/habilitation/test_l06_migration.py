@@ -5,7 +5,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 AVANT = ("accounts", "0023_protection_suppression_unites")
-APRES = ("accounts", "0027_echec_connexion")
+APRES = ("accounts", "0029_securite_reinitialisation_administrateur_general")
 
 
 class MigrationAdministrateursTests(TransactionTestCase):
@@ -80,3 +80,43 @@ class MigrationAdministrateursTests(TransactionTestCase):
         profils = {p.user.username: p.role for p in retour.get_model("accounts", "UserProfile").objects.select_related("user")}
         self.assertEqual(profils["admin_doublon"], "ADMIN_NAVIRE")
         self.assertEqual(profils["admin_modifie"], "CHEF_SECTION")  # rôle changé depuis : jamais écrasé
+
+
+class MigrationsAdministrateurGeneralEtProvisoiresTests(TransactionTestCase):
+    """0028 : MASTER_ADMIN devient un indicateur sans fonction métier ; 0029 : plus de mot de passe provisoire valable."""
+
+    def _migrer(self, cible):
+        executeur = MigrationExecutor(connection)
+        executeur.migrate([cible])
+        return executeur.loader.project_state([cible]).apps
+
+    def tearDown(self):
+        self._migrer(APRES)
+
+    def test_administrateur_general_converti_sans_attribution_puis_retour_arriere(self):
+        base = self._migrer(("accounts", "0027_echec_connexion"))
+        User, Profil = base.get_model("auth", "User"), base.get_model("accounts", "UserProfile")
+        general, commandant, superuser = (User.objects.create(username=n) for n in ("general", "cdt", "su"))
+        User.objects.filter(pk=superuser.pk).update(is_superuser=True)
+        for utilisateur, role in ((general, "MASTER_ADMIN"), (commandant, "COMMANDANT"), (superuser, "EQUIPIER")):
+            Profil.objects.update_or_create(user=utilisateur, defaults={"role": role})
+        apres = self._migrer(("accounts", "0028_administrateur_general"))
+        Profil = apres.get_model("accounts", "UserProfile")
+        etat = {p.user.username: (p.role, p.administrateur_general) for p in Profil.objects.select_related("user")}
+        self.assertEqual(etat, {"general": ("EQUIPIER", True), "cdt": ("COMMANDANT", False), "su": ("EQUIPIER", False)})
+        self.assertEqual(apres.get_model("accounts", "AuditLog").objects.filter(action="l06_migration_administrateur_general").count(), 1)
+        retour = self._migrer(("accounts", "0027_echec_connexion"))
+        self.assertEqual(retour.get_model("accounts", "UserProfile").objects.get(user__username="general").role, "MASTER_ADMIN")
+        self.assertFalse(retour.get_model("accounts", "AuditLog").objects.filter(action="l06_migration_administrateur_general").exists())
+
+    def test_un_mot_de_passe_provisoire_existant_est_invalide(self):
+        base = self._migrer(("accounts", "0028_administrateur_general"))
+        User, Profil = base.get_model("auth", "User"), base.get_model("accounts", "UserProfile")
+        marin = User.objects.create(username="provisoire", password="pbkdf2_sha256$1$x$y")
+        normal = User.objects.create(username="normal", password="pbkdf2_sha256$1$x$y")
+        Profil.objects.update_or_create(user=marin, defaults={"mot_de_passe_provisoire": True})
+        Profil.objects.update_or_create(user=normal, defaults={"mot_de_passe_provisoire": False})
+        apres = self._migrer(("accounts", "0029_securite_reinitialisation_administrateur_general"))
+        User = apres.get_model("auth", "User")
+        self.assertTrue(User.objects.get(username="provisoire").password.startswith("!"))
+        self.assertEqual(User.objects.get(username="normal").password, "pbkdf2_sha256$1$x$y")

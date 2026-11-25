@@ -3,6 +3,7 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
   <h1 class="h3 mb-0">Annuaire — {{ users|length }} utilisateur{{ users|length|pluralize }}</h1>
+  {% if peut_verifier_identite %}<a class="btn btn-outline-secondary" href="{% url 'verifications-identite' %}">Vérifications d'identité{% if verifications_en_attente %} <span class="badge text-bg-warning">{{ verifications_en_attente }}</span>{% endif %}</a>{% endif %}
   {% if peut_confirmer_fonctions %}<a class="btn btn-outline-secondary" href="{% url 'fonctions-a-confirmer' %}">Fonctions à confirmer{% if fonctions_en_attente %} <span class="badge text-bg-warning">{{ fonctions_en_attente }}</span>{% endif %}</a>{% endif %}
   {% if peut_gerer and not equipage_a_terre %}
   {% if peut_gerer_metier %}<a class="btn btn-primary" href="{% url 'user-create' %}{% if request.GET.ship %}?ship={{ request.GET.ship|urlencode }}{% endif %}">{% icone "ajout" %} Nouvel utilisateur</a>{% endif %}

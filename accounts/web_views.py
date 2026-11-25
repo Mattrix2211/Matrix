@@ -208,6 +208,8 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         ctx["fonctions_en_attente"] = fonctions.nombre_en_attente(self.request.user)
         # Colonnes d'actions affichées : autorité métier, ou administrateur technique qui peut réinitialiser un mot de passe.
         ctx["peut_gouverner"] = est_administrateur_general(self.request.user)
+        ctx["peut_verifier_identite"] = niveau_de_competence(self.request.user) > 0
+        ctx["verifications_en_attente"] = len(reinitialisation.demandes_a_verifier_par(self.request.user)) if ctx["peut_verifier_identite"] else 0
         ctx["peut_gerer"] = ctx["peut_gerer_metier"] or ctx["peut_gouverner"] or (est_administrateur_technique(self.request.user) and ctx["peut_reinitialiser"])
         comptes = list(ctx["users"])
         niveaux = niveaux_de_protection(comptes)

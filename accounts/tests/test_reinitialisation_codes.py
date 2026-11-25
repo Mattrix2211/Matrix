@@ -215,3 +215,19 @@ class VerificationIndependanteTests(MondeCodes):
         refus.force_login(self.marin)
         self.assertEqual(refus.post(reverse("verifications-identite"), {"pk": pk}).status_code, 302)
         self.assertEqual(DemandeReinitialisation.objects.get(pk=pk).verificateur, self.technique2)
+
+
+class InterfaceVerificationTests(MondeCodes):
+    def test_le_lien_et_le_compteur_ne_sont_proposes_qu_aux_responsables_competents(self):
+        reinitialisation.initier(self.technique, self.chef_service)
+        verificateur = Client()
+        verificateur.force_login(self.technique2)
+        page = verificateur.get(reverse("user-directory"))
+        self.assertContains(page, "Vérifications d'identité")
+        self.assertEqual(page.context["verifications_en_attente"], 1)
+        initiateur = Client()
+        initiateur.force_login(self.technique)
+        self.assertEqual(initiateur.get(reverse("user-directory")).context["verifications_en_attente"], 0)  # pas la sienne
+        simple = Client()
+        simple.force_login(self.commandant)
+        self.assertNotContains(simple.get(reverse("user-directory")), "Vérifications d'identité")
