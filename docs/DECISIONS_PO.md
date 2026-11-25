@@ -237,3 +237,29 @@ Le paramétrage peut renforcer ces exigences, jamais les abaisser ; suppléances
 **AC-08 — suppression des données Rondes.** Procédure : (1) inventaire des données et dépendances ; (2) obligations de conservation ; (3) sauvegarde et restauration vérifiée ; (4) export si nécessaire ; (5) bilan présenté au PO ; (6) autorisation explicite de destruction ; (7) suppression des données, tables et composants ; (8) intégrité des autres modules sur SQLite et PostgreSQL. Sans donnée : preuve de l'absence. **La validation de la procédure n'autorise pas la destruction.**
 
 Points du §8 désormais tranchés : 1 (AC-02), 3 (AC-03), 4 (AC-04, habilitation de consultation), 5 (AC-05), 6 (AC-06 : fondations communes, distinction métier), 7 (AC-07), 8 (AC-08, procédure). Le point 2 est tranché pour le sort des comptes (AC-01) ; le **modèle technique** retenu par L06 est décrit dans `docs/recette/L06_MIGRATION_ET_PREUVES.md`.
+
+## 10. Arbitrages du PO sur le rapport intermédiaire L06 (AC-09 à AC-14)
+
+Six décisions tranchent les questions soumises au rapport intermédiaire de L06 (`2fa183a`) ; elles prévalent sur tout comportement antérieur contradictoire, y compris ceux de la première version de L06.
+
+| Alias | Identifiant proposé | Sujet | Précise ou remplace | Lot | Critères |
+|---|---|---|---|---|---|
+| AC-09 | `DEC-DRT-14` | Initialisation des premières autorités (option A) | AC-01 (procédure d'initialisation) ; proposition `L06_PROPOSITION_INITIALISATION.md` | L06 | CA-L06-10 |
+| AC-10 | `DEC-DRT-15` | Désignation du commandant en second | AC-02 (tableau non exhaustif) | L06 | CA-L06-11 |
+| AC-11 | `DEC-DRT-16` | Séparation des trois niveaux d'administration | ARB-01 ; point « administrateur général » | L06 (L37 inchangé) | CA-L06-12 |
+| AC-12 | `DEC-DRT-17` | Réinitialisation des mots de passe | première version de L06 (comptes non réinitialisables) | L06 | CA-L06-13 |
+| AC-13 | `DEC-DRT-18` | Modification des seuils métier | **remplace** « l'administrateur technique peut renforcer un seuil » | L06 (délégations : L08) | CA-L06-14 |
+| AC-14 | `DEC-DRT-19` | Fonctions métier à confirmer | AC-01 (fonction non établie) | L06 | CA-L06-15 |
+
+**AC-09 — initialisation des premières autorités.** Commande d'installation exécutée localement par un installateur autorisé, une seule fois par bâtiment (`manage.py initialiser_autorites_batiment`) : désignation explicite du premier commandant sur référence d'une autorisation préalable, désignation indépendante du premier administrateur technique, cumul possible mais jamais automatique (`--accepter-cumul`), traçabilité complète, verrouillage par bâtiment (unicité en base) et protection contre les exécutions simultanées. Aucun mot de passe par défaut, identifiant codé en dur ni authentification alternative permanente. La récupération des accès est une procédure exceptionnelle séparée (`manage.py recuperer_acces_administrateur`).
+
+**AC-10 — commandant en second.** Le commandant et l'administrateur général enregistrent et révoquent la désignation ; l'administrateur technique du bâtiment ne l'a pas ; le second ne se l'attribue pas et ne désigne pas son successeur ; tout est historisé ; la fonction reste distincte de la suppléance du commandant (L08).
+
+**AC-11 — trois niveaux d'administration.** *Administrateur général Matrix* : gouvernance globale, création et administration des bâtiments, désignation des commandants et seconds, gestion des administrateurs techniques, administration technique globale ; aucun droit métier courant automatique. *Administrateur technique du bâtiment* : administration technique de son périmètre, droits techniques autorisés, maintenance et configuration ; aucun droit métier automatique ; aucune désignation d'autorité métier. *Superutilisateur Django* : interventions techniques exceptionnelles, distinct de l'administrateur général, jamais un profil métier courant. Le cumul explicite reste possible. La frontière de confiance (un superutilisateur ou un opérateur ayant accès à la base peut contourner les contrôles applicatifs) est documentée dans `docs/recette/L06_MIGRATION_ET_PREUVES.md` §12 avec les mesures d'exploitation.
+
+**AC-12 — réinitialisation des mots de passe.** Équipier à chef de service : administrateur technique ; commandant adjoint, second, commandant, administrateur technique : administrateur général ; administrateur général : procédure sécurisée de récupération. En cas de cumul ou de désignation effective, le niveau de protection le plus élevé s'applique. Garanties : aucun accès au mot de passe existant ; mot de passe provisoire à usage unique, d'une validité limitée ; nouveau mot de passe choisi par le titulaire ; sessions ouvertes invalidées ; titulaire notifié ; opération tracée sans secret ; essais répétés verrouillés ; fonctionnement hors Internet. La **remise** du mot de passe provisoire reste orale, par l'autorité habilitée : si le PO veut un autre moyen de remise, c'est un arbitrage supplémentaire.
+
+**AC-13 — seuils métier.** Un administrateur technique seul ne renforce ni n'abaisse aucun seuil métier, ne modifie aucun circuit de validation métier et ne contourne aucun plancher ; il consulte les seuils et règle les paramètres techniques de son périmètre. Les modifications métier relèvent du commandant ou d'une autorité explicitement habilitée (délégations : L08, non anticipées). Les planchers ne s'abaissent jamais ; tout est historisé.
+
+**AC-14 — fonctions à confirmer.** Espace « Fonctions à confirmer » dans l'administration du personnel : liste des comptes concernés par la migration, ancienne fonction, confirmation, correction ou refus par l'autorité compétente, droits techniques conservés indépendamment, décisions historisées, compteur des demandes en attente. Une fonction non confirmée ne confère aucun droit. Concurrence, double traitement et auto-attribution empêchés ; cohérence données migrées, journal d'audit et décisions vérifiée.
+

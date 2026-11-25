@@ -10,7 +10,10 @@ from django.contrib.auth.views import PasswordChangeView
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
-from .services import peut_reinitialiser, peut_reinitialiser_cible, reinitialiser_mot_de_passe
+from .services import (
+    PROTECTION_RECUPERATION, niveau_de_competence, niveaux_de_protection, peut_reinitialiser, peut_reinitialiser_cible,
+    reinitialiser_mot_de_passe,
+)
 from . import preferences
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
@@ -32,7 +35,7 @@ from matrix.core.organisation import votre_niveau
 
 
 # Seules actions de l'annuaire ouvertes à un administrateur technique sans autorité métier ; il ne désigne personne.
-ACTIONS_ANNUAIRE_TECHNIQUES = ("set_password", "bulk_reset_passwords")
+ACTIONS_ANNUAIRE_TECHNIQUES = ("set_password", "bulk_reset_passwords", "set_technique")
 # Au-delà de chef de service, ou pour un compte cumulant une autorité, la réinitialisation revient à l'administrateur général
 # (niveau de protection : accounts/services.py).
 ROLES_REINITIALISABLES_PAR_TECHNIQUE = (Roles.EQUIPIER, Roles.CHEF_SECTION, Roles.CHEF_SECTEUR, Roles.CHEF_SERVICE)
@@ -199,6 +202,15 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         ctx["fonctions_en_attente"] = fonctions.nombre_en_attente(self.request.user)
         # Colonnes d'actions affichées : autorité métier, ou administrateur technique qui peut réinitialiser un mot de passe.
         ctx["peut_gerer"] = ctx["peut_gerer_metier"] or (est_administrateur_technique(self.request.user) and ctx["peut_reinitialiser"])
+        comptes = list(ctx["users"])
+        niveaux = niveaux_de_protection(comptes)
+        competence = niveau_de_competence(self.request.user)
+        ctx["reinitialisables_ids"] = {u.pk for u in comptes if u.pk != self.request.user.pk and niveaux[u.pk] <= competence}
+        ctx["peut_gerer_droits_techniques"] = est_administrateur_technique(self.request.user)
+        ctx["droits_techniques_ids"] = (
+            {u.pk for u in comptes if u.pk != self.request.user.pk and niveaux[u.pk] < PROTECTION_RECUPERATION}
+            if ctx["peut_gerer_droits_techniques"] else set()
+        )
         # Actions proposées seulement sur les comptes que le serveur accepterait de modifier.
         ctx["gerables_ids"] = set(
             _utilisateurs_gerables_par(self.request.user).filter(pk__in=[u.pk for u in ctx["users"]]).values_list("pk", flat=True)
@@ -594,6 +606,28 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Utilisateur {user.username} mis à jour.")
             except User.DoesNotExist:
                 pass
+        elif action == "set_technique":
+            # Droits techniques : administrateur technique du bâtiment ou administrateur général (AC-11), jamais sur soi-même.
+            if not est_administrateur_technique(request.user):
+                raise PermissionDenied
+            cible = get_user_model().objects.filter(
+                perimetre_navire_q(request.user, "profile__") if not is_master_admin(request.user) else Q()
+            ).exclude(Q(is_superuser=True) | Q(profile__role=Roles.MASTER_ADMIN)).filter(pk=entier_ou_none(request.POST.get("pk"))).first()
+            if cible is None:
+                messages.error(request, "Marin introuvable dans votre bâtiment.")
+            elif cible.pk == request.user.pk:
+                messages.error(request, "Vous ne modifiez pas vos propres droits techniques.")
+            else:
+                valeur = request.POST.get("valeur") == "1"
+                profil = cible.profile
+                if profil.administrateur_technique != valeur:
+                    profil.administrateur_technique = valeur
+                    profil.save(update_fields=["administrateur_technique"])
+                    AuditLog.objects.create(
+                        actor=request.user, action="changement_droits_techniques", target_user=cible,
+                        details=f"administrateur_technique={not valeur} -> {valeur}",
+                    )
+                messages.success(request, "Droits techniques mis à jour.")
         elif action == "set_password":
             if not peut_reinitialiser(request.user):
                 raise PermissionDenied

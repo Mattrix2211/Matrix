@@ -10,7 +10,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from matrix.core.role_thresholds import niveau_pour_action, niveau_requis_pour
-from matrix.core.roles import RoleLevel, est_administrateur_technique, user_role_level
+from matrix.core.roles import ROLE_TO_LEVEL, RoleLevel, est_administrateur_technique
 from matrix.core.scopes import is_master_admin
 
 from .models import AuditLog, UserProfile
@@ -51,18 +51,39 @@ PROTECTION_GENERALE = 2  # administrateur général : autorités du bâtiment, a
 PROTECTION_RECUPERATION = 3  # administrateur général Matrix, superutilisateur : procédure de récupération
 
 
+def niveaux_de_protection(comptes):
+    """{identifiant: niveau de protection} pour une liste de comptes, d'après le rôle ET les habilitations et désignations
+    effectives (quelques requêtes quel que soit le nombre de comptes). Le niveau le plus élevé l'emporte."""
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    ids = [c.pk for c in comptes]
+    profils = {p["user_id"]: p for p in UserProfile.objects.filter(user_id__in=ids).values(
+        "user_id", "role", "administrateur_technique", "fonction_coma")}
+    drapeaux = {u["pk"]: u for u in User.objects.filter(pk__in=ids).values("pk", "is_superuser", "is_staff")}
+    avec_droits = set(User.objects.filter(pk__in=ids, groups__isnull=False).values_list("pk", flat=True))
+    avec_droits |= set(User.objects.filter(pk__in=ids, user_permissions__isnull=False).values_list("pk", flat=True))
+    designes = set()
+    for relation in DESIGNATIONS:
+        designes |= set(User.objects.filter(pk__in=ids, **{f"{relation}__isnull": False}).values_list("pk", flat=True))
+    resultat = {}
+    for pk in ids:
+        profil, compte = profils.get(pk, {}), drapeaux.get(pk, {})
+        role = profil.get("role", "")
+        if compte.get("is_superuser") or role == "MASTER_ADMIN":
+            resultat[pk] = PROTECTION_RECUPERATION
+        elif (
+            ROLE_TO_LEVEL.get(role, RoleLevel.EQUIPIER) >= RoleLevel.ETAT_MAJOR or profil.get("administrateur_technique")
+            or profil.get("fonction_coma") or compte.get("is_staff") or pk in avec_droits or pk in designes
+        ):
+            resultat[pk] = PROTECTION_GENERALE
+        else:
+            resultat[pk] = PROTECTION_TECHNIQUE
+    return resultat
+
+
 def niveau_de_protection(cible):
-    """Niveau de protection d'un compte, d'après son rôle ET ses habilitations et désignations effectives."""
-    profil = getattr(cible, "profile", None)
-    role = profil.role if profil else ""
-    if cible.is_superuser or role == "MASTER_ADMIN":
-        return PROTECTION_RECUPERATION
-    if (
-        user_role_level(cible) >= RoleLevel.ETAT_MAJOR or (profil and (profil.administrateur_technique or profil.fonction_coma))
-        or cible.is_staff or cible.groups.exists() or cible.user_permissions.exists() or porte_une_designation(cible)
-    ):
-        return PROTECTION_GENERALE
-    return PROTECTION_TECHNIQUE
+    return niveaux_de_protection([cible])[cible.pk]
 
 
 def niveau_de_competence(acteur):

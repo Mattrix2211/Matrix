@@ -197,6 +197,7 @@ web|taches/commentaire/<int:pk>/|POST|WEB-TACHES
 web|taches/|GET,POST|WEB-TACHES
 web|users/barre-laterale/|POST|WEB-COMPTES
 web|users/batiment/|POST|WEB-COMPTES
+web|users/fonctions-a-confirmer/|GET,POST|WEB-COMPTES
 web|users/preferences/|POST|WEB-COMPTES
 web|users/theme/|POST|WEB-COMPTES
 web|users/|GET,POST|WEB-COMPTES

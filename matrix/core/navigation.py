@@ -22,7 +22,7 @@ from dashboard.templatetags.dashboard_extras import (
     peut_voir_vue_flotte,
 )
 from matrix.core.modules import module_actif_pour_user
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, est_administrateur_technique, user_role_level
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 
 
@@ -39,6 +39,11 @@ class Entree:
 
 def _commandant_ou_plus(user):
     return user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT
+
+
+def _annuaire_accessible(user):
+    # Même droit que la vue : commandement (lecture) ou administrateur technique (droits techniques, mots de passe).
+    return _commandant_ou_plus(user) or est_administrateur_technique(user)
 
 
 def _a_un_batiment_ou_admin_general(user):
@@ -98,7 +103,7 @@ GROUPES = [
         Entree("Classes de navire", "classe_navire", "dashboard-classe-navire-choix", droit=peut_voir_dashboard_classe_navire),
     ]),
     ("Administration", [
-        Entree("Annuaire", "annuaire", "user-directory", droit=_commandant_ou_plus),
+        Entree("Annuaire", "annuaire", "user-directory", droit=_annuaire_accessible),
         Entree("Paramètres", "parametres", "settings", url_utilisateur=_url_parametres),
     ]),
 ]

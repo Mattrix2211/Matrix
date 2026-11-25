@@ -85,7 +85,7 @@
       <tr>
         {% if peut_gerer and not equipage_a_terre %}<td class="mx-annuaire__case">{% if u.id in gerables_ids %}<input type="checkbox" value="{{ u.id }}" class="row-select" aria-label="Sélectionner {{ u.username }}" />{% endif %}</td>{% endif %}
         <td>{% if u.get_full_name %}<strong>{{ u.get_full_name }}</strong> <span class="font-mono text-muted">{{ u.username }}</span>{% else %}<span class="font-mono">{{ u.username }}</span>{% endif %}</td>
-        <td>{{ u.profile.get_role_display|default:"—" }}</td>
+        <td>{{ u.profile.get_role_display|default:"—" }}{% if u.profile.administrateur_technique %} <span class="badge text-bg-secondary">Technique</span>{% endif %}</td>
         <td>{{ u.profile.grade|default:"—" }}</td>
         <td>{{ u.profile.specialite|default:"—" }}</td>
         <td class="font-mono">{{ u.profile.matricule|default:"—" }}</td>
@@ -95,14 +95,17 @@
         <td>{% if u.profile.service %}{{ u.profile.service.name }}{% if u.profile.sector %} › {{ u.profile.sector.name }}{% if u.profile.section %} › {{ u.profile.section.name }}{% endif %}{% endif %}{% elif u.profile.sector %}{{ u.profile.sector.name }}{% else %}—{% endif %}</td>
         {% if peut_gerer and not equipage_a_terre %}
         <td class="mx-annuaire__menu">
-          {% if u.id in gerables_ids %}
+          {% if u.id in gerables_ids or u.id in droits_techniques_ids or u.id in reinitialisables_ids %}
           {% menu_contextuel libelle="Actions sur "|add:u.username %}
             {% url 'user-edit' u.id as url_modifier %}
-            {% if peut_gerer_metier %}{% include "components/menu_item.html" with libelle="Modifier" url=url_modifier icone="modification" %}{% endif %}
-            {% if peut_reinitialiser and u.id != request.user.id %}
+            {% if peut_gerer_metier and u.id in gerables_ids %}{% include "components/menu_item.html" with libelle="Modifier" url=url_modifier icone="modification" %}{% endif %}
+            {% if u.id in droits_techniques_ids %}
+            <li><form method="post" class="px-3 py-1">{% csrf_token %}<input type="hidden" name="action" value="set_technique" /><input type="hidden" name="pk" value="{{ u.id }}" />{% if u.profile.administrateur_technique %}<input type="hidden" name="valeur" value="0" /><button type="submit" class="btn btn-link btn-sm p-0">Retirer les droits techniques</button>{% else %}<input type="hidden" name="valeur" value="1" /><button type="submit" class="btn btn-link btn-sm p-0">Attribuer les droits techniques</button>{% endif %}</form></li>
+            {% endif %}
+            {% if u.id in reinitialisables_ids %}
             <li><button type="button" class="dropdown-item mx-menu__item" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-pk="{{ u.id }}" data-username="{{ u.username }}">{% icone "mot_de_passe" %}<span>Réinitialiser le mot de passe</span></button></li>
             {% endif %}
-            {% if u.id != request.user.id %}
+            {% if u.id != request.user.id and u.id in gerables_ids %}
             {% if peut_gerer_metier %}<li><button type="button" class="dropdown-item mx-menu__item mx-menu__item--danger" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_user" data-pk="{{ u.id }}" data-label="Supprimer l'utilisateur {{ u.username }}">{% icone "suppression" %}<span>Supprimer</span></button></li>{% endif %}
             {% endif %}
           {% fin_menu_contextuel %}

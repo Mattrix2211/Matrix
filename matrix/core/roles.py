@@ -59,6 +59,26 @@ def est_administrateur_technique(user) -> bool:
     return bool(profile and (profile.administrateur_technique or profile.role == "MASTER_ADMIN"))
 
 
+GENERAL, TECHNIQUE, SUPERUTILISATEUR_DJANGO = "general", "technique", "superutilisateur_django"
+
+
+def statuts_d_administration(user) -> frozenset:
+    """Statuts d'administration distincts d'un compte (AC-11), cumulables : administrateur général Matrix (rôle),
+    administrateur technique du bâtiment (indicateur), superutilisateur Django (intervention exceptionnelle). Aucun n'est
+    un profil métier : le niveau métier vient du seul rôle hiérarchique."""
+    if not getattr(user, "is_authenticated", False) or not user.is_active:
+        return frozenset()
+    profile = getattr(user, "profile", None)
+    statuts = set()
+    if profile and profile.role == "MASTER_ADMIN":
+        statuts.add(GENERAL)
+    if profile and profile.administrateur_technique:
+        statuts.add(TECHNIQUE)
+    if user.is_superuser:
+        statuts.add(SUPERUTILISATEUR_DJANGO)
+    return frozenset(statuts)
+
+
 def niveau_ecriture(user) -> RoleLevel:
     """Niveau pris en compte par les seuils d'écriture sur les données du bord : le soutien à terre et le
     commandant en second retombent au niveau équipier (ils gardent `user_role_level` pour la lecture et
