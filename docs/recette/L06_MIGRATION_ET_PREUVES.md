@@ -135,21 +135,45 @@ Un administrateur général qui s'est vu **explicitement attribuer** un rôle m�
 | A25 sur l'alerte de stock | tâche planifiée active malgré le module désactivé | **restant** (L34) |
 | A3 (seuil de publication), A4 (second, écran et API) | | **restants** (L08) |
 
+Preuves exécutées héritées de L29 : les règles `ADMIN-ORGANISATION` (V30, administration Django de l'organisation) et `WEB-QUARTS` (V31, création d'une liste de quarts) ne figurent plus parmi les règles sans preuve exécutée ; V30 et V31 sont rejouées par la matrice des profils.
+
 Nouvelles vérifications : V13 (organisation), V15 (modules), V16, V25 (attribution de rôle par le web), V18 (désignation légitime par l'API), V19, V20 (droits techniques), V21, V24, V26 (seuils), V22, V23 (mot de passe).
 
 ## 8. Tests existants adaptés
 
-46 fichiers de tests ont été modifiés ou ajoutés. Règle appliquée : un test qui créait un « administrateur d'unité » pour exercer un acte métier crée désormais un commandant ; un test qui exerçait un droit technique crée un administrateur technique ; un test qui affirmait qu'un droit disparu était acquis a été réécrit pour affirmer le nouveau refus. Aucun test n'a été supprimé ni ignoré.
+87 fichiers de tests ont été modifiés (75) ou ajoutés (12). Règle appliquée : un test qui créait un « administrateur d'unité » pour exercer un acte métier crée désormais un commandant ; un test qui exerçait un droit technique crée un administrateur technique ; un test qui affirmait qu'un droit disparu était acquis a été réécrit pour affirmer le nouveau refus. Aucun test n'a été supprimé ni ignoré.
 
 Changements observables voulus par les décisions : le commandant en second ne gère plus les modules ; l'état-major ne désigne plus les chefs de service ; le commandant peut modifier la structure, l'administration de l'unité et le fuseau (il le pouvait déjà via ses seuils configurables, désormais plancher) ; la désignation du commandant en second et du commandant n'est plus possible que par l'administrateur général.
 
 ## 9. Résultats des tests
 
-__RESULTATS__
+Commande : `python manage.py test --parallel 4 --noinput` (SQLite, puis PostgreSQL 16 temporaire). Le code final testé et relu est **`be7cb5d`** ; les commits suivants ne modifient que `docs/` (`git diff --name-only be7cb5d..HEAD`).
+
+| Exécution | Moteur | Tests | Résultat | Ignorés |
+|---|---|---|---|---|
+| Référence `c355310` (L29 validé) | SQLite / PostgreSQL | 4021 / 4021 | OK / OK | 20 / 22 |
+| Intermédiaire `326387b` | SQLite / PostgreSQL | 4045 / 4045 | OK / OK | 20 / 22 |
+| Intermédiaire `e004ee6` | SQLite / PostgreSQL | 4083 / 4083 | OK / OK | 20 / 22 |
+| Intermédiaire `e91e7e5` | SQLite | 4124 | OK | 20 |
+| Intermédiaire `886075a` | SQLite / PostgreSQL | 4135 / 4135 | OK / OK | 20 / 22 |
+| **Final `be7cb5d`** | SQLite / PostgreSQL | **4139 / 4139** | **OK / OK** | 20 / 22 |
+
++118 tests par rapport à la référence ; aucun test supprimé ni affaibli, aucun ignoré en plus. Migrations 0024 à 0029 rejouées sur le code final, sur les deux moteurs, avec données fictives : migration, retour arrière à 0023, restauration depuis sauvegarde (§17). Journaux complets, empreintes et rapports de relecture : `docs/recette/preuves/L06_preuves.tar.gz` (§14).
 
 ## 10. Relectures indépendantes
 
-__RELECTURES__
+| # | Code relu | Verdict | Suite donnée |
+|---|---|---|---|
+| 1 | `fb51920` | À corriger | corrigé |
+| 2 | `dedb41d` | À corriger | corrigé |
+| 3 | `7621ade` | Valide avec réserves | réserves traitées |
+| 4 | `432733e` | Valide avec réserves | réserves traitées |
+| 5 | `e004ee6` | Valide avec réserves | AC-15 à AC-21 à consolider (instruction du PO) |
+| 6 | `e91e7e5` | **À corriger** : B1 auto-attribution du commandement par l'annuaire web, B2 exigence commune rendue locale, B3 opérateurs homonymes, I1 blocage des codes par un tiers, I2 compteurs non bornés, I3 web plus permissif que l'API, I4 preuves ADMIN-ORGANISATION et WEB-QUARTS, I5 exigence locale affaiblissante, M1 à M9 | tout corrigé (`886075a`) |
+| 7 | `886075a` | **À corriger** : I5 contournable (valeurs booléennes, formulaire sans case, rôle élargi) | contrôle déplacé dans le sérialiseur sur les valeurs finales (`be7cb5d`) |
+| 8 | `be7cb5d` | **Favorable, aucun bloquant** | code final |
+
+La huitième relecture a sondé l'API réelle (POST, PUT, PATCH, JSON, multipart, valeurs booléennes diverses, changement de cours, de rôle, de cible) et rejoué par échantillon B1 à B3, I1 à I3, M1 à M5, M8 et AC-15 à AC-21. Résiduels non bloquants relevés : **M-a** l'unique exigence commune d'un cours ne peut pas être transformée en locale non requise en une seule requête (refus 400 ; contournable en deux étapes, sans effet) ; **M-b** ordre inverse non contrôlé (une commune remise à « requise » après une locale facultative) : aucun code ne consomme encore les exigences, à traiter en L38 ; **M-c** une locale ancienne non requise ne peut plus changer de rôle ni de cours quand une commune apparaît (suppression possible) ; **M-d** case décochée = faux (sans effet de sécurité) ; **M-e** l'interface `/admin/` de Django écrit hors sérialiseur (réservée au superutilisateur, intervention technique, §12) ; **M-f** les migrations 0024, 0028 et 0029 ont été corrigées sur place : sans conséquence tant qu'aucun environnement n'a appliqué une version antérieure ; **toute base de recette qui l'aurait fait doit être recréée ou recevoir une migration 0030 avant déploiement**. Bloquent un déploiement futur seulement : M-e, M-f et la limite du mandataire inverse (§12) ; rien ne bloque la clôture de L06.
 
 ## 11. Réserves : corrigées et résiduelles
 
