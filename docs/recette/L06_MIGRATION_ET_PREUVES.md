@@ -94,6 +94,13 @@ Superutilisateur Django : accès à l'administration Django et, aujourd'hui, mê
 | CA-L06-7 Migration des comptes sans élévation, réversible | `test_l06_migration`, procédure du §4 sur SQLite et PostgreSQL |
 | CA-L06-8 Aucune déduction de fonction | `test_aucun_droit_metier_deduit_du_statut_d_administrateur`, migration |
 | CA-L06-9 Droits légitimes préservés | V18, V22, V25 ; suites complètes inchangées hors tests adaptés (§7) |
+| CA-L06-10 Initialisation unique et verrouillée, sans secret ni contournement permanent | `accounts/tests/test_initialisation_et_recuperation.py` (usage unique, contrainte en base, cumul explicite, administrateur général refusé, récupération séparée et sans secret dans l'audit) |
+| CA-L06-11 Commandant en second désigné et révoqué par le commandant ou l'administrateur général seulement | `matrix/tests/habilitation/test_l06_statuts.py` (désignation, révocation, historique, refus technique, état-major, second) ; `test_core_permissions` |
+| CA-L06-12 Trois statuts d'administration distincts, cumul explicite | `statuts_d_administration` (`test_l06_statuts`) ; limites et question au PO : §12 et §13 |
+| CA-L06-13 Réinitialisation selon le niveau de protection le plus élevé, provisoire, expirante, sessions révoquées, titulaire notifié, essais répétés verrouillés | `accounts/tests/test_reinitialisation_ac12.py` ; V22, V23 ; `test_l06_autorites` (échéance non modifiable, comptes d'administration Django, retrait des droits d'un pair) ; test des relations vers le compte |
+| CA-L06-14 Aucun seuil métier modifiable par l'administrateur technique seul ; planchers intacts ; modifications historisées | V24, V26, V21 ; `SeuilsTechniqueTests` |
+| CA-L06-15 Fonction non confirmée sans droit ; confirmation, correction, refus ; concurrence, auto-attribution, cohérence | `accounts/tests/test_fonctions_a_confirmer.py` ; `test_l06_migration` (demande créée par la migration) |
+| Parité web / API / administration, accès directs aux fonctions masquées | `test_l06_statuts` (`InterfaceTechniqueTests`, parité), `test_l06_autorites` (`ApiProfilsTests`) |
 
 ## 7. Écarts L29 : corrigés par L06 et restants
 
@@ -117,30 +124,32 @@ Changements observables voulus par les décisions : le commandant en second ne g
 
 ## 9. Résultats des tests
 
-Suites complètes (`manage.py test --parallel 4`), même machine, mêmes réglages, sur l'état final `326387b` du lot ; référence = `c355310` (L29) exécutée dans les mêmes conditions.
+Suites complètes (`manage.py test --parallel 4 --noinput`), même machine, mêmes réglages. Références : `c355310` (L29) et l'état intermédiaire `326387b` (code de `2fa183a`).
 
 | Exécution | Moteur | Tests | Résultat | Ignorés |
 |---|---|---|---|---|
 | Référence `c355310` | SQLite | 4021 | OK | 20 |
 | Référence `c355310` | PostgreSQL 16 | 4021 | OK | 22 |
-| Lot L06 `326387b` | SQLite | 4045 | OK | 20 |
-| Lot L06 `326387b` | PostgreSQL 16 | 4045 | OK | 22 |
+| Intermédiaire `326387b` | SQLite | 4045 | OK | 20 |
+| Intermédiaire `326387b` | PostgreSQL 16 | 4045 | OK | 22 |
+| **Final `e004ee6`** | SQLite | **4083** | OK | 20 |
+| **Final `e004ee6`** | PostgreSQL 16 | **4083** | OK | 22 |
 
-Écart : +24 tests (nouveaux tests L06 : autorités, API des profils, seuils, migration ; vérifications V26 ajoutée), aucun test supprimé ni ignoré en plus. Les ignorés sont les mêmes que ceux de la référence sur chaque moteur. Un test sensible à l'heure (`test_poste_vacant_visible_sans_relève_interne`, proche de minuit) a échoué une fois sur un essai intermédiaire, sans lien avec le lot ; il passe seul, sur la référence et sur l'exécution finale.
++62 tests par rapport à la référence ; aucun supprimé ni affaibli ; mêmes tests ignorés qu'en référence sur chaque moteur. Les tests existants modifiés l'ont été par décision du PO (§8 et AC-10, AC-12, AC-13) : commandant en second désigné par le commandant ; la réinitialisation relève de l'administration technique même si son seuil est abaissé ; l'administrateur technique ne règle plus un seuil métier ; le compte d'un administrateur technique est modifiable pour sa fonction métier. Le test dépendant de l'heure (`test_poste_vacant_visible_sans_relève_interne`) est fiabilisé sans toucher à ses assertions.
 
-Migration, retour arrière et restauration rejoués sur la migration finale (SQLite et PostgreSQL, données fictives, un doublon de fonction inclus) : 3 comptes convertis en équipier + droits techniques, 3 lignes d'audit, aucune promotion ; retour arrière et restauration depuis sauvegarde identiques à l'état initial sur les deux moteurs.
-
-Journaux : `l06_final_cand_sqlite.log`, `l06_final_cand_pg.log`, `l06_full_base_sqlite.log`, `l06_full_base_pg.log` (hors dépôt).
+Migrations 0024 à 0027, retour arrière et restauration, rejoués sur les deux moteurs avec des données fictives : 3 administrateurs convertis en équipier + droits techniques, 3 lignes d'audit, 1 fonction à confirmer en attente, aucune anomalie de cohérence ; retour arrière et restauration identiques à l'état initial (`migration_sqlite.log`, `migration_pg.log` de l'archive, §14).
 
 ## 10. Relectures indépendantes
 
 | Relecture | État relu | Verdict | Suites |
 |---|---|---|---|
-| 1 | `fb51920` | **À corriger** : un technique pouvait désigner une fonction par l'API, élargir son périmètre, retirer son drapeau par un envoi multipart ; droits techniques non tracés ; seuils ; désignations ; migration | corrigées dans `dedb41d` |
-| 2 | `dedb41d` | **À corriger** : un technique abaissait des seuils de circuits (auto-élévation) ; désignations incomplètes ; migration promouvant sur simple présence de fonction ; seuil stocké au palier obsolète ; test creux | corrigées dans `24b26b8`, `7621ade` |
-| 3 | `7621ade` | **Valide avec réserves**, aucun bloquant, aucune élévation métier trouvée ; une correction demandée avant fusion (comptes d'administration Django réinitialisables) et cinq mineurs | corrigés dans `326387b` (comptes `is_staff`/groupes/droits exclus, fonction retirée de la fiche et restituée au retour arrière, audit avant/après dans l'administration Django, message au lieu d'une page 403, `mot_de_passe_provisoire` en lecture seule) ; suites complètes rejouées sur `326387b` |
+| 1 | `fb51920` | **À corriger** (désignation de fonction par l'API, périmètre, drapeau, traçabilité, seuils, désignations, migration) | corrigées dans `dedb41d` |
+| 2 | `dedb41d` | **À corriger** (abaissement de seuils de circuits, désignations incomplètes, promotion à la migration, seuil au palier obsolète, test creux) | corrigées dans `24b26b8`, `7621ade` |
+| 3 | `7621ade` | Valide avec réserves (comptes d'administration Django réinitialisables, mineurs) | corrigées dans `326387b` |
+| 4 | `432733e` (lot complet, AC-09 à AC-14) | Valide avec réserves : échéance du mot de passe provisoire modifiable par l'API, verrouillage local au processus, retrait des droits d'un pair puis reprise de son compte, mineurs | corrigées dans `e004ee6` |
+| 5 | **`e004ee6`, état final testé** | **Valide avec réserves, aucun bloquant, aucune élévation de privilège, aucun défaut n'exige de correction du code** | — |
 
-Réserve non reprise : un test énumérant toutes les relations du modèle utilisateur pour détecter une désignation oubliée (voir §11). Les corrections de la troisième relecture sont limitées ; l'état final `326387b` est couvert par les suites complètes et par la preuve de migration, mais n'a pas fait l'objet d'une quatrième relecture écrite.
+La dernière relecture favorable porte exactement sur le dernier état de code testé (`e004ee6`) ; les commits suivants ne modifient que la documentation et l'archive des preuves. Mineurs de la relecture 5, non corrigés (aucun ne justifiait de rouvrir le code) : compteur d'échecs non atomique sur SQLite (pertes d'incréments, `database is locked` possible sous forte concurrence ; PostgreSQL : verrou de ligne) ; table `EchecConnexion` sans purge (une ligne par identifiant essayé) ; une requête API Basic fausse compte deux échecs. Ils sont repris au §13.
 
 ## 11. Réserves du rapport intermédiaire : corrigées et résiduelles
 
@@ -172,9 +181,10 @@ Les contrôles de Matrix sont **applicatifs**. Un superutilisateur Django, un op
 4. **Durée de validité du mot de passe provisoire** (48 h par défaut) et **seuil d'essais** (5 essais, 15 minutes) : configurables par l'environnement ; valeurs à confirmer.
 5. **Gestion des administrateurs techniques** : l'administrateur technique d'un bâtiment attribue les droits techniques à un compte qui n'en a pas ; **le retrait** des droits d'un administrateur technique existant est réservé à l'administrateur général (sinon un technique pourrait retirer les droits d'un pair puis réinitialiser son mot de passe). Faut-il aussi réserver l'attribution à l'administrateur général ?
 7. **Catalogue de formations** : tout administrateur technique de bâtiment écrit le catalogue commun à la flotte (comportement hérité de l'ancien administrateur d'unité). Est-ce compatible avec « aucun droit métier automatique » ?
-8. **Risques acceptés** : (a) un administrateur technique obtient l'autorité complète d'un chef de service en réinitialisant son compte (garde-fous : trace et notification du titulaire) ; (b) quiconque connaît un identifiant peut le verrouiller 15 minutes ; (c) le mot de passe provisoire ouvre plusieurs sessions jusqu'au changement obligatoire ou à l'expiration ; (d) un retour arrière de la migration ne restaure pas un compte dont le rôle a changé depuis (par exemple après confirmation d'une fonction).
+8. **Mineurs de la relecture finale, non corrigés** : compteur d'échecs de connexion non atomique sur SQLite ; table `EchecConnexion` sans purge ; une requête API Basic fausse compte deux échecs (verrou plus strict en API).
+9. **Risques acceptés** : (a) un administrateur technique obtient l'autorité complète d'un chef de service en réinitialisant son compte (garde-fous : trace et notification du titulaire) ; (b) quiconque connaît un identifiant peut le verrouiller 15 minutes ; (c) le mot de passe provisoire ouvre plusieurs sessions jusqu'au changement obligatoire ou à l'expiration ; (d) un retour arrière de la migration ne restaure pas un compte dont le rôle a changé depuis (par exemple après confirmation d'une fonction).
 6. **Délégations** : la désignation d'une autorité habilitée à modifier les seuils (AC-13, AC-02) attend L08.
 
 ## 14. Archive des preuves
 
-`L06_preuves.tar.gz` : références Git testées, environnements, commandes, résultats complets, journaux de migration et de restauration, rapports de relecture, empreinte SHA-256 (fichier `SHA256SUMS`), après vérification de l'absence de secrets. Fournie séparément au PO ; un chemin temporaire n'est pas un archivage durable.
+`docs/recette/preuves/L06_preuves.tar.gz` (empreinte SHA-256 dans `L06_preuves.tar.gz.sha256`, même dossier) : références Git testées, environnements, commandes, résultats complets, journaux de migration et de restauration, rapports de relecture, empreinte SHA-256 (fichier `SHA256SUMS`), après vérification de l'absence de secrets. Fournie séparément au PO ; un chemin temporaire n'est pas un archivage durable.
