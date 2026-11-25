@@ -108,11 +108,30 @@ Changements observables voulus par les décisions : le commandant en second ne g
 
 ## 9. Résultats des tests
 
-__RESULTATS__
+Suites complètes (`manage.py test --parallel 4`), même machine, mêmes réglages, sur l'état final `326387b` du lot ; référence = `c355310` (L29) exécutée dans les mêmes conditions.
+
+| Exécution | Moteur | Tests | Résultat | Ignorés |
+|---|---|---|---|---|
+| Référence `c355310` | SQLite | 4021 | OK | 20 |
+| Référence `c355310` | PostgreSQL 16 | 4021 | OK | 22 |
+| Lot L06 `326387b` | SQLite | 4045 | OK | 20 |
+| Lot L06 `326387b` | PostgreSQL 16 | 4045 | OK | 22 |
+
+Écart : +24 tests (nouveaux tests L06 : autorités, API des profils, seuils, migration ; vérifications V26 ajoutée), aucun test supprimé ni ignoré en plus. Les ignorés sont les mêmes que ceux de la référence sur chaque moteur. Un test sensible à l'heure (`test_poste_vacant_visible_sans_relève_interne`, proche de minuit) a échoué une fois sur un essai intermédiaire, sans lien avec le lot ; il passe seul, sur la référence et sur l'exécution finale.
+
+Migration, retour arrière et restauration rejoués sur la migration finale (SQLite et PostgreSQL, données fictives, un doublon de fonction inclus) : 3 comptes convertis en équipier + droits techniques, 3 lignes d'audit, aucune promotion ; retour arrière et restauration depuis sauvegarde identiques à l'état initial sur les deux moteurs.
+
+Journaux : `l06_final_cand_sqlite.log`, `l06_final_cand_pg.log`, `l06_full_base_sqlite.log`, `l06_full_base_pg.log` (hors dépôt).
 
 ## 10. Relectures indépendantes
 
-__RELECTURES__
+| Relecture | État relu | Verdict | Suites |
+|---|---|---|---|
+| 1 | `fb51920` | **À corriger** : un technique pouvait désigner une fonction par l'API, élargir son périmètre, retirer son drapeau par un envoi multipart ; droits techniques non tracés ; seuils ; désignations ; migration | corrigées dans `dedb41d` |
+| 2 | `dedb41d` | **À corriger** : un technique abaissait des seuils de circuits (auto-élévation) ; désignations incomplètes ; migration promouvant sur simple présence de fonction ; seuil stocké au palier obsolète ; test creux | corrigées dans `24b26b8`, `7621ade` |
+| 3 | `7621ade` | **Valide avec réserves**, aucun bloquant, aucune élévation métier trouvée ; une correction demandée avant fusion (comptes d'administration Django réinitialisables) et cinq mineurs | corrigés dans `326387b` (comptes `is_staff`/groupes/droits exclus, fonction retirée de la fiche et restituée au retour arrière, audit avant/après dans l'administration Django, message au lieu d'une page 403, `mot_de_passe_provisoire` en lecture seule) ; suites complètes rejouées sur `326387b` |
+
+Réserve non reprise : un test énumérant toutes les relations du modèle utilisateur pour détecter une désignation oubliée (voir §11). Les corrections de la troisième relecture sont limitées ; l'état final `326387b` est couvert par les suites complètes et par la preuve de migration, mais n'a pas fait l'objet d'une quatrième relecture écrite.
 
 ## 11. Anomalies résiduelles et points à arbitrer
 
