@@ -1,6 +1,7 @@
 """Barre supérieure (docs/UX.md §8) : identité visible, déconnexion en un clic
 (POST + CSRF), sélecteur de bâtiment réservé aux utilisateurs à terre et validé
 côté serveur contre leur périmètre."""
+from matrix.tests.utilitaires import administrateur_general
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -45,9 +46,11 @@ class IdentiteTests(BarreSuperieureTestCase):
         self.assertContains(reponse, "marin_sans_nom")
         self.assertContains(reponse, "Équipier")
 
-    def test_superutilisateur_affiche_administrateur_general(self):
-        admin = User.objects.create_superuser(username="root_barre", password="pass", email="r@r.fr")
+    def test_administrateur_general_affiche_son_statut_et_le_superutilisateur_django_non(self):
+        admin = administrateur_general(User.objects.create_superuser(username="root_barre", password="pass", email="r@r.fr"))
         self.assertContains(self._connecte(admin), "Administrateur général")
+        simple = User.objects.create_superuser(username="su_barre", password="pass", email="s@s.fr")
+        self.assertNotContains(self._connecte(simple), "Administrateur général")
 
     def test_barre_dans_un_repere_banniere(self):
         reponse = self._connecte(self._marin("repere", ship=self.alsace))

@@ -14,6 +14,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import UserProfile
+from matrix.tests.utilitaires import administrateur_general
 
 
 class OngletNotificationsReglagesTests(TestCase):
@@ -28,9 +29,9 @@ class OngletNotificationsReglagesTests(TestCase):
         )
         UserProfile.objects.filter(user=self.autre_equipier).update(role="EQUIPIER")
 
-        self.superuser = User.objects.create_superuser(
+        self.superuser = administrateur_general(User.objects.create_superuser(
             username="admin_test", email="admin@navy.fr", password="pass",
-        )
+        ))
 
         self.url = reverse("settings")
 

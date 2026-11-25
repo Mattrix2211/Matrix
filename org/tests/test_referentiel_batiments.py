@@ -5,6 +5,7 @@ from django.test import TestCase
 
 from org.data import referentiel_batiments as donnees
 from org.models import ReferenceBatiment, Ship, TypeBatiment
+from matrix.tests.utilitaires import administrateur_general
 
 
 def importer():
@@ -104,7 +105,7 @@ class TracabiliteArchivageTests(TestCase):
 
     def setUp(self):
         from django.contrib.auth.models import User
-        self.admin = User.objects.create_superuser(username="admin_ref", password="pass", email="a@b.test")
+        self.admin = administrateur_general(User.objects.create_superuser(username="admin_ref", password="pass", email="a@b.test"))
         self.client.force_login(self.admin)
         self.reference = ReferenceBatiment.objects.create(nom="Ancien bâtiment", numero_coque="X 001")
 

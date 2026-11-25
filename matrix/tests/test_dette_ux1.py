@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from org.models import Ship
+from matrix.tests.utilitaires import administrateur_general
 
 
 class FragmentsHtmxTests(TestCase):
@@ -27,7 +28,7 @@ class EntreesTransversesTests(TestCase):
     def test_master_admin_sans_specialite_ni_classe_ne_voit_pas_les_entrees(self):
         from dashboard.templatetags.dashboard_extras import peut_voir_dashboard_classe_navire, peut_voir_dashboard_specialite
 
-        admin = User.objects.create_superuser("root", password="pass")
+        admin = administrateur_general(User.objects.create_superuser("root", password="pass"))
         self.assertFalse(peut_voir_dashboard_specialite(admin))
         self.assertFalse(peut_voir_dashboard_classe_navire(admin))
         Ship.objects.create(name="Classé", code="CL", classe_navire="FREMM")
@@ -46,22 +47,27 @@ class BatimentCourantTests(TestCase):
         self.provence = Ship.objects.create(name="Provence", code="D652")
         Anomalie.objects.create(titre="Fuite ALSACE-X", ship=self.alsace)
         Anomalie.objects.create(titre="Fuite PROVENCE-X", ship=self.provence)
-        self.admin = User.objects.create_superuser("terre_admin", password="pass")
+        self.admin = administrateur_general(User.objects.create_user("terre_admin", password="pass"))
         self.client.force_login(self.admin)
 
     def _liste(self):
         return self.client.get(reverse("anomalie-list") + "?vue=perimetre").content.decode()
 
     def test_sans_choix_toute_la_flotte_puis_filtre_sur_le_batiment_courant(self):
-        page = self._liste()
-        self.assertTrue("ALSACE-X" in page)
-        self.assertTrue("PROVENCE-X" in page)
-        session = self.client.session
-        session[self.cle] = self.provence.pk
-        session.save()
-        page = self._liste()
-        self.assertTrue("PROVENCE-X" in page)
-        self.assertFalse("ALSACE-X" in page)
+        # Le filtre du bâtiment courant s'applique à la portée « flotte entière » de l'administrateur général (la lecture
+        # systématique des anomalies n'étant pas conférée par son statut, AC-15, on éprouve la portée elle-même).
+        from logistics.models import Anomalie
+        from matrix.core.contexte_batiment import batiment_filtre
+        from matrix.core.mixins import build_scope_q
+
+        q = build_scope_q(self.admin, "")
+        self.assertEqual(set(Anomalie.objects.filter(q).values_list("titre", flat=True)), {"Fuite ALSACE-X", "Fuite PROVENCE-X"})
+        jeton = batiment_filtre.set(self.provence.pk)
+        try:
+            self.assertEqual(set(Anomalie.objects.filter(build_scope_q(self.admin, "")).values_list("titre", flat=True)),
+                             {"Fuite PROVENCE-X"})
+        finally:
+            batiment_filtre.reset(jeton)
 
     def test_choix_hors_perimetre_ignore(self):
         marin = User.objects.create_user("simple", password="pass")

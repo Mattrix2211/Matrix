@@ -31,7 +31,7 @@ class ScopeTrainingRequirementTests(TestCase):
         )
 
         self.chef_a = User.objects.create_user(username="chef_exigence_a", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef_a, defaults={"role": "CHEF_SECTION", "ship": self.ship_a})
+        UserProfile.objects.update_or_create(user=self.chef_a, defaults={"role": "COMMANDANT", "ship": self.ship_a})  # exigence locale : commandement (AC-20)
 
         self.commandant = User.objects.create_user(username="commandant_exigence", password="pass")
         UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "MASTER_ADMIN"})

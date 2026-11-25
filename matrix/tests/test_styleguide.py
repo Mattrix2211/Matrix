@@ -39,7 +39,7 @@ class AccesTests(TestCase):
         self.client.force_login(creer("an", Roles.EQUIPIER, technique=True))
         self.assertEqual(self.client.get(URL).status_code, 200)
         self.client.force_login(creer("root", is_superuser=True))
-        self.assertEqual(self.client.get(URL).status_code, 200)
+        self.assertEqual(self.client.get(URL).status_code, 403)  # le superutilisateur Django n'est pas un administrateur technique
 
 
 class ContenuTests(TestCase):

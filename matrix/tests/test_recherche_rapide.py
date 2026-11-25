@@ -14,6 +14,7 @@ from logistics.models import Anomalie, CorrectiveTicket
 from matrix.core import recherche
 from org.models import ModuleActivation, Sector, Section, Service, Ship
 from training.models import TrainingCourse
+from matrix.tests.utilitaires import administrateur_general
 
 URL = "recherche-rapide"
 
@@ -119,7 +120,7 @@ class PerimetreTests(RechercheRapideTestCase):
 
     def test_maitre_voit_la_flotte(self):
         self._marin("zebre_ailleurs", "EQUIPIER", ship=self.autre_navire, last_name="Zebrelle")
-        admin = User.objects.create_superuser(username="root", password="pass", email="r@r.fr")
+        admin = administrateur_general(User.objects.create_superuser(username="root", password="pass", email="r@r.fr"))
         self.assertContains(self.chercher(admin, "Zebrelle"), "Zebrelle")
 
     def test_resultat_marin_sans_lien_pour_equipier_avec_lien_pour_commandant(self):

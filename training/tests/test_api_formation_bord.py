@@ -133,7 +133,7 @@ class FuiteEcritureAPITests(TestCase):
 
     def test_creation_ignore_gere_par_le_bord_et_statut_force(self):
         admin = User.objects.create_user(username="api_admin_catalogue", password="pass")
-        UserProfile.objects.update_or_create(user=admin, defaults={"role": "EQUIPIER", "administrateur_technique": True, "ship": self.ship})
+        UserProfile.objects.update_or_create(user=admin, defaults={"role": "EQUIPIER", "administrateur_general": True, "ship": self.ship})
         r = self._login(admin).post("/api/training/courses/", {
             "title": "Formation créée via API",
             "gere_par_le_bord": True,
@@ -296,7 +296,7 @@ class PermissionEcritureCircuitBordAPITests(TestCase):
         )
         self.assertEqual(r.status_code, 403)
         admin = User.objects.create_user(username="api_admin_organisme", password="pass")
-        UserProfile.objects.update_or_create(user=admin, defaults={"role": "EQUIPIER", "administrateur_technique": True, "section": self.section_b})
+        UserProfile.objects.update_or_create(user=admin, defaults={"role": "EQUIPIER", "administrateur_general": True, "section": self.section_b})
         r = self._login(admin).patch(
             f"/api/training/courses/{organisme.id}/", {"title": "Formation organisme modifiée"}, format="json",
         )

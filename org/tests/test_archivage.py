@@ -296,7 +296,7 @@ class MaterielEtComptesDesactivesTests(BaseArchivage):
     def test_l_affectation_en_masse_d_installations_a_une_section_archivee_est_refusee(self):
         archivage.archiver(self.autre_section, self.admin)
         installation = Installation.objects.create(designation="Pompe", ship=self.navire, service=self.service, sector=self.secteur)
-        self.client.force_login(self.admin)
+        self.client.force_login(self.admin_navire)
         reponse = self.client.post(reverse("installation-list"), {
             "action": "bulk_update_section", "selected_ids": [str(installation.pk)], "section_id": self.autre_section.pk}, follow=True)
         installation.refresh_from_db()
@@ -305,7 +305,7 @@ class MaterielEtComptesDesactivesTests(BaseArchivage):
 
     def test_l_affectation_en_masse_a_une_section_active_reste_possible(self):
         installation = Installation.objects.create(designation="Pompe", ship=self.navire, service=self.service, sector=self.secteur)
-        self.client.force_login(self.admin)
+        self.client.force_login(self.admin_navire)
         self.client.post(reverse("installation-list"), {
             "action": "bulk_update_section", "selected_ids": [str(installation.pk)], "section_id": self.section.pk}, follow=True)
         installation.refresh_from_db()
@@ -352,7 +352,7 @@ class StockEtListesTests(BaseArchivage):
         self.autre_section.refresh_from_db()
         Sector.objects.filter(pk=self.secteur.pk).update(archived=False)
         self.secteur_archive = Sector.objects.create(service=self.service, name="Hors service", archived=True)
-        self.client.force_login(self.admin)
+        self.client.force_login(self.admin_navire)
 
     def _piece(self, secteur=None, **extra):
         secteur = secteur or self.secteur
@@ -407,7 +407,7 @@ class FormationEtCatalogueTests(BaseArchivage):
         self.autre_section.refresh_from_db()
         self.cours = TrainingCourse.objects.create(title="Lutte incendie")
         self.api = APIClient()
-        self.api.force_authenticate(self.admin)
+        self.api.force_authenticate(self.admin_navire)
 
     def test_une_nouvelle_exigence_de_formation_ne_peut_pas_cibler_une_unite_archivee(self):
         reponse = self.api.post("/api/training/requirements/", {"course": self.cours.pk, "applies_to_section": self.autre_section.pk}, format="json")

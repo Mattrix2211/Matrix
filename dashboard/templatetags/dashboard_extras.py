@@ -2,7 +2,7 @@ from django import template
 
 from accounts.models import SpecialityChoice
 from dashboard.comanav import peut_voir_vue_comanav as _peut_voir_vue_comanav
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, est_administrateur_general, user_role_level
 from matrix.core.scopes import is_master_admin
 from org.models import Ship
 
@@ -18,7 +18,7 @@ def peut_voir_vue_flotte(user):
     flotte selon son rôle, cf. dashboard.web_views._perimetre_agregation)."""
     if not getattr(user, "is_authenticated", False):
         return False
-    return user_role_level(user) >= RoleLevel.CHEF_SECTION
+    return user_role_level(user) >= RoleLevel.CHEF_SECTION or est_administrateur_general(user)
 
 
 @register.filter

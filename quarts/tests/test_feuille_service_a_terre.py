@@ -94,9 +94,9 @@ class FeuilleParEquipageTests(TestCase):
             for action in ("viser_secteur", "viser_service", "viser_comaeq", "proposer", "enregistrer_entete"):
                 self.assertIn(self._post(nom, action, "?equipage=B").status_code, (403, 404), f"{nom} {action}")
         self.assertEqual(self._feuille("B").statut, FeuilleService.STATUT_VISA_COMAEQ)
-        # La lecture reste possible, avec choix de l'équipage affiché.
+        # Le travail en cours du circuit reste réservé à ses acteurs : l'administrateur général n'y accède pas par son statut.
         self.client.force_login(self.maitre)
-        self.assertEqual(self.client.get(self.url + "?equipage=B").status_code, 200)
+        self.assertEqual(self.client.get(self.url + "?equipage=B").status_code, 403)
 
     def test_requete_forgee_d_un_autre_equipage_n_atteint_pas_la_feuille(self):
         self._circuit("B")
@@ -141,10 +141,13 @@ class FeuilleParEquipageTests(TestCase):
         self.assertEqual(self._feuille("A").statut, FeuilleService.STATUT_PUBLIEE)
         self.assertEqual(self._feuille("B").statut, FeuilleService.STATUT_PUBLIEE)
 
-    def test_administrateur_general_lit_sans_pouvoir_ecrire(self):
+    def test_administrateur_general_lit_la_feuille_publiee_sans_pouvoir_ecrire(self):
+        # AC-15 : il consulte le contenu commun publié ; le travail en cours du circuit de validation n'est pas le sien.
         self._circuit("A")
         FeuilleService.objects.create(ship=self.ship, equipage="B", date=self.jour, created_by=self.maitre)
         self.client.force_login(self.maitre)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+        FeuilleService.objects.filter(ship=self.ship).update(statut=FeuilleService.STATUT_PUBLIEE)
         for suffixe in ("", "?equipage=A", "?equipage=B"):
             reponse = self.client.get(self.url + suffixe)
             self.assertEqual(reponse.status_code, 200, suffixe)

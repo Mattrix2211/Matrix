@@ -58,7 +58,7 @@ class FuitesInterNaviresTests(BaseComanav):
             marin = self._marin(nom, "EQUIPIER", navire)
             TrainingRecord.objects.create(
                 user=marin, course=cours, completed_at=aujourdhui, expires_at=aujourdhui + timedelta(days=5))
-        admin = self._marin("admin_flotte", "MASTER_ADMIN", None)
+        admin = self._marin("admin_flotte", "COMMANDANT", self.navire)
         self.client.force_login(admin)
         session = self.client.session
         session[CLE_SESSION] = self.navire.pk

@@ -22,6 +22,7 @@ from org.models import ParametresPassation, ReleveEquipage, Sector, Service, Shi
 from quarts.models import CreneauServiceGarde, ServiceGarde
 from taches.models import Tache
 from training.models import TrainingCourse, TrainingRecord
+from matrix.tests.utilitaires import administrateur_general
 
 User = get_user_model()
 
@@ -238,7 +239,7 @@ class EchecGenerationTests(PassationBase):
         self.verifier_releve_intacte(proposition)
 
     def test_echec_n_annule_pas_la_validation_de_secours(self):
-        admin = User.objects.create_superuser("admin_s", password="pass")
+        admin = administrateur_general(User.objects.create_superuser("admin_s", password="pass"))
         proposition, _ = proposer_releve(self.cdt_a, self.navire, "B", timezone.now())
         UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
         with mock.patch("dashboard.passation.contenu_passation", side_effect=RuntimeError), self.assertLogs("matrix.core.equipage", "ERROR"):
@@ -278,7 +279,7 @@ class DesactiveeTests(PassationBase):
         self.client.force_login(self.cdt_a)
         self.client.post("/parametre/", {"action": "update_parametres_passation", "active": "on", "next_tab": "seuils_role"})
         self.assertFalse(ParametresPassation.courants().active)
-        admin = User.objects.create_superuser("admin_p", password="pass")
+        admin = administrateur_general(User.objects.create_superuser("admin_p", password="pass"))
         self.client.force_login(admin)
         self.client.post("/parametre/", {"action": "update_parametres_passation", "active": "on", "next_tab": "seuils_role"})
         self.assertTrue(ParametresPassation.courants().active)

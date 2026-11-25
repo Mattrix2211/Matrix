@@ -348,7 +348,8 @@ class APIReferentFormationScopingTests(TestCase):
         self.assertEqual(r.status_code, 404, r.content)
         self.assertTrue(ReferentFormation.objects.filter(pk=referent_existant.id).exists())
 
-    def test_administrateur_general_peut_designer_un_referent_sur_nimporte_quel_navire(self):
+    def test_administrateur_general_ne_designe_pas_un_referent_par_son_seul_statut(self):
+        # AC-15/AC-20 : la désignation d'un référent de formation relève du commandement de chaque bâtiment.
         marin_autre = User.objects.create_user(username="marin_autre_api_ref", password="pass")
         UserProfile.objects.update_or_create(user=marin_autre, defaults={"role": "EQUIPIER", "ship": self.autre_ship})
         self.client.login(username="commandant_api_ref", password="pass")
@@ -357,8 +358,8 @@ class APIReferentFormationScopingTests(TestCase):
             data={"course": self.course.id, "ship": self.autre_ship.id, "user": marin_autre.id},
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 201, r.content)
-        self.assertTrue(
+        self.assertEqual(r.status_code, 403, r.content)
+        self.assertFalse(
             ReferentFormation.objects.filter(course=self.course, ship=self.autre_ship, user=marin_autre).exists()
         )
 

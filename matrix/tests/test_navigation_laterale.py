@@ -10,6 +10,7 @@ from matrix.core.icones import ICONES
 from matrix.core.modules import invalidate_cache
 from matrix.core.navigation import GROUPES, construire_navigation
 from org.models import ModuleActivation, Ship
+from matrix.tests.utilitaires import administrateur_general
 
 
 def _libelles(groupes):
@@ -53,7 +54,7 @@ class NavigationLateraleTests(TestCase):
         self.assertIn("Annuaire", _libelles(self._nav(self._marin("cdt_nav", "COMMANDANT"))))
 
     def test_groupes_dans_l_ordre_du_chapitre_7(self):
-        admin = User.objects.create_superuser(username="admin_nav", password="pass", email="a@a.fr")
+        admin = administrateur_general(User.objects.create_superuser(username="admin_nav", password="pass", email="a@a.fr"))
         self.assertEqual(
             _titres(self._nav(admin)),
             ["Mon quotidien", "Équipements", "Maintenance", "Activité", "Compétences", "Supervision", "Administration"],
@@ -107,13 +108,13 @@ class NavigationLateraleTests(TestCase):
         self.assertNotIn("Gestion Maintenance", _libelles(self._nav(user)))
 
     def test_libelles_du_chapitre_7_en_supervision(self):
-        admin = User.objects.create_superuser(username="sup_nav", password="pass", email="s@s.fr")
+        admin = administrateur_general(User.objects.create_superuser(username="sup_nav", password="pass", email="s@s.fr"))
         SpecialityChoice.objects.create(name="Spé sup")
         Ship.objects.filter(pk=self.ship.pk).update(classe_navire="Frégate")
         supervision = [g for g in self._nav(admin) if g["titre"] == "Supervision"][0]
         self.assertEqual(
             [e["libelle"] for e in supervision["entrees"]],
-            ["Prêt à appareiller", "Flotte", "Vue COMANAV", "Spécialités", "Classes de navire"],
+            ["Prêt à appareiller", "Flotte", "Spécialités", "Classes de navire"],  # pas la Vue COMANAV : supervision de commandement (AC-15)
         )
 
     def test_pret_a_appareiller_visible_de_tout_marin(self):
@@ -143,7 +144,7 @@ class NavigationLateraleTests(TestCase):
         self.assertNotContains(response, 'id="barre-laterale"')
 
     def test_aucun_lien_mort(self):
-        admin = User.objects.create_superuser(username="mort_nav", password="pass", email="m@m.fr")
+        admin = administrateur_general(User.objects.create_superuser(username="mort_nav", password="pass", email="m@m.fr"))
         for groupe in self._nav(admin):
             for entree in groupe["entrees"]:
                 chemin = entree["url"].split("?")[0]

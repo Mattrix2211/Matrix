@@ -5,27 +5,29 @@ from django.urls import reverse
 
 from accounts.models import UserProfile
 from org.models import Ship
+from matrix.tests.utilitaires import administrateur_general
 
 
 class NavigationParametresTests(TestCase):
     def setUp(self):
         self.url = reverse("settings")
-        self.root = User.objects.create_superuser(username="root_nav", password="pass", email="r@r.fr")
+        self.root = administrateur_general(User.objects.create_superuser(username="root_nav", password="pass", email="r@r.fr"))
 
-    def test_superuser_voit_les_quatre_sections_et_tous_les_reglages(self):
+    def test_administrateur_general_voit_les_sections_de_gouvernance_sans_les_actes_de_commandement(self):
+        # AC-15 : ni l'équipage (relève) ni les modules : actes de commandement, non conférés par le statut.
         self.client.login(username="root_nav", password="pass")
         page = self.client.get(self.url)
         for titre in ("Organisation", "Utilisateurs et droits", "Application", "Système"):
             self.assertContains(page, f">{titre}</h2>")
         for onglet in ("navires", "hierarchie", "installations", "utilisateurs", "seuils_role",
-                       "responsables", "equipage", "generale", "modules", "notifications", "journal"):
+                       "responsables", "generale", "notifications", "journal"):
             self.assertContains(page, f"/parametre/?tab={onglet}")
 
     def test_chaque_onglet_repond_et_marque_son_lien_actif(self):
         self.client.login(username="root_nav", password="pass")
         Ship.objects.create(name="Navire param", code="NV-PRM")
         for onglet in ("navires", "hierarchie", "installations", "utilisateurs", "seuils_role",
-                       "responsables", "equipage", "generale", "modules", "notifications", "journal"):
+                       "responsables", "generale", "notifications", "journal"):
             page = self.client.get(self.url, {"tab": onglet})
             self.assertEqual(page.status_code, 200, onglet)
             self.assertContains(page, "mx-parametres__lien--actif")
@@ -33,7 +35,7 @@ class NavigationParametresTests(TestCase):
     def test_libelles_conformes_ux_20_8(self):
         self.client.login(username="root_nav", password="pass")
         page = self.client.get(self.url)
-        for libelle in (">Utilisateurs</a>", ">Rôles</a>", ">Sécurité</a>", ">Seuils de rôle</a>"):
+        for libelle in (">Rôles</a>", ">Sécurité</a>", ">Seuils de rôle</a>"):
             self.assertContains(page, libelle)
         for ancien in ("Référentiels et rôles", "Générale et sécurité"):
             self.assertNotContains(page, ancien)

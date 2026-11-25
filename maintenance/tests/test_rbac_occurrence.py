@@ -6,6 +6,7 @@ from accounts.models import UserProfile
 from org.models import Ship, Service, Sector
 from assets.models import Asset, AssetType
 from maintenance.models import MaintenancePlan, MaintenanceOccurrence
+from matrix.tests.utilitaires import administrateur_general
 
 
 class MaintenanceRBACTests(TestCase):
@@ -62,7 +63,7 @@ class MaintenanceRBACTests(TestCase):
         occ = MaintenanceOccurrence.objects.create(
             plan=plan, asset=asset, scheduled_for=timezone.now().date(), status="PLANNED",
         )
-        admin = User.objects.create_superuser(username="admin_mtx", password="pass", email="a@a.fr")
+        admin = administrateur_general(User.objects.create_superuser(username="admin_mtx", password="pass", email="a@a.fr"))
 
         client = APIClient()
         client.login(username="admin_mtx", password="pass")

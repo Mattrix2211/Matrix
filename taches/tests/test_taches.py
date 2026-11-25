@@ -19,6 +19,7 @@ from notifications.liens import liens_accessibles
 from org.models import RoleThresholdConfig
 from taches.models import ParametresTaches, Tache
 from threads.utils import commentaires_de
+from matrix.tests.utilitaires import administrateur_general
 
 
 class TachesBase(TestCase):
@@ -294,7 +295,7 @@ class ReglagesTests(TachesBase):
         self.client.login(username="chef", password="pass")
         self.client.post(reverse("settings"), donnees)
         self.assertFalse(ParametresTaches.objects.exists())
-        User.objects.create_superuser("root", password="pass")
+        administrateur_general(User.objects.create_superuser("root", password="pass"))
         self.client.login(username="root", password="pass")
         self.client.post(reverse("settings"), donnees)
         p = ParametresTaches.objects.get()

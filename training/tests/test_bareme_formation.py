@@ -26,7 +26,7 @@ class BaremeCreationFormationTests(MediaRootTemporaireMixin, TestCase):
         self.ship = Ship.objects.create(name="Navire Bareme", code="BAR")
         self.admin = User.objects.create_user(username="admin_bareme", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.admin, defaults={"role": "EQUIPIER", "administrateur_technique": True, "ship": self.ship},
+            user=self.admin, defaults={"role": "EQUIPIER", "administrateur_general": True, "ship": self.ship},
         )
 
     def test_bareme_associe_a_la_creation(self):

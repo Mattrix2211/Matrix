@@ -104,9 +104,11 @@ class FuitesSansRattachementTests(TestCase):
 
     def test_administrateur_general_voit_toujours_la_flotte(self):
         self.client.force_login(self._isole("MASTER_ADMIN"))
-        for url in ("/assets/", "/installations/", "/logistics/stock/", "/logistics/anomalies/?vue=perimetre"):
+        for url in ("/assets/", "/installations/", "/logistics/stock/"):
             with self.subTest(url=url):
                 self.assertIn(MARQUEUR, self._contenu(url))
+        # AC-15 : les anomalies relèvent du métier courant ; l'administrateur général ne les consulte pas par son statut.
+        self.assertNotIn(MARQUEUR, self._contenu("/logistics/anomalies/?vue=perimetre"))
 
 
 class PerimetreATerreTests(TestCase):

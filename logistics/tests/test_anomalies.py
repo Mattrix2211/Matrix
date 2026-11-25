@@ -236,11 +236,12 @@ class AnomalieTests(MediaRootTemporaireMixin, TestCase):
         self.assertEqual(list(liste.context["anomalies"]), [anomalie])
         self.assertEqual(liste.context["total"], 1)
 
-    def test_admin_sans_perimetre_voit_tout(self):
+    def test_administrateur_general_ne_consulte_pas_les_anomalies_par_son_statut(self):
+        # AC-15 : la consultation systématique du métier courant n'est pas conférée par l'administration générale.
         anomalie = self._creer(self.marin)
         admin = self._user("admin_general", "MASTER_ADMIN")
         self.client.login(username=admin.username, password="pass")
-        self.assertEqual(self.client.get(reverse("anomalie-detail", args=[anomalie.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("anomalie-detail", args=[anomalie.pk])).status_code, 404)
 
     def test_transition_par_chef_avec_historique_et_notification(self):
         anomalie = self._creer(self.marin)

@@ -218,6 +218,8 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
     def post(self, request, pk):
         pont = _pont_dans_perimetre(request, pk)
         action = request.POST.get('action')
+        if action in ('place_pin', 'remove_pin') and niveau_ecriture_ui(request.user) < niveau_requis_pour(request.user, "plan_navire_configuration"):
+            raise PermissionDenied  # positionner le matériel est un acte métier : l'administrateur général n'y accède pas par son statut
 
         if action == 'upload_image':
             image = request.FILES.get('image')

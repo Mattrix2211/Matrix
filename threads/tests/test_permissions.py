@@ -3,12 +3,13 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from threads.models import Thread, Message
 from django.contrib.contenttypes.models import ContentType
+from matrix.tests.utilitaires import administrateur_general
 
 
 class ThreadPermissionTests(TestCase):
     def test_only_author_can_update_message(self):
-        user1 = User.objects.create_superuser(username="u1", password="pass")
-        user2 = User.objects.create_superuser(username="u2", password="pass")
+        user1 = administrateur_general(User.objects.create_superuser(username="u1", password="pass"))
+        user2 = administrateur_general(User.objects.create_superuser(username="u2", password="pass"))
         client = APIClient()
 
         # Création d'une discussion (rattachée à n'importe quel modèle, ex. User)

@@ -31,7 +31,9 @@ from maintenance.models import MaintenanceOccurrence
 from dashboard.indicateurs import indicateurs_maintenance
 from matrix.core.brouillons import adresse_de_reprise, brouillons_a_reprendre
 from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, ROLES_SANS_ECRITURE_HERITEE, niveau_ecriture, user_role_level
+from matrix.core.roles import (
+    NIVEAU_VISION_COMMANDEMENT, RoleLevel, ROLES_SANS_ECRITURE_HERITEE, est_administrateur_general, niveau_ecriture, user_role_level,
+)
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
@@ -196,7 +198,8 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
     template_name = "dashboard/flotte.html"
 
     def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.CHEF_SECTION \
+                and not est_administrateur_general(request.user):  # supervision globale de la flotte, en lecture (AC-15)
             raise PermissionDenied("Réservé aux chefs de section et rôles supérieurs.")
         return super().dispatch(request, *args, **kwargs)
 

@@ -25,6 +25,7 @@ from django.urls import reverse
 from accounts.models import UserProfile
 from org.models import Section, Sector, Service, Ship
 from training.models import TrainingCourse
+from matrix.tests.utilitaires import administrateur_general
 
 
 class CreationEcoleAvecHierarchieTests(TestCase):
@@ -32,9 +33,9 @@ class CreationEcoleAvecHierarchieTests(TestCase):
     Section) avec exactement le même formulaire des Réglages qu'un navire."""
 
     def setUp(self):
-        self.superuser = User.objects.create_superuser(
+        self.superuser = administrateur_general(User.objects.create_superuser(
             username="admin_test", email="admin@navy.fr", password="pass",
-        )
+        ))
         self.client.login(username="admin_test", password="pass")
 
     def test_creation_ecole_puis_hierarchie_complete(self):
@@ -133,7 +134,7 @@ class CreationFormationParAdminEcoleTests(TestCase):
         self.ecole = Ship.objects.create(name="Centre de formation Brest", code="CFB", type_unite="CENTRE_FORMATION")
         self.admin = User.objects.create_user(username="admin_ecole", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.admin, defaults={"role": "EQUIPIER", "administrateur_technique": True, "ship": self.ecole},
+            user=self.admin, defaults={"role": "EQUIPIER", "administrateur_general": True, "ship": self.ecole},
         )
         self.client.login(username="admin_ecole", password="pass")
 
@@ -189,7 +190,7 @@ class BadgeEtGroupementTypeUniteTests(TestCase):
         self.assertLess(rendu.index("Centre de formation"), rendu.index("Bureau"))
 
     def test_annuaire_regroupe_les_unites_par_type_dans_le_selecteur(self):
-        superuser = User.objects.create_superuser(username="su", email="su@navy.fr", password="pass")
+        superuser = administrateur_general(User.objects.create_superuser(username="su", email="su@navy.fr", password="pass"))
         self.client.login(username="su", password="pass")
         r = self.client.get(reverse("user-directory"))
         self.assertEqual(r.status_code, 200)
@@ -197,7 +198,7 @@ class BadgeEtGroupementTypeUniteTests(TestCase):
         self.assertContains(r, "École de Maistrance")
 
     def test_annuaire_affiche_le_badge_de_lunite_dun_marin(self):
-        superuser = User.objects.create_superuser(username="su2", email="su2@navy.fr", password="pass")
+        superuser = administrateur_general(User.objects.create_superuser(username="su2", email="su2@navy.fr", password="pass"))
         marin = User.objects.create_user(username="etudiant", password="pass")
         UserProfile.objects.update_or_create(user=marin, defaults={"role": "EQUIPIER", "ship": self.ecole})
         self.client.login(username="su2", password="pass")

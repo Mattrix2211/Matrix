@@ -84,7 +84,7 @@ class ApiSessionsEtFormationsChampsTests(TestCase):
         self.cours = TrainingCourse.objects.create(title="Cours trs", validity_days=365)
         self.chef = self._marin("chef_trs", "COMMANDANT", self.navire)
         self.administrateur = self._marin("adm_trs", "EQUIPIER", self.navire)
-        self.administrateur.profile.administrateur_technique = True
+        self.administrateur.profile.administrateur_general = True
         self.administrateur.profile.save()
         self.equipier = self._marin("equipier_trs", "EQUIPIER", self.navire)
         self.etranger = self._marin("etranger_trs", "EQUIPIER", self.autre_navire)

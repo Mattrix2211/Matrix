@@ -16,6 +16,7 @@ from accounts.models import UserProfile
 from assets.models import Asset, AssetType, Deck
 from org.models import Sector, Service, Ship
 from matrix.core.testing import MediaRootTemporaireMixin
+from matrix.tests.utilitaires import administrateur_general
 
 
 def _image_1x1_png():
@@ -220,7 +221,7 @@ class PlanNavirePerimetreTests(MediaRootTemporaireMixin, TestCase):
         self.chef_a = User.objects.create_user(username="chef_a", password="pass")
         UserProfile.objects.update_or_create(user=self.chef_a, defaults={"role": "CHEF_SERVICE", "ship": self.ship_a})
 
-        self.master_admin = User.objects.create_superuser(username="master", password="pass", email="m@example.com")
+        self.master_admin = administrateur_general(User.objects.create_superuser(username="master", password="pass", email="m@example.com"))
 
     def test_chef_service_ne_voit_pas_les_ponts_dun_autre_navire_dans_la_liste(self):
         self.client.login(username="chef_a", password="pass")

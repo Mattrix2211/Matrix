@@ -10,6 +10,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from org.models import Ship
+from matrix.tests.utilitaires import administrateur_general
 
 
 class TypeUniteModeleTests(TestCase):
@@ -37,9 +38,9 @@ class CreationUniteViaReglagesTests(TestCase):
     rapide qu'Excel » : pas d'étape supplémentaire)."""
 
     def setUp(self):
-        self.superuser = User.objects.create_superuser(
+        self.superuser = administrateur_general(User.objects.create_superuser(
             username="admin_test", email="admin@navy.fr", password="pass",
-        )
+        ))
         self.url = reverse("settings")
 
     def test_creation_d_une_unite_avec_type_ecole(self):
@@ -98,9 +99,9 @@ class ClasseNavireTests(TestCase):
     la Marine Nationale que l'utilisateur remplit lui-même)."""
 
     def setUp(self):
-        self.superuser = User.objects.create_superuser(
+        self.superuser = administrateur_general(User.objects.create_superuser(
             username="admin_classe", email="admin_classe@navy.fr", password="pass",
-        )
+        ))
         self.url = reverse("settings")
 
     def test_creation_avec_classe_de_navire(self):

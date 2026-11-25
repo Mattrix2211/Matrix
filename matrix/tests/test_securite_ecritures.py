@@ -312,25 +312,28 @@ class FormationTests(Base):
         utilisee = TrainingRecord.objects.first().course
         nb = TrainingRecord.objects.count()
         self.assertEqual(self.appel("chef_section_a", "delete", f"/api/training/courses/{utilisee.pk}/").status_code, 403)
-        self.assertEqual(self.appel("admin_navire", "delete", f"/api/training/courses/{utilisee.pk}/").status_code, 400)
+        self.assertEqual(self.appel("admin_navire", "delete", f"/api/training/courses/{utilisee.pk}/").status_code, 403)  # AC-20
         self.assertEqual(self.appel("admin", "delete", f"/api/training/courses/{utilisee.pk}/").status_code, 400)
         self.assertEqual(TrainingRecord.objects.count(), nb)
         # Formation vierge : l'administration la supprime, avec trace.
         vierge = TrainingCourse.objects.create(title="Vierge", category="Test")
-        self.assertEqual(self.appel("admin_navire", "delete", f"/api/training/courses/{vierge.pk}/").status_code, 204)
+        self.assertEqual(self.appel("admin_navire", "delete", f"/api/training/courses/{vierge.pk}/").status_code, 403)  # AC-20
+        self.assertEqual(self.appel("admin", "delete", f"/api/training/courses/{vierge.pk}/").status_code, 204)
         self.assertEqual(self.traces("training.suppression"), 1)
 
-    def test_creation_de_formation_reservee_a_l_administration(self):
+    def test_creation_de_formation_reservee_a_l_administrateur_general(self):
         self.assertEqual(self.appel("chef_section_a", "post", "/api/training/courses/", {"title": "Pirate", "validity_days": 10}).status_code, 403)
         self.assertEqual(self.appel("cdt_a", "post", "/api/training/courses/", {"title": "Pirate", "validity_days": 10}).status_code, 403)
-        self.assertEqual(self.appel("admin_navire", "post", "/api/training/courses/", {"title": "Légitime", "validity_days": 10}).status_code, 201)
+        self.assertEqual(self.appel("admin_navire", "post", "/api/training/courses/", {"title": "Légitime", "validity_days": 10}).status_code, 403)
+        self.assertEqual(self.appel("admin", "post", "/api/training/courses/", {"title": "Légitime", "validity_days": 10}).status_code, 201)  # AC-20
 
     def test_session_avec_presences_non_supprimable(self):
         session = TrainingSession.objects.filter(attendees__isnull=False).first()
         if session is None:
             session = TrainingSession.objects.first()
             session.attendees.add(self.equipier)
-        self.assertEqual(self.appel("admin", "delete", f"/api/training/sessions/{session.pk}/").status_code, 400)
+        # La programmation des sessions relève du responsable formation, pas de l'administration générale (AC-20).
+        self.assertEqual(self.appel("admin", "delete", f"/api/training/sessions/{session.pk}/").status_code, 403)
         self.assertTrue(TrainingSession.objects.filter(pk=session.pk).exists())
 
     def test_exigence_de_formation_hors_batiment_refusee_au_commandant(self):

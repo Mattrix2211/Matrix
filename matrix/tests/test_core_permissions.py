@@ -57,9 +57,10 @@ class RolePermissionTests(TestCase):
         req = fake_request("POST", self.chef_section)
         self.assertTrue(self.permission.has_permission(req, self.view))
 
-    def test_superutilisateur_toujours_autorise_en_ecriture(self):
+    def test_superutilisateur_django_n_est_pas_autorise_par_son_statut(self):
+        # AC-15 : le statut de superutilisateur Django ne confère aucun droit dans les interfaces applicatives ordinaires.
         req = fake_request("DELETE", self.superuser)
-        self.assertTrue(self.permission.has_permission(req, self.view))
+        self.assertFalse(self.permission.has_permission(req, self.view))
 
     def test_seuil_personnalise_par_vue(self):
         vue_ouverte = SimpleNamespace(min_role_level_write=RoleLevel.EQUIPIER)
@@ -189,10 +190,11 @@ class ManageUsersPermissionTests(TestCase):
             req = fake_request("POST", self.admin_navire, {"role": role})
             self.assertFalse(self.permission.has_permission(req, self.view), role)
 
-    def test_administrateur_technique_modifie_sans_changer_de_role_et_attribue_les_droits_techniques(self):
+    def test_administrateur_technique_modifie_sans_changer_de_role_et_n_attribue_pas_les_droits_techniques(self):
         self.assertTrue(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"grade": "X"}), self.view))
         self.assertFalse(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"ship": 1}), self.view))
-        self.assertTrue(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"administrateur_technique": True}), self.view))
+        # AC-19 : l'administrateur technique n'attribue pas les droits techniques ; l'administrateur général seul le fait.
+        self.assertFalse(self.permission.has_permission(fake_request("PATCH", self.admin_navire, {"administrateur_technique": True}), self.view))
         # Sans droits techniques, personne ne les attribue, même un commandant.
         self.assertFalse(self.permission.has_permission(fake_request("PATCH", self.commandant, {"administrateur_technique": True}), self.view))
 

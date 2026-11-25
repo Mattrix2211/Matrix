@@ -26,6 +26,7 @@ ici sur les 8 rôles, pour compléter la matrice sans dupliquer cette
 couverture déjà existante.
 """
 from datetime import timedelta
+from types import SimpleNamespace
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
@@ -44,7 +45,9 @@ from training.models import TrainingCourse
 # Ordre croissant du niveau hiérarchique, du plus bas (Équipier) au plus haut
 # (Administrateur général) — mêmes 8 niveaux que matrix/core/roles.py.
 # Échelle MÉTIER : le palier ADMIN_NAVIRE (droits techniques) n'est plus un rôle ; il est éprouvé par les tests L06.
-ROLES = [niveau for niveau in RoleLevel if niveau is not RoleLevel.ADMIN_NAVIRE]
+# L'administrateur général (AC-15) n'est plus un niveau métier : il est éprouvé à part, dans `assert_seuil`.
+ROLES = [niveau for niveau in RoleLevel if niveau not in (RoleLevel.ADMIN_NAVIRE, RoleLevel.MASTER_ADMIN)]
+NOM_ADMINISTRATEUR_GENERAL = "mtx_administrateur_general"
 
 
 class MatricePermissionsTestCase(TestCase):
@@ -75,10 +78,14 @@ class MatricePermissionsTestCase(TestCase):
                 },
             )
             cls.users[role] = user
+        # Administrateur général sans fonction métier, rattaché au même périmètre : ses refus ne tiennent qu'à l'absence de droit métier.
+        general = User.objects.create_user(username=NOM_ADMINISTRATEUR_GENERAL, password="pass")
+        UserProfile.objects.filter(user=general).update(
+            administrateur_general=True, ship=cls.ship, service=cls.service, sector=cls.sector, section=cls.section)
 
     def client_pour(self, role, api=False):
         client = APIClient() if api else Client()
-        client.login(username=f"mtx_{role.name.lower()}", password="pass")
+        client.login(username=NOM_ADMINISTRATEUR_GENERAL if role == "general" else f"mtx_{role.name.lower()}", password="pass")
         return client
 
     def assert_seuil(self, seuil, executer, api=False):
@@ -97,6 +104,12 @@ class MatricePermissionsTestCase(TestCase):
                     f"Rôle {role.name} (niveau {role.value}) : accès attendu="
                     f"{attendu}, obtenu={accepte} (seuil requis : {seuil.name}).",
                 )
+        # Administrateur général sans fonction métier : aucun droit métier par son statut (AC-15) ; il n'exerce que les actes
+        # ouverts à tous et les référentiels communs à la flotte, dont le seuil est celui de la gouvernance.
+        with self.subTest(role="administrateur général"):
+            accepte = executer(self.client_pour("general", api=api), SimpleNamespace(name="ADMINISTRATEUR_GENERAL", value=0))
+            attendu = seuil in (RoleLevel.EQUIPIER, RoleLevel.MASTER_ADMIN)
+            self.assertEqual(accepte, attendu, f"Administrateur général : accès attendu={attendu}, obtenu={accepte} (seuil requis : {seuil.name}).")
 
 
 class AssetMatriceTests(MatricePermissionsTestCase):

@@ -12,6 +12,7 @@ from matrix.core.fuseau import champ_local
 from matrix.core.tasks import appliquer_releves_echues as tache_appliquer
 from org.models import ReleveEquipage, Ship
 from org.tests.test_releves_datees import Base, a_l_instant
+from matrix.tests.utilitaires import administrateur_general
 
 User = get_user_model()
 
@@ -189,7 +190,7 @@ class ApiEtAdministrationTests(Base):
         self.assertTrue(AuditLog.objects.filter(action="fuseau_horaire_modifie").exists())
 
     def test_creation_d_unite_par_les_reglages_exige_un_fuseau(self):
-        root = User.objects.create_superuser("root", "r@navy.fr", "pass")
+        root = administrateur_general(User.objects.create_superuser("root", "r@navy.fr", "pass"))
         client = client_de(root)
         client.post("/parametre/", {"action": "add_ship", "name": "Sans", "code": "SAN", "next_tab": "navires"})
         self.assertFalse(Ship.objects.filter(code="SAN").exists())
@@ -208,7 +209,7 @@ class ApiEtAdministrationTests(Base):
         self.assertEqual(Ship.objects.get(code="COP").fuseau_horaire, "Pacific/Noumea")
 
     def test_administration_django_ne_ecrase_pas_une_releve_appliquee_entre_temps(self):
-        root = User.objects.create_superuser("root", "r@navy.fr", "pass")
+        root = administrateur_general(User.objects.create_superuser("root", "r@navy.fr", "pass"))
         client = client_de(root)
         url = f"/admin/org/ship/{self.navire.pk}/change/"
         formulaire = {
@@ -224,7 +225,7 @@ class ApiEtAdministrationTests(Base):
         self.assertEqual((self.navire.name, self.navire.equipage_a_bord), ("Bretagne renommée", "B"))
 
     def test_administration_django_exige_un_fuseau_pour_un_nouveau_batiment(self):
-        root = User.objects.create_superuser("root", "r@navy.fr", "pass")
+        root = administrateur_general(User.objects.create_superuser("root", "r@navy.fr", "pass"))
         client = client_de(root)
         formulaire = {"name": "Neuf", "code": "NEU", "type_unite": "NAVIRE", "classe_navire": "", "equipage_a_bord": ""}
         reponse = client.post("/admin/org/ship/add/", formulaire)
@@ -258,7 +259,7 @@ class EcrasementEquipageTests(Base):
 
     def test_edit_ship_ne_reecrit_pas_l_equipage(self):
         perimee = self._appliquer_entre_temps()
-        root = User.objects.create_superuser("root", "r@navy.fr", "pass")
+        root = administrateur_general(User.objects.create_superuser("root", "r@navy.fr", "pass"))
         with mock.patch.object(Ship.objects, "get", return_value=perimee):
             client_de(root).post("/parametre/", {
                 "action": "edit_ship", "pk": self.navire.pk, "name": "Renommée", "code": "BRE", "type_unite": "NAVIRE",

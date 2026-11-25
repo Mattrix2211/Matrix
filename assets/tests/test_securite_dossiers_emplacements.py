@@ -142,9 +142,10 @@ class DossiersPerimetreTests(TestCase):
         self.dossier_vide.refresh_from_db()
         self.assertEqual(self.dossier_vide.name, "Vide bis")
 
-    def test_gestion_flotte_garde_tous_les_droits(self):
+    def test_administrateur_general_ne_gere_pas_les_dossiers_de_materiel_par_son_statut(self):
+        # AC-15 : le rangement du matériel est un acte métier ; il n'est pas conféré par l'administration générale.
         self._poster("admin_flotte", action="delete_folder", pk=self.dossier_mixte.pk)
-        self.assertFalse(AssetFolder.objects.filter(pk=self.dossier_mixte.pk).exists())
+        self.assertTrue(AssetFolder.objects.filter(pk=self.dossier_mixte.pk).exists())
 
     def test_creation_sous_dossier_hors_perimetre_refusee(self):
         self._poster("chef_a", action="create_folder", name="Intrus", parent_id=self.enfant.pk)

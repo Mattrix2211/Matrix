@@ -25,6 +25,7 @@ from org.models import Sector, Section, Service, Ship
 from quarts.models import ChefDeListe, CreneauServiceGarde, EchangeService, ServiceGarde
 from training.models import TrainingCourse
 from matrix.core.testing import MediaRootTemporaireMixin
+from matrix.tests.utilitaires import administrateur_general
 
 
 class GlobalSearchViewTests(MediaRootTemporaireMixin, TestCase):
@@ -175,7 +176,7 @@ class GlobalSearchViewTests(MediaRootTemporaireMixin, TestCase):
         self.assertEqual(list(response.context["users"]), [])
 
     def test_maitre_voit_toutes_les_personnes(self):
-        User.objects.create_superuser(username="maitre_cible", password="pass", email="m@navy.fr")
+        administrateur_general(User.objects.create_superuser(username="maitre_cible", password="pass", email="m@navy.fr"))
         self.client.login(username="maitre_cible", password="pass")
         users = list(self.client.get(self.url, {"q": "cible"}).context["users"])
         self.assertIn(self.marin, users)

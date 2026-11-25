@@ -48,7 +48,7 @@ from .web_views import (
 )
 from matrix.core.mixins import EcritureDansLePerimetreMixin, EcritureTraceeMixin
 from matrix.core.permissions import RolePermission
-from matrix.core.roles import est_administrateur_general, niveau_ecriture, user_role_level
+from matrix.core.roles import RoleLevel, est_administrateur_general, niveau_ecriture, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_navire_q, resoudre_affectation_dans_perimetre
 from matrix.core.saisie import entier_ou_none
 
@@ -252,23 +252,37 @@ class TrainingRequirementPermission(RolePermission):
     peuvent cibler n'importe quel navire, ou ne cibler aucun navire du tout
     (exigence valable pour toute la flotte)."""
 
+    # AC-20 : une exigence COMMUNE (aucun rattachement : toute la flotte) relève de l'administrateur général ; une exigence
+    # LOCALE (rattachée à une unité du bâtiment) relève du commandement. Aucun autre statut n'ouvre l'un ou l'autre.
+    min_level_write = RoleLevel.COMMANDANT
+
+    @staticmethod
+    def _est_commune(request, existant=None):
+        data = request.data
+        champs = ("applies_to_ship", "applies_to_service", "applies_to_sector", "applies_to_section")
+        if existant is not None:
+            return not any(
+                (entier_ou_none(data.get(c)) if c in data else getattr(existant, c + "_id", None)) for c in champs)
+        return not any(entier_ou_none(data.get(c)) for c in champs)
+
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return super().has_permission(request, view)
-        if not super().has_permission(request, view):
+        if not request.user.is_authenticated:
             return False
         if request.method != "POST":
-            # PUT/PATCH/DELETE : le contrôle du rattachement porte sur
-            # l'objet existant, tranché par has_object_permission ci-dessous.
-            return True
-        return self._perimetre_valide(request)
+            # PUT/PATCH/DELETE : le contrôle porte sur l'objet existant, tranché par has_object_permission ci-dessous.
+            return est_administrateur_general(request.user) or super().has_permission(request, view)
+        if self._est_commune(request):
+            return est_administrateur_general(request.user) and self._perimetre_valide(request)
+        return super().has_permission(request, view) and self._perimetre_valide(request)
 
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
             return True
-        if not super().has_object_permission(request, view, obj):
-            return False
-        return self._perimetre_valide(request, existant=obj)
+        if self._est_commune(request, existant=obj):
+            return est_administrateur_general(request.user) and self._perimetre_valide(request, existant=obj)
+        return super().has_object_permission(request, view, obj) and self._perimetre_valide(request, existant=obj)
 
     def _perimetre_valide(self, request, existant=None):
         data = request.data
@@ -285,14 +299,8 @@ class TrainingRequirementPermission(RolePermission):
         if self._cible_archivee(existant, ship_id, service_id, sector_id, section_id):
             self.message = "Cette unité est archivée : une exigence de formation ne peut plus la cibler."
             return False
-        if is_master_admin(request.user):
-            return True
         if not any([ship_id, service_id, sector_id, section_id]):
-            # Aucun rattachement organisationnel précisé : une exigence
-            # valable pour TOUTE la flotte est réservée à la supervision
-            # globale, pour qu'un chef de section ne puisse pas l'imposer
-            # sans validation d'un rôle supérieur.
-            return False
+            return est_administrateur_general(request.user)  # exigence commune : gouvernance (AC-20)
         ok, *_ = resoudre_affectation_dans_perimetre(
             request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id,
             deja=SimpleNamespace(ship=getattr(existant, "applies_to_ship", None), service=getattr(existant, "applies_to_service", None),

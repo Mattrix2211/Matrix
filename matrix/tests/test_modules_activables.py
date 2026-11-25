@@ -26,6 +26,7 @@ from assets.models import Asset, AssetType
 from matrix.core.modules import invalidate_cache, module_actif
 from matrix.core.role_thresholds import invalidate_cache as invalidate_role_thresholds_cache
 from org.models import ModuleActivation, RoleThresholdConfig, Sector, Service, Ship
+from matrix.tests.utilitaires import administrateur_general
 
 
 class ComportementParDefautTests(TestCase):
@@ -84,7 +85,7 @@ class OngletModulesPermissionsTests(TestCase):
     def setUp(self):
         self.url = reverse("settings")
         self.ship = Ship.objects.create(name="Frégate Permissions", code="FR-PERM")
-        self.admin = User.objects.create_superuser(username="admin_mod", password="pass", email="a@a.fr")
+        self.admin = administrateur_general(User.objects.create_superuser(username="admin_mod", password="pass", email="a@a.fr"))
         # Les identifiants de navire se répètent d'un test à l'autre : on repart de caches vides.
         invalidate_role_thresholds_cache(self.ship.id)
         self.addCleanup(invalidate_cache, self.ship.id)
@@ -154,19 +155,13 @@ class OngletModulesPermissionsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, ">Modules<")
 
-    def test_master_admin_peut_choisir_le_navire_et_basculer(self):
+    def test_administrateur_general_n_active_pas_les_modules_par_son_statut(self):
+        # AC-15 : l'activation d'un module est un acte de commandement (AC-02), non conféré par l'administration générale.
         self.client.login(username="admin_mod", password="pass")
-
-        response = self.client.get(self.url, {"tab": "modules", "ship": self.ship.id})
-        self.assertEqual(response.status_code, 200)
-
-        response = self.client.post(self.url, {
-            "action": "toggle_module", "cle_module": "logistics", "ship_id": self.ship.id,
-        })
-        self.assertEqual(response.status_code, 302)
-        self.assertFalse(
-            ModuleActivation.objects.get(ship=self.ship, module="logistics").active
-        )
+        self.assertEqual(self.client.get(self.url, {"tab": "modules", "ship": self.ship.id}).status_code, 403)
+        response = self.client.post(self.url, {"action": "toggle_module", "cle_module": "logistics", "ship_id": self.ship.id})
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(ModuleActivation.objects.filter(ship=self.ship, module="logistics", active=False).exists())
 
 
 class NavigationEtAccesDirectTests(TestCase):

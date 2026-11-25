@@ -12,6 +12,7 @@ from annonces.tasks import rappeler_accuses_annonces
 from notifications.models import Notification
 
 from .test_annonces import AnnoncesBase
+from matrix.tests.utilitaires import administrateur_general
 
 
 class RappelAccuseTests(AnnoncesBase):
@@ -96,7 +97,7 @@ class ReglageRappelTests(AnnoncesBase):
         self.assertFalse(ParametresAnnonces.objects.exists())
 
     def test_modification_validee_et_tracee(self):
-        User.objects.create_superuser("root", password="pass")
+        administrateur_general(User.objects.create_superuser("root", password="pass"))
         self.client.login(username="root", password="pass")
         self._poster("4")
         self.assertEqual(ParametresAnnonces.objects.get().jours_rappel_accuse, 4)

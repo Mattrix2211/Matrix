@@ -15,6 +15,7 @@ from django.urls import reverse
 from accounts.models import ResponsableSpecialite, SpecialityChoice, UserProfile
 from matrix.core.role_thresholds import invalidate_cache
 from org.models import ResponsableClasseNavire, RoleThresholdConfig, Ship
+from matrix.tests.utilitaires import administrateur_general
 
 
 class GestionResponsablesTransversesTests(TestCase):
@@ -24,7 +25,7 @@ class GestionResponsablesTransversesTests(TestCase):
         self.marin = User.objects.create_user(username="marin_elec", password="pass")
         self.navire = Ship.objects.create(name="Navire RT", code="RT")
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.navire})
-        self.admin = User.objects.create_superuser(username="admin_rt", password="pass", email="a@a.fr")
+        self.admin = administrateur_general(User.objects.create_superuser(username="admin_rt", password="pass", email="a@a.fr"))
 
     def test_utilisateur_role_insuffisant_refuse_par_defaut_sans_seuil_abaisse(self):
         """Sans configuration explicite, le seuil `responsabilite_transverse_gestion`

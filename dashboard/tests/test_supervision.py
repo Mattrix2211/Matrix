@@ -87,11 +87,13 @@ class SupervisionTests(TestCase):
         sans_perimetre = self._marin("sans", "CHEF_SECTEUR")
         self.assertFalse(peut_superviser(sans_perimetre))
 
-    def test_master_admin_sans_perimetre_voit_tout(self):
+    def test_administrateur_general_ne_supervise_pas_la_maintenance_par_son_statut(self):
+        # AC-15 : la supervision des retards de maintenance est du métier courant ; elle n'est pas conférée par le statut.
         admin = self._marin("admin", "MASTER_ADMIN")
         self._occurrence(self.asset_a, -2, "OVERDUE")
         self._occurrence(self.asset_b, -2, "OVERDUE")
-        self.assertEqual(supervision(admin, self.aujourdhui)["retards_total"], 2)
+        self.assertFalse(peut_superviser(admin))
+        self.assertIsNone(supervision(admin, self.aujourdhui))
 
     def test_seuil_configurable_par_navire(self):
         RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"supervision_aujourdhui": "CHEF_SERVICE"})

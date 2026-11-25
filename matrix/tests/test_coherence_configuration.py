@@ -27,6 +27,7 @@ from matrix.core.modules import module_actif
 from matrix.core.role_thresholds import seuil_role
 from matrix.core.roles import RoleLevel
 from org.models import ModuleActivation, RoleThresholdConfig, Ship, VersionConfiguration
+from matrix.tests.utilitaires import administrateur_general
 
 ACTION = "poste_gestion"  # défaut : CHEF_SERVICE ; sans plancher, le seuil s'abaisse comme s'élève
 
@@ -289,8 +290,8 @@ class CheminsWebTests(TestCase):
 
     def setUp(self):
         self.ship = Ship.objects.create(name="Web", code="WEB")
-        self.admin = User.objects.create_superuser(username="admin_coh", password="pass", email="a@a.fr")
-        UserProfile.objects.update_or_create(user=self.admin, defaults={"role": "MASTER_ADMIN", "ship": self.ship})
+        self.admin = User.objects.create_user(username="admin_coh", password="pass")
+        UserProfile.objects.update_or_create(user=self.admin, defaults={"role": "COMMANDANT", "ship": self.ship})  # commandement (AC-13, AC-15)
         self.client.login(username="admin_coh", password="pass")
 
     def test_vue_reglages_seuil_puis_reinitialisation(self):
@@ -310,6 +311,8 @@ class CheminsWebTests(TestCase):
         self.assertTrue(module_actif("assets", self.ship.id))
 
     def test_admin_django_modification_et_suppression(self):
+        # Intervention technique exceptionnelle : réservée au superutilisateur Django (AC-15).
+        self.client.force_login(User.objects.create_superuser(username="su_coh", password="pass", email="s@a.fr"))
         config = RoleThresholdConfig.objects.create(ship=self.ship, thresholds={ACTION: "COMMANDANT"})
         activation = ModuleActivation.objects.create(ship=self.ship, module="assets", active=True)
         self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT)

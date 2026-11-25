@@ -313,7 +313,7 @@ class ReferencesHorsPerimetreTests(BaseApi):
 
     def _client_chef_formation(self):
         self.chef_section_form = _utilisateur("cs_form_sec", Roles.EQUIPIER, ship=self.ship_a)
-        self.chef_section_form.profile.administrateur_technique = True  # le catalogue relève des droits techniques
+        self.chef_section_form.profile.administrateur_general = True  # le catalogue commun relève de l'administrateur général (AC-20)
         self.chef_section_form.profile.save()
         return self._client("cs_form_sec")
 

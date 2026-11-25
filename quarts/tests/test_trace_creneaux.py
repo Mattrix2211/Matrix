@@ -13,6 +13,7 @@ from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from notifications.models import Notification
 from org.models import Sector, Section, Service, Ship
 from quarts.models import ChefDeListe, CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
+from matrix.tests.utilitaires import administrateur_general
 
 
 class TraceCreneauxTests(TestCase):
@@ -193,7 +194,7 @@ class TraceCreneauxAdminTests(TestCase):
         from unittest.mock import MagicMock
 
         ship = Ship.objects.create(name="Navire Admin", code="ADM")
-        admin_user = User.objects.create_superuser("admin_trace", password="pass")
+        admin_user = administrateur_general(User.objects.create_superuser("admin_trace", password="pass"))
         quart = Quart.objects.create(
             ship=ship, date_debut=timezone.localdate(), date_fin=timezone.localdate(), statut=Quart.STATUT_PUBLIEE,
             fonction=FonctionQuartChoice.objects.create(name="Veille"),

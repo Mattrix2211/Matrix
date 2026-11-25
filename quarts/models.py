@@ -128,7 +128,7 @@ from matrix.core.models import OwnedModel, TimeStampedModel
 from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.equipage import equipage_a_bord
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, est_administrateur_general, user_role_level
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import (
     agit_sur_navire, equipage_agissant, is_master_admin, navire_id_du_perimetre, scope_filters_for_user,
@@ -2059,7 +2059,8 @@ def peut_acceder_feuille_service(user, ship):
     """Lecture : tout marin du bâtiment (feuilles publiées) et la supervision du bâtiment concerné."""
     if not getattr(user, "is_active", False):
         return False
-    return _supervision_sur_navire(user, ship.pk) or ship_id_for_user(user) == ship.pk
+    # La feuille de service est un contenu commun du bâtiment : l'administrateur général la consulte (gouvernance, lecture seule).
+    return _supervision_sur_navire(user, ship.pk) or ship_id_for_user(user) == ship.pk or est_administrateur_general(user)
 
 
 def peut_rediger_feuille_service(user, ship):

@@ -143,7 +143,7 @@ class DefinitionTests(Base):
     def test_administrateur_general_n_est_pas_du_soutien(self):
         admin = User.objects.get(username="admin")
         self.assertFalse(soutien_a_terre(admin))
-        self.assertEqual(niveau_ecriture(admin), RoleLevel.MASTER_ADMIN)
+        self.assertEqual(niveau_ecriture(admin), RoleLevel.EQUIPIER)  # aucun niveau métier par le statut (AC-15)
 
     def test_le_second_garde_sa_vision_mais_pas_ses_ecritures_heritees(self):
         second = User.objects.get(username="second_a")

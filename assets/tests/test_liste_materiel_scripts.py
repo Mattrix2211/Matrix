@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from matrix.tests.utilitaires import administrateur_general
 
 
 class ListeMaterielScriptsTests(TestCase):
@@ -8,7 +9,7 @@ class ListeMaterielScriptsTests(TestCase):
     présents dans la page avant lui, sinon getElementById renvoie null."""
 
     def setUp(self):
-        User.objects.create_superuser("admin_scripts", password="pass")
+        administrateur_general(User.objects.create_superuser("admin_scripts", password="pass"))
         self.client.login(username="admin_scripts", password="pass")
 
     def test_menu_contextuel_dossiers_avant_le_script(self):

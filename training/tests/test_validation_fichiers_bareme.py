@@ -19,7 +19,7 @@ class ValidationBaremeFormationTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire T-SEC-FILE-4", code="TSF4")
         self.admin = User.objects.create_user(username="admin_formation_sec", password="pass")
-        UserProfile.objects.update_or_create(user=self.admin, defaults={"role": Roles.EQUIPIER, "administrateur_technique": True, "ship": self.ship})
+        UserProfile.objects.update_or_create(user=self.admin, defaults={"role": Roles.EQUIPIER, "administrateur_general": True, "ship": self.ship})
         self.client.login(username="admin_formation_sec", password="pass")
 
     def _creer(self, bareme):

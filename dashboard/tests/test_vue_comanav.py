@@ -59,9 +59,11 @@ class BaseComanav(TestCase):
 
 class AccesTests(BaseComanav):
     def test_comanav_commandement_et_admin_ont_acces(self):
-        for nom, role in (("cdt", "COMMANDANT"), ("cdt2", "COMMANDANT_EN_SECOND"), ("mas", "MASTER_ADMIN")):
+        for nom, role in (("cdt", "COMMANDANT"), ("cdt2", "COMMANDANT_EN_SECOND")):
             with self.subTest(role=role):
                 self.assertEqual(self._page(self._marin(nom, role, self.navire)).status_code, 200)
+        # AC-15 : la supervision du bâtiment n'est pas conférée par le statut d'administrateur général.
+        self.assertEqual(self._page(self._marin("mas", "MASTER_ADMIN", self.navire)).status_code, 403)
         self.assertEqual(self._page(self.comanav).status_code, 200)
 
     def test_refuse_aux_autres(self):
@@ -92,10 +94,9 @@ class AccesTests(BaseComanav):
         self.client.force_login(self.comanav)
         self.assertContains(self.client.get(reverse("home")), URL)
 
-    def test_administrateur_sans_batiment_choisi(self):
+    def test_administrateur_general_sans_batiment_n_a_pas_la_vue_comanav(self):
         mas = self._marin("mas", "MASTER_ADMIN", None)
-        reponse = self._page(mas)
-        self.assertContains(reponse, "Aucun bâtiment sélectionné")
+        self.assertEqual(self._page(mas).status_code, 403)
 
 
 class PerimetreTests(BaseComanav):

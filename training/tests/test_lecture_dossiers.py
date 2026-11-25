@@ -116,4 +116,5 @@ class PerimetreMarinSansRattachementTests(TestCase):
 
     def test_administrateur_general_garde_la_flotte_entiere(self):
         self.assertIsNone(filtres_perimetre_marin(self.master))
-        self.assertTrue(_peut_valider_candidature_hierarchie(self.master, self.marin))
+        # La validation d'une qualification individuelle relève de l'autorité métier habilitée, pas du statut (AC-15, AC-20).
+        self.assertFalse(_peut_valider_candidature_hierarchie(self.master, self.marin))

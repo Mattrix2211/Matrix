@@ -100,10 +100,11 @@ class PerimetreCreneauxTests(TestCase):
         ids = self._evenements(self.marin).keys()
         self.assertFalse({f"qrt-{self.quarts[n].pk}" for n in ("marin", "collegue")} & ids)
 
-    def test_master_admin_voit_les_creneaux_de_la_flotte(self):
+    def test_administrateur_general_ne_voit_pas_les_creneaux_de_la_flotte_par_son_statut(self):
+        # AC-15 : les plannings de quart sont du métier courant ; la consultation systématique n'est pas conférée.
         admin = self._amiral()
         ids = self._evenements(admin).keys()
-        self.assertTrue(self._ids(self.marin, self.collegue, self.voisin) <= ids)
+        self.assertFalse(self._ids(self.marin, self.collegue, self.voisin) & ids)
 
     def test_double_equipage_isole_les_equipages(self):
         self.navire.double_equipage, self.navire.equipage_a_bord = True, "ROUGE"

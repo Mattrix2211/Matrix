@@ -82,9 +82,10 @@ class ScopeFiltersForUserTests(TestCase):
 
 
 class IsMasterAdminTests(TestCase):
-    def test_superutilisateur_est_toujours_master_admin(self):
+    def test_superutilisateur_django_n_est_pas_administrateur_general(self):
+        # AC-15 : le superutilisateur Django est réservé aux interventions techniques exceptionnelles.
         superuser = User.objects.create_superuser(username="super", password="pass", email="s@s.fr")
-        self.assertTrue(is_master_admin(superuser))
+        self.assertFalse(is_master_admin(superuser))
 
     def test_role_master_admin_est_master_admin(self):
         user = User.objects.create_user(username="ma", password="pass")
