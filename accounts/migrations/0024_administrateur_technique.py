@@ -15,12 +15,15 @@ def separer(apps, schema_editor):
     for profil in UserProfile.objects.filter(role="ADMIN_NAVIRE"):
         # Un administrateur d'unité ne tenait aucune fonction métier : le champ « fonction » n'était pas exercé hors état-major.
         # Aucune fonction n'est donc déduite ; celle qui figure sur la fiche est seulement journalisée, à confirmer.
+        # La valeur n'est pas laissée sur la fiche : elle s'activerait à la première promotion en état-major sans confirmation.
+        fonction = profil.fonction_coma
         profil.role = "EQUIPIER"
+        profil.fonction_coma = ""
         profil.administrateur_technique = True
-        profil.save(update_fields=["role", "administrateur_technique"])
+        profil.save(update_fields=["role", "administrateur_technique", "fonction_coma"])
         AuditLog.objects.create(
             actor=None, action=ACTION, target_user_id=profil.user_id,
-            details=f"avant=ADMIN_NAVIRE; apres={profil.role}; fonction_a_confirmer={profil.fonction_coma or 'aucune'}",
+            details=f"avant=ADMIN_NAVIRE; apres={profil.role}; fonction_a_confirmer={fonction or 'aucune'}",
         )
 
 
@@ -29,9 +32,10 @@ def restaurer(apps, schema_editor):
     AuditLog = apps.get_model("accounts", "AuditLog")
     for journal in AuditLog.objects.filter(action=ACTION):
         apres = journal.details.split("apres=")[1].split(";")[0]
+        fonction = journal.details.split("fonction_a_confirmer=")[1]
         # Un rôle modifié depuis la migration n'est pas écrasé.
         UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_technique=True, role=apres).update(
-            role="ADMIN_NAVIRE", administrateur_technique=False)
+            role="ADMIN_NAVIRE", administrateur_technique=False, fonction_coma="" if fonction == "aucune" else fonction)
         journal.delete()
 
 

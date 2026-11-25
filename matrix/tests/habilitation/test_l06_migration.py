@@ -53,11 +53,13 @@ class MigrationAdministrateursTests(TransactionTestCase):
         self.assertEqual(journal.count(), 2)
         self.assertTrue(all("ADMIN_NAVIRE" in ligne.details for ligne in journal))
         self.assertTrue(journal.filter(details__contains="fonction_a_confirmer=COMANAV").exists())
+        self.assertEqual(apres.get_model("accounts", "UserProfile").objects.get(user_id=comptes["admin_coma"]).fonction_coma, "")
 
         retour = self._migrer(AVANT)
         self.assertEqual(self._etat(retour, comptes)["admin_seul"][0], "ADMIN_NAVIRE")
         self.assertEqual(self._etat(retour, comptes)["admin_coma"][0], "ADMIN_NAVIRE")
         self.assertEqual(self._etat(retour, comptes)["commandant"][0], "COMMANDANT")
+        self.assertEqual(retour.get_model("accounts", "UserProfile").objects.get(user_id=comptes["admin_coma"]).fonction_coma, "COMANAV")
         self.assertFalse(retour.get_model("accounts", "AuditLog").objects.filter(action="l06_migration_role").exists())
 
     def test_retour_arriere_respecte_un_role_modifie(self):

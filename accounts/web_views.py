@@ -595,6 +595,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             if cible.pk == request.user.pk:
                 messages.error(request, "Pour votre propre compte, changez votre mot de passe depuis votre profil.")
                 return redirect("user-directory")
+            if not peut_reinitialiser_cible(request.user, cible):
+                messages.error(request, "Ce compte porte une autorité ou des droits d'administration : seul l'administrateur général le réinitialise.")
+                return redirect("user-directory")
             return _page_mots_de_passe_provisoires(request, [(cible, reinitialiser_mot_de_passe(request.user, cible))])
         return redirect("user-directory")
 

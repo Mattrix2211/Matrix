@@ -29,7 +29,7 @@ Destination de chaque usage : droit **technique** (indicateur : réinitialisatio
 
 | Compte avant migration | Après migration | Justification |
 |---|---|---|
-| `ADMIN_NAVIRE`, avec ou sans fonction de commandant adjoint renseignée sur la fiche | rôle `EQUIPIER` + `administrateur_technique` | un administrateur d'unité n'exerçait aucune fonction (le champ n'est actif que pour l'état-major) : rien n'est déduit (AC-01). La valeur de la fiche est journalisée (`fonction_a_confirmer`) pour confirmation par une autorité habilitée |
+| `ADMIN_NAVIRE`, avec ou sans fonction de commandant adjoint renseignée sur la fiche | rôle `EQUIPIER` + `administrateur_technique` | un administrateur d'unité n'exerçait aucune fonction (le champ n'est actif que pour l'état-major) : rien n'est déduit (AC-01). La valeur de la fiche est retirée de la fiche et journalisée (`fonction_a_confirmer`) : le retour arrière la rétablit, une autorité habilitée la confirme |
 | Tout autre rôle | inchangé, `administrateur_technique` faux | aucune élévation |
 | Désignations indépendantes du rôle (chef de liste, rédacteur BSC, référent de formation, responsable de spécialité) | inchangées | elles ne dérivent pas du rôle |
 
@@ -123,6 +123,7 @@ __RELECTURES__
 - **Abaissement de seuils par un administrateur technique** : sans autorité de commandement il ne peut que renforcer un seuil métier ; à valider par le PO.
 - **Navigation** : l'entrée « Annuaire » et l'onglet « Sécurité » ne sont pas proposés à l'administrateur technique dans le menu (accès par adresse) ; à traiter avec L08/L30.
 - **Cohérence API / web** : le web masque les comptes techniques aux non-techniques, l'API non ; à aligner.
+- **Comptes d'administration Django** : un technique ne réinitialise pas le mot de passe d'un compte `is_staff`, de groupe ou de droits Django.
 - **Désignations** : la liste des désignations qui interdisent la réinitialisation d'un mot de passe par un technique est tenue à la main (`accounts/services.py`) ; un registre unique est à prévoir (L08).
 - **Commentaires anciens** mentionnant « ADMIN_NAVIRE » dans le code : non réécrits (règle de projet : seules les lignes modifiées sont touchées).
 - **Interface** : le drapeau `administrateur_technique` n'a pas d'écran de gestion ; il s'attribue par l'API ou l'administration Django.

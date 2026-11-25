@@ -40,6 +40,7 @@ def _reinitialisable_par_technique(acteur, cible):
     profil = getattr(cible, "profile", None)
     return (
         not cible.is_superuser and user_role_level(cible) <= RoleLevel.CHEF_SECTION
+        and not cible.is_staff and not cible.groups.exists() and not cible.user_permissions.exists()
         and not (profil and (profil.administrateur_technique or profil.fonction_coma)) and not porte_une_designation(cible)
     )
 

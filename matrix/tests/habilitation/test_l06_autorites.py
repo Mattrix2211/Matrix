@@ -158,3 +158,10 @@ class SeuilsTechniqueTests(MondeFictif):
     def test_un_seuil_metier_enregistre_au_palier_obsolete_equivaut_au_commandant(self):
         RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"asset_ecriture_simple": "ADMIN_NAVIRE"})
         self.assertEqual(seuil_role("asset_ecriture_simple", self.navire.pk), RoleLevel.COMMANDANT)
+
+    def test_un_compte_d_administration_django_n_est_pas_reinitialisable_par_un_technique(self):
+        from accounts.services import peut_reinitialiser_cible
+        self.assertTrue(self.staff_sans_droit.is_staff)
+        self.assertFalse(peut_reinitialiser_cible(self.admin_navire, self.staff_sans_droit))
+        reponse = self.client_de("admin_navire").post("/users/", {"action": "set_password", "pk": self.staff_sans_droit.pk})
+        self.assertEqual(reponse.status_code, 302)  # message, pas de page 403 ni de mot de passe provisoire

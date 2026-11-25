@@ -9,12 +9,13 @@ class UserProfileAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         from .models import AuditLog
-        champs = [c for c in ("role", "administrateur_technique") if change and c in form.changed_data]
+        champs = [c for c in ("role", "administrateur_technique") if c in form.changed_data or not change]
+        avant = {c: form.initial.get(c) if change else None for c in champs}
         super().save_model(request, obj, form, change)
         for champ in champs:
             AuditLog.objects.create(
                 actor=request.user, action="changement_role" if champ == "role" else "changement_droits_techniques",
-                target_user=obj.user, details=f"{champ} modifié par l'administration Django",
+                target_user=obj.user, details=f"{champ}={avant[champ]} -> {getattr(obj, champ)} (administration Django)",
             )
 
     def formfield_for_choice_field(self, db_field, request, **kwargs):
