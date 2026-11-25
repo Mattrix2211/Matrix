@@ -61,6 +61,8 @@ class UserProfile(TimeStampedModel):
         default=False, verbose_name="Mot de passe provisoire",
         help_text="Le marin doit choisir un nouveau mot de passe à sa prochaine connexion.",
     )
+    # Au-delà, le mot de passe provisoire n'ouvre plus de session : une nouvelle réinitialisation est nécessaire.
+    mot_de_passe_provisoire_expire_le = models.DateTimeField(null=True, blank=True)
 
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="profiles")
@@ -190,6 +192,31 @@ class AuditLog(TimeStampedModel):
 
     def __str__(self):
         return f"{self.created_at} {self.actor} {self.action}"
+
+
+class FonctionAConfirmer(TimeStampedModel):
+    """Fonction de commandant adjoint portée par la fiche d'un ancien administrateur d'unité (migration L06) :
+    sans effet tant qu'une autorité habilitée ne l'a pas confirmée, corrigée ou refusée."""
+
+    class Statut(models.TextChoices):
+        EN_ATTENTE = "EN_ATTENTE", "En attente"
+        CONFIRMEE = "CONFIRMEE", "Confirmée"
+        CORRIGEE = "CORRIGEE", "Corrigée"
+        REFUSEE = "REFUSEE", "Refusée"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="fonctions_a_confirmer")
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="fonctions_a_confirmer")
+    fonction_ancienne = models.CharField(max_length=16, choices=CommandantAdjoint.choices)
+    statut = models.CharField(max_length=12, choices=Statut.choices, default=Statut.EN_ATTENTE)
+    fonction_retenue = models.CharField(max_length=16, choices=CommandantAdjoint.choices, blank=True, default="")
+    decide_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="fonctions_decidees")
+    decide_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("created_at",)
+        constraints = [
+            models.UniqueConstraint(fields=["user"], condition=models.Q(statut="EN_ATTENTE"), name="une_fonction_en_attente_par_compte"),
+        ]
 
 
 class InstanceDemo(models.Model):

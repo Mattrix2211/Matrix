@@ -32,8 +32,9 @@ from matrix.core.organisation import votre_niveau
 
 # Seules actions de l'annuaire ouvertes à un administrateur technique sans autorité métier ; il ne désigne personne.
 ACTIONS_ANNUAIRE_TECHNIQUES = ("set_password", "bulk_reset_passwords")
-# Au-delà, la reprise d'un compte revient à l'administrateur général (voir accounts/services.py).
-ROLES_REINITIALISABLES_PAR_TECHNIQUE = (Roles.EQUIPIER, Roles.CHEF_SECTION)
+# Au-delà de chef de service, ou pour un compte cumulant une autorité, la réinitialisation revient à l'administrateur général
+# (niveau de protection : accounts/services.py).
+ROLES_REINITIALISABLES_PAR_TECHNIQUE = (Roles.EQUIPIER, Roles.CHEF_SECTION, Roles.CHEF_SECTEUR, Roles.CHEF_SERVICE)
 
 
 def _role_attribution_autorisee(acting_user, role_cible):
@@ -91,10 +92,13 @@ def _utilisateurs_gerables_par(acting_user):
             condition |= Q(profile__role__in=ROLES_REINITIALISABLES_PAR_TECHNIQUE, profile__administrateur_technique=False)
         qs = qs.filter(perimetre_navire_q(acting_user, "profile__"), condition).exclude(
             Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True))
-        if not est_administrateur_technique(acting_user):
-            # Les droits techniques relèvent de l'autorité technique : une autorité métier ne reprend pas ces comptes.
-            qs = qs.exclude(Q(profile__administrateur_technique=True) & ~Q(pk=acting_user.pk))
     return qs
+
+
+def _supprimables_par(acting_user):
+    """Comptes qu'on peut supprimer : la gestion des administrateurs techniques revient à l'administrateur général (AC-11)."""
+    qs = _utilisateurs_gerables_par(acting_user)
+    return qs if is_master_admin(acting_user) else qs.exclude(profile__administrateur_technique=True)
 
 
 def _referentiels_formulaire(user):
@@ -375,6 +379,8 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     users = users.exclude(pk=request.user.pk)
                     count = users.count()
                     messages.error(request, "Vous ne pouvez pas supprimer votre propre compte : il a été ignoré.")
+                users = users.filter(pk__in=_supprimables_par(request.user).values("pk"))
+                count = users.count()
                 for user in users:
                     AuditLog.objects.create(actor=request.user, action="bulk_delete_user", target_user=user, details=f"username={user.username}")
                 users.delete()
@@ -491,7 +497,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             # (cf. _utilisateurs_gerables_par) : un id hors périmètre lève
             # User.DoesNotExist, exactement comme si le compte n'existait pas.
             try:
-                user = _utilisateurs_gerables_par(request.user).get(pk=pk)
+                user = _supprimables_par(request.user).get(pk=pk)
                 AuditLog.objects.create(actor=request.user, action="delete_user", target_user=user, details=f"username={user.username}")
                 user.delete()
             except User.DoesNotExist:
@@ -812,7 +818,7 @@ class ChangerMotDePasseView(LoginRequiredMixin, PasswordChangeView):
 
     def form_valid(self, form):
         reponse = super().form_valid(form)
-        UserProfile.objects.filter(user=self.request.user).update(mot_de_passe_provisoire=False)
+        UserProfile.objects.filter(user=self.request.user).update(mot_de_passe_provisoire=False, mot_de_passe_provisoire_expire_le=None)
         AuditLog.objects.create(actor=self.request.user, action="changement_mot_de_passe", target_user=self.request.user)
         messages.success(self.request, "Mot de passe modifié.")
         return reponse

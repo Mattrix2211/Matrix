@@ -97,7 +97,7 @@ class ManageUsersPermission(BasePermission):
     """
 
     MANAGE_MAP = {
-        Roles.COMMANDANT: {Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
+        Roles.COMMANDANT: {Roles.COMMANDANT_EN_SECOND, Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.ETAT_MAJOR: {Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SERVICE: {Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SECTEUR: {Roles.CHEF_SECTION, Roles.EQUIPIER},

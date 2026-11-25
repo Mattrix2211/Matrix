@@ -83,7 +83,9 @@ class ReinitialisationTests(TestCase):
         RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"mot_de_passe_reinitialisation": "COMMANDANT"})
         invalidate_cache(self.navire.id)
         self.addCleanup(invalidate_cache, self.navire.id)
-        self.assertEqual(self.reinitialiser(self.commandant, self.marin).status_code, 200)
+        # Le seuil se règle, mais n'habilite pas une autorité métier : le commandant ne réinitialise pas (AC-12).
+        self.assertEqual(self.reinitialiser(self.commandant, self.marin).status_code, 302)
+        self.assertEqual(self.reinitialiser(self.admin, self.marin).status_code, 200)
 
     def test_bouton_visible_seulement_pour_qui_peut(self):
         self.client.force_login(self.admin)

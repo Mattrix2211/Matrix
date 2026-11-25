@@ -163,9 +163,13 @@ class ManageUsersPermissionTests(TestCase):
         self.assertLess(RoleLevel.ETAT_MAJOR, RoleLevel.COMMANDANT_EN_SECOND)
         self.assertLess(RoleLevel.COMMANDANT_EN_SECOND, RoleLevel.COMMANDANT)
 
-    def test_personne_sauf_l_administrateur_general_ne_designe_le_commandant_en_second(self):
+    def test_le_commandant_et_l_administrateur_general_designent_le_commandant_en_second(self):
+        # AC-10 : ni l'administrateur technique, ni un chef, ni le second lui-même.
         req = fake_request("POST", self.commandant, {"role": "COMMANDANT_EN_SECOND"})
-        self.assertFalse(self.permission.has_permission(req, self.view))
+        self.assertTrue(self.permission.has_permission(req, self.view))
+        for acteur in (self.admin_navire, self.chef_section):
+            req = fake_request("POST", acteur, {"role": "COMMANDANT_EN_SECOND"})
+            self.assertFalse(self.permission.has_permission(req, self.view))
         # Les autres désignations du commandant restent inchangées.
         req = fake_request("POST", self.commandant, {"role": "ETAT_MAJOR"})
         self.assertTrue(self.permission.has_permission(req, self.view))

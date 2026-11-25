@@ -79,7 +79,7 @@ class AnnuaireEtEditionTests(MatriceDroitsBase):
             ("master", "equipier"): 200, ("master", "admin_b"): 200,
             # L'administrateur technique ne modifie pas les comptes (désignation = autorité métier).
             ("admin_a", "equipier"): 403, ("admin_a", "commandant"): 403, ("admin_a", "admin_a"): 403,
-            ("commandant", "equipier"): 200, ("commandant", "chef"): 200, ("commandant", "admin_a"): 404, ("commandant", "master"): 404,
+            ("commandant", "equipier"): 200, ("commandant", "chef"): 200, ("commandant", "admin_a"): 200, ("commandant", "master"): 404,
             ("chef", "equipier"): 403, ("equipier", "equipier"): 403,
         }
         for (acteur, cible), code in cibles.items():
@@ -93,7 +93,9 @@ class AnnuaireEtEditionTests(MatriceDroitsBase):
         self.connecter("commandant")
         page = self.client.get(reverse("user-directory"))
         self.assertContains(page, reverse("user-edit", args=[self.acteurs["equipier"].pk]))
-        self.assertNotContains(page, reverse("user-edit", args=[self.acteurs["admin_a"].pk]))
+        self.assertNotContains(page, reverse("user-edit", args=[self.acteurs["master"].pk]))
+        # Le compte d'un administrateur technique reste modifiable pour sa fonction métier (parité avec l'API).
+        self.assertContains(page, reverse("user-edit", args=[self.acteurs["admin_a"].pk]))
 
     def test_les_roles_proposes_suivent_le_droit_d_attribution(self):
         self.connecter("commandant")
@@ -107,7 +109,7 @@ class AnnuaireEtEditionTests(MatriceDroitsBase):
         self.assertEqual(codes, set())
 
     def test_edition_hors_perimetre_ou_de_rang_superieur_refusee(self):
-        for acteur, cible in (("commandant", "equipier_b"), ("commandant", "admin_a"), ("admin_a", "equipier")):
+        for acteur, cible in (("commandant", "equipier_b"), ("commandant", "master"), ("admin_a", "equipier")):
             self.connecter(acteur)
             cible_user = self.equipier_b if cible == "equipier_b" else self.acteurs[cible]
             self.client.post(reverse("user-directory"), {
@@ -200,7 +202,9 @@ class ReinitialisationMatriceTests(MatriceDroitsBase):
 
     def test_seuil_abaisse_ne_donne_pas_acces_aux_rangs_superieurs(self):
         self.abaisser_seuil("mot_de_passe_reinitialisation", "COMMANDANT", self.a)
-        self.assertEqual(self.reinitialiser("commandant", self.acteurs["equipier"]).status_code, 200)
+        # AC-12 : la réinitialisation relève de l'administration technique ; abaisser le seuil n'y habilite pas le commandement.
+        self.assertEqual(self.reinitialiser("commandant", self.acteurs["equipier"]).status_code, 302)
+        self.assertTrue(self.acteurs["equipier"].check_password("pass"))
         refus = self.reinitialiser("commandant", self.acteurs["admin_a"])
         self.assertEqual(refus.status_code, 302)
         self.assertTrue(self.acteurs["admin_a"].check_password("pass"))

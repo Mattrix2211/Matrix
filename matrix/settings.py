@@ -214,6 +214,12 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# Mot de passe provisoire (réinitialisation par une autorité) : durée de validité, puis verrouillage des essais répétés.
+DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES = int(os.environ.get("MATRIX_DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES", "48"))
+TENTATIVES_CONNEXION_MAX = int(os.environ.get("MATRIX_TENTATIVES_CONNEXION_MAX", "5"))
+VERROUILLAGE_CONNEXION_MINUTES = int(os.environ.get("MATRIX_VERROUILLAGE_CONNEXION_MINUTES", "15"))
+AUTHENTICATION_BACKENDS = ["accounts.authentification.ConnexionSurveilleeBackend"]
+
 LANGUAGE_CODE = "fr"
 TIME_ZONE = "Europe/Paris"
 USE_I18N = True
