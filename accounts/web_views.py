@@ -932,7 +932,6 @@ class ReinitialisationMotDePasseView(View):
         return render(request, "registration/reinitialisation.html", {})
 
     def post(self, request):
-        from django.contrib.auth.password_validation import validate_password  # noqa: F401
         mot_de_passe, confirmation = request.POST.get("nouveau_mot_de_passe", ""), request.POST.get("confirmation", "")
         erreurs = []
         if mot_de_passe != confirmation:

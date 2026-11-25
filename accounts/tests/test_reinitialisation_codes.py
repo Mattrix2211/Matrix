@@ -231,3 +231,12 @@ class InterfaceVerificationTests(MondeCodes):
         simple = Client()
         simple.force_login(self.commandant)
         self.assertNotContains(simple.get(reverse("user-directory")), "Vérifications d'identité")
+
+
+class NotificationTests(MondeCodes):
+    def test_le_titulaire_est_notifie_a_la_demande_et_a_l_aboutissement(self):
+        from notifications.models import Notification
+        demande, code = reinitialisation.initier(self.technique, self.marin)
+        self.assertEqual(Notification.objects.filter(user=self.marin, categorie="securite").count(), 1)
+        reinitialisation.utiliser("marin", code, "", NOUVEAU)
+        self.assertEqual(Notification.objects.filter(user=self.marin, categorie="securite").count(), 2)

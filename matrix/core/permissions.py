@@ -3,7 +3,6 @@ from .ecriture_service import niveau_ecriture_sur
 from .roles import est_administrateur_general, est_administrateur_technique, niveau_ecriture, RoleLevel, user_role_level
 from .role_thresholds import REGISTRE_PAR_CLE, niveau_pour_action, seuil_role, ship_id_de
 from .scopes import ship_id_for_user
-from django.contrib.auth import get_user_model
 from accounts.models import Roles
 
 

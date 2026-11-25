@@ -25,7 +25,7 @@ from logistics.models import STATUTS_ANOMALIE_OUVERTS, STATUTS_TICKET_OUVERTS, A
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.equipage import equipage_a_bord
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
-from matrix.core.scopes import is_master_admin, navire_q
+from matrix.core.scopes import navire_q
 from notifications.models import Notification
 from org.models import ParametresPassation, ReleveEquipage, SynthesePassation
 from quarts.models import Quart, ServiceGarde

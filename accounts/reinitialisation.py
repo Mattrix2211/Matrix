@@ -27,7 +27,7 @@ from matrix.core.scopes import is_master_admin, ship_id_for_user
 from . import securite
 from .models import AuditLog, DemandeReinitialisation, UserProfile
 from .services import (
-    PROTECTION_GENERALE, PROTECTION_RECUPERATION, niveau_de_competence, niveaux_de_protection,
+    PROTECTION_GENERALE, niveau_de_competence, niveaux_de_protection,
 )
 
 ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sans caractères ambigus (0/O, 1/I)
@@ -90,6 +90,10 @@ def initier(acteur, cible):
             actor=acteur, action="reinitialisation_demandee", target_user=cible,
             details=f"demande={demande.pk}; verification_independante={'oui' if verification else 'non'}; "
                     f"valide jusqu'au {demande.expire_le:%d/%m/%Y %H:%M}")
+    from notifications.models import Notification, NotificationLevel
+    Notification.objects.create(
+        user=cible, level=NotificationLevel.WARNING, categorie="securite",
+        verb="Une réinitialisation de votre mot de passe a été demandée. Si vous n'en êtes pas à l'origine, prévenez un responsable.")
     return demande, code
 
 
