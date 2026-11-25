@@ -17,8 +17,8 @@ class RolePermission(BasePermission):
         Un ViewSet peut définir `role_threshold_action_write` (et, pour un
         seuil DELETE spécifique, `role_threshold_action_delete`) : une clé du
         registre `matrix/core/role_thresholds.py`, résolue dynamiquement
-        selon la configuration du navire de l'appelant (configurable par
-        ADMIN_NAVIRE/MASTER_ADMIN, onglet « Sécurité » des Réglages).
+        selon la configuration du navire de l'appelant (configurable par le
+        commandement ou l'administration technique selon l'action, onglet « Sécurité » des Réglages).
 
         Les anciens attributs `min_role_level_write`/`min_role_level_delete`
         (constante RoleLevel figée) restent pris en charge pour les ViewSets

@@ -149,7 +149,7 @@ def _perimetre_agregation(user):
     de son profil (contrairement à profil.scope / scope_filters_for_user,
     utilisés ailleurs pour filtrer les listes détaillées de l'utilisateur) :
     - MASTER_ADMIN (ou superutilisateur) : flotte entière, tous navires.
-    - CHEF_SERVICE et rôles supérieurs (ETAT_MAJOR, COMMANDANT, ADMIN_NAVIRE) :
+    - CHEF_SERVICE et rôles supérieurs (ETAT_MAJOR, COMMANDANT) :
       navire entier — comportement historique de cette vue, inchangé.
     - CHEF_SECTEUR : borné à son secteur.
     - CHEF_SECTION : borné à sa section (niveau le plus bas admis par

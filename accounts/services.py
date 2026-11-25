@@ -99,13 +99,13 @@ def peut_reinitialiser_cible(acteur, cible):
     return acteur.pk != cible.pk and niveau_de_protection(cible) <= niveau_de_competence(acteur)
 
 
-def reinitialiser_mot_de_passe(acteur, cible):
+def reinitialiser_mot_de_passe(acteur, cible, verifie=False):
     """Définit un mot de passe provisoire que le marin devra changer ; le renvoie une seule fois.
 
-    L'appelant a déjà borné `cible` au périmètre navire de l'acteur. Le mot de passe n'est ni enregistré en clair ni écrit
+    L'appelant a déjà borné `cible` au périmètre navire de l'acteur (et, avec `verifie`, au niveau de protection). Le mot de passe n'est ni enregistré en clair ni écrit
     dans le journal d'audit ; il expire (`DUREE_MOT_DE_PASSE_PROVISOIRE_HEURES`), les sessions ouvertes du compte sont
     invalidées par le changement de mot de passe et le titulaire est notifié."""
-    if not peut_reinitialiser_cible(acteur, cible):
+    if not verifie and not peut_reinitialiser_cible(acteur, cible):
         raise PermissionDenied
     mot_de_passe = generer_mot_de_passe()
     cible.set_password(mot_de_passe)

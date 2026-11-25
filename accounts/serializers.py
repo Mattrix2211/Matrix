@@ -38,7 +38,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         appartient au périmètre de l'appelant, exactement comme le fait déjà
         l'annuaire web (cf. matrix/core/scopes.py::
         resoudre_affectation_dans_perimetre) : un COMMANDANT ou un
-        ADMIN_NAVIRE ne peut affecter un profil qu'à son propre navire (ou à
+        administrateur technique ne peut affecter un profil qu'à son propre navire (ou à
         un service/secteur/section qui en dépend) ; MASTER_ADMIN (et un
         superutilisateur) garde une liberté totale sur la flotte entière.
 

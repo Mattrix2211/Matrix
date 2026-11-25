@@ -43,7 +43,7 @@ def passation_activee():
 
 
 def peut_generer_passation(user, navire):
-    """Commandement du bâtiment (commandant, second, administrateur d'unité) ou administrateur général."""
+    """Commandement du bâtiment (commandant, second) ou administrateur général."""
     if is_master_admin(user):
         return True
     profil = getattr(user, "profile", None)

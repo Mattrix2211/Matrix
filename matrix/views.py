@@ -289,8 +289,8 @@ class SettingsView(LoginRequiredMixin, View):
         # Seuil configurable (portée GLOBALE, cf. matrix/core/role_thresholds.py)
         # pour désigner/retirer un responsable de spécialité ou de classe de
         # navire (tâche Notion « Dashboards transverses par spécialité et par
-        # classe de navire ») : MASTER_ADMIN par défaut, mais un ADMIN_NAVIRE
-        # peut abaisser ce seuil pour un rôle inférieur. Factorisé ici pour être
+        # classe de navire ») : MASTER_ADMIN par défaut, que seul le
+        # commandement ou l'administration générale peut abaisser. Factorisé ici pour être
         # utilisé à la fois côté contrôle d'accès (dispatch) et côté contexte
         # (get), sans dupliquer le calcul.
         return user_role_level(user) >= niveau_requis_pour(user, 'responsabilite_transverse_gestion')
@@ -299,8 +299,8 @@ class SettingsView(LoginRequiredMixin, View):
     def _peut_gerer_modules(user):
         # Seuil configurable (portée SHIP, cf. matrix/core/role_thresholds.py,
         # clé "module_gestion") pour activer/désactiver un module applicatif
-        # sur SON navire : COMMANDANT par défaut (et tout rôle supérieur,
-        # ADMIN_NAVIRE compris, puisque la comparaison est >=), ajustable par
+        # sur SON navire : COMMANDANT par défaut (plancher d'autorité, AC-02),
+        # renforçable par
         # navire comme n'importe quel autre seuil de l'onglet Sécurité.
         return user_role_level(user) >= niveau_requis_pour(user, 'module_gestion')
 
@@ -318,9 +318,9 @@ class SettingsView(LoginRequiredMixin, View):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             # Seules les sections "Notification quotidienne" (réglage personnel
-            # de chaque marin), "Sécurité" (seuils de rôle, réservée aux
-            # ADMIN_NAVIRE — configuration de LEUR navire, cf. tâche Notion
-            # « Seuils de rôle configurables par navire »), "Utilisateurs"
+            # de chaque marin), "Sécurité" (seuils de rôle : consultation par
+            # l'administrateur technique et le commandement, modification des seuils métier par le
+            # commandement, des seuils techniques par l'administrateur technique), "Utilisateurs"
             # (uniquement la désignation de responsables transverses, réservée
             # au rôle habilité par le seuil configurable ci-dessous) et
             # "Modules" (activation/désactivation d'un module pour SON navire,
@@ -380,7 +380,7 @@ class SettingsView(LoginRequiredMixin, View):
 
         if not request.user.is_superuser:
             # Vue restreinte : réglage personnel des horaires de notification,
-            # (si ADMIN_NAVIRE) l'onglet Sécurité limité à SON navire, et (si
+            # (si habilité) l'onglet Sécurité limité à SON navire, et (si
             # habilité par le seuil configurable) l'onglet Utilisateurs limité
             # à la désignation de responsables transverses — sans les autres
             # données/référentiels réservés aux superusers.
@@ -854,8 +854,9 @@ class SettingsView(LoginRequiredMixin, View):
         elif action in ('update_role_threshold', 'reset_role_threshold'):
             # Onglet Sécurité : modification (ou réinitialisation à la valeur
             # par défaut) d'un seuil de rôle configurable par navire, cf.
-            # matrix/core/role_thresholds.py. Accessible à un ADMIN_NAVIRE
-            # (limité à SON navire, ship_id posté ignoré) ou à un MASTER_ADMIN
+            # matrix/core/role_thresholds.py. Accessible au commandement (seuils métier)
+            # ou à un administrateur technique (seuils techniques), limité à SON navire (ship_id posté ignoré),
+            # ou à un MASTER_ADMIN
             # (choisit le navire, ou édite la configuration GLOBALE flotte).
             next_tab = 'seuils_role'
             cle_action = request.POST.get('cle_action')

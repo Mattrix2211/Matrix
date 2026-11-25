@@ -14,8 +14,8 @@ Chaque action du REGISTRE ci-dessous porte une PORTEE :
   communs à tout le bord) — stocké dans le même modèle avec ship=None.
 
 Les valeurs DEFAUT ci-dessous REPRODUISENT EXACTEMENT les seuils codés en
-dur avant ce système : tant qu'aucun ADMIN_NAVIRE (ou MASTER_ADMIN pour la
-portée GLOBALE) ne reconfigure une action via l'onglet « Sécurité » des
+dur avant ce système : tant qu'aucune autorité habilitée (commandement, administrateur
+technique pour un seuil technique, administrateur général pour la portée GLOBALE) ne reconfigure une action via l'onglet « Sécurité » des
 Réglages, le comportement de l'application reste strictement identique à
 avant — aucune régression.
 """

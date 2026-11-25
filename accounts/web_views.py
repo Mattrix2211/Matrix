@@ -47,7 +47,7 @@ def _role_attribution_autorisee(acting_user, role_cible):
     Réutilise la matrice ManageUsersPermission.MANAGE_MAP déjà définie côté API DRF
     (matrix/core/permissions.py) pour que le web et l'API appliquent exactement la
     même règle. Empêche par exemple un COMMANDANT de s'auto-attribuer (ou d'attribuer
-    à un tiers) le rôle ADMIN_NAVIRE ou MASTER_ADMIN.
+    à un tiers) le rôle MASTER_ADMIN (l'ancien rôle ADMIN_NAVIRE n'existe plus).
     """
     if is_master_admin(acting_user):
         return True
@@ -78,7 +78,7 @@ def _utilisateurs_gerables_par(acting_user):
     Réutilise exactement le même périmètre que la lecture
     (UserDirectoryView.get_queryset() ci-dessous) : seul MASTER_ADMIN (ou un
     superutilisateur) peut agir sur la flotte entière ; un COMMANDANT ou un
-    ADMIN_NAVIRE ne peut agir que sur le personnel de SON navire. Avant
+    administrateur technique ne peut agir que sur le personnel de SON navire. Avant
     correction, les actions POST (edit_user, delete_user, set_password,
     bulk_*) résolvaient l'utilisateur cible sans aucun filtre de périmètre :
     un COMMANDANT du navire A pouvait éditer, supprimer ou réinitialiser le
@@ -176,7 +176,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # Périmètre par défaut : seul MASTER_ADMIN (ou un superutilisateur) voit
         # la flotte entière. L'accès à cette vue est déjà réservé à COMMANDANT
         # et au-dessus (cf. dispatch() ci-dessus) ; tous les rôles restants
-        # (ADMIN_NAVIRE et COMMANDANT) sont rattachés à un navire précis (cf.
+        # (commandement et administrateurs techniques) sont rattachés à un navire précis (cf.
         # matrix/core/scopes.py::is_master_admin) et ne doivent voir que le
         # personnel de LEUR navire, à n'importe quel niveau de rattachement
         # (navire/service/secteur/section — perimetre_navire_q, contrairement
@@ -288,7 +288,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         if action in ("bulk_update_role", "bulk_update_ship", "bulk_update_fonction", "bulk_update_service", "bulk_update_sector", "bulk_update_section", "bulk_update_grade", "bulk_update_specialite", "bulk_delete_users", "bulk_reset_passwords"):
             ids = entiers_valides(request.POST.getlist("selected_ids"))
             # Périmètre navire appliqué avant toute exécution : un id hors du
-            # navire de l'appelant (COMMANDANT/ADMIN_NAVIRE) est ignoré, comme
+            # navire de l'appelant (commandement ou technique) est ignoré, comme
             # s'il n'existait pas (cf. _utilisateurs_gerables_par ci-dessus).
             users = _utilisateurs_gerables_par(request.user).filter(id__in=ids)
             count = users.count()
@@ -307,7 +307,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             elif action == "bulk_update_ship":
                 ship_id = request.POST.get("ship_id")
                 # Valeur de destination validée contre le périmètre de l'appelant :
-                # un COMMANDANT/ADMIN_NAVIRE ne peut affecter ses utilisateurs qu'à
+                # un COMMANDANT ou un administrateur technique ne peut affecter ses utilisateurs qu'à
                 # son propre navire, jamais à un navire tiers (cf.
                 # resoudre_affectation_dans_perimetre).
                 ok, ship, _, _, _ = resoudre_affectation_dans_perimetre(request.user, ship_id=ship_id)
@@ -405,9 +405,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             elif action == "bulk_reset_passwords":
                 if not peut_reinitialiser(request.user):
                     raise PermissionDenied
+                cibles = [u for u in users if u.pk != request.user.pk]
+                niveaux, competence = niveaux_de_protection(cibles), niveau_de_competence(request.user)
                 provisoires = [
-                    (u, reinitialiser_mot_de_passe(request.user, u)) for u in users
-                    if u.pk != request.user.pk and peut_reinitialiser_cible(request.user, u)
+                    (u, reinitialiser_mot_de_passe(request.user, u, verifie=True)) for u in cibles if niveaux[u.pk] <= competence
                 ]
                 if not provisoires:
                     messages.warning(request, "Aucun marin de votre bâtiment à réinitialiser.")
@@ -437,8 +438,8 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             # Valeurs de destination (navire/service/secteur/section) validées
             # contre le périmètre de l'appelant AVANT toute création de compte
             # (cf. resoudre_affectation_dans_perimetre), pour ne jamais créer un
-            # utilisateur rattaché à un navire hors du périmètre du COMMANDANT/
-            # ADMIN_NAVIRE appelant, et pour ne pas laisser un compte créé dans un
+            # utilisateur rattaché à un navire hors du périmètre de l'appelant (commandement
+            # ou administrateur technique), et pour ne pas laisser un compte créé dans un
             # état partiel si la valeur demandée est refusée.
             ok, ship, service, sector, section = resoudre_affectation_dans_perimetre(
                 request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id

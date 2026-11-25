@@ -25,9 +25,8 @@ def scope_filters_for_user(user) -> Dict[str, Any]:
 
 def is_master_admin(user) -> bool:
     """Vrai si l'utilisateur a un accès multi-navires (flotte entière) :
-    superutilisateur ou rôle MASTER_ADMIN, seul niveau au-dessus de ADMIN_NAVIRE
-    dans la hiérarchie (matrix/core/roles.py). Tous les autres rôles (ADMIN_NAVIRE
-    compris) sont rattachés à un navire précis. Même règle que celle déjà
+    superutilisateur ou rôle MASTER_ADMIN, administrateur général (matrix/core/roles.py).
+    Tous les autres comptes, administrateurs techniques compris, sont rattachés à un navire précis. Même règle que celle déjà
     appliquée dans org/views.py::_is_master_admin, centralisée ici pour être
     réutilisée par toute vue nécessitant un périmètre "navire entier" (ex. Vue
     flotte du tableau de bord)."""
@@ -101,7 +100,7 @@ def perimetre_navire_q(user, prefix: str = "") -> Q:
     """Filtre Q couvrant tout le personnel rattaché au navire de
     l'utilisateur, à n'importe quel niveau de la hiérarchie organisationnelle
     (navire/service/secteur/section). Utilisé pour restreindre un COMMANDANT
-    ou un ADMIN_NAVIRE à son propre navire dans l'annuaire du personnel.
+    ou un administrateur technique à son propre navire dans l'annuaire du personnel.
 
     Contrairement à build_scope_q() (matrix/core/mixins.py), qui compare le
     périmètre de l'appelant au seul champ direct de même niveau sur la
@@ -158,7 +157,7 @@ def perimetre_hierarchique_q(user, prefix: str = "") -> Optional[Q]:
 def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=None, sector_id=None, section_id=None, deja=None):
     """Résout les valeurs d'affectation (navire/service/secteur/section) demandées
     pour un utilisateur, en s'assurant qu'elles appartiennent au périmètre navire
-    de l'appelant : un COMMANDANT ou un ADMIN_NAVIRE ne peut affecter un
+    de l'appelant : un COMMANDANT ou un administrateur technique ne peut affecter un
     utilisateur qu'à son propre navire (ou à un service/secteur/section qui en
     dépend) ; MASTER_ADMIN (et un superutilisateur) garde une liberté totale sur
     la flotte entière. Centralisée ici pour être réutilisée aussi bien par
@@ -208,7 +207,7 @@ def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=No
 
 def equipage_agissant(user):
     """Code d'équipage dans lequel `user` agit sur un bâtiment à double équipage :
-    son propre équipage, ou à défaut (administrateur d'unité, commandant sans
+    son propre équipage, ou à défaut (administrateur technique, commandant sans
     équipage renseigné) l'équipage à bord. None si le navire est à équipage
     unique (comportement inchangé) ou si l'utilisateur voit la flotte entière.
 

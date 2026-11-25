@@ -18,9 +18,8 @@ class DefaultPermission(permissions.IsAuthenticated):
 
 def _is_master_admin(user):
     """Vrai si l'utilisateur a un accès multi-navires (flotte entière) : superutilisateur
-    ou rôle MASTER_ADMIN (administrateur général, seul niveau au-dessus de ADMIN_NAVIRE
-    dans la hiérarchie). Tous les autres rôles (ADMIN_NAVIRE compris) sont rattachés à
-    un navire précis et ne doivent gérer que celui-ci.
+    ou rôle MASTER_ADMIN (administrateur général). Tous les autres comptes, administrateurs
+    techniques compris, sont rattachés à un navire précis et ne doivent gérer que celui-ci.
     """
     if getattr(user, "is_superuser", False):
         return True

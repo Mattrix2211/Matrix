@@ -1,6 +1,6 @@
 """Page de démonstration des composants (styleguide, docs/UX.md §26.1).
 
-Réservée aux administrateurs (ADMIN_NAVIRE et MASTER_ADMIN, via ``user_role_level``).
+Réservée aux administrateurs techniques (``est_administrateur_technique``).
 Rien n'est copié : chaque exemple est un gabarit ``{% ... %}`` réellement rendu,
 et le code affiché est exactement celui qui a été rendu. Les paramètres sont lus
 dans l'en-tête de chaque gabarit de ``components/`` et les contrastes sont calculés

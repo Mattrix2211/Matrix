@@ -68,7 +68,7 @@ def build_scope_q(user, *lookup_paths):
 def utilisateurs_visibles_par(user):
     """Comptes utilisateurs que `user` peut lire ou désigner (assignation) :
     flotte entière pour un MASTER_ADMIN ; tout le navire pour un COMMANDANT, son second ou
-    ADMIN_NAVIRE ; sinon son périmètre hiérarchique. Sans périmètre : personne.
+    un administrateur technique ; sinon son périmètre hiérarchique. Sans périmètre : personne.
     User ne porte pas le périmètre, son profil si : préfixe "profile__"."""
     User = get_user_model()
     if is_master_admin(user):
