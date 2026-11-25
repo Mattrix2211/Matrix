@@ -55,14 +55,22 @@ _LIBELLE_ROLE = dict(Roles.choices)
 ROLES_POUR_SEUILS = [(niveau.name, _LIBELLE_ROLE.get(niveau.name, niveau.name)) for niveau in RoleLevel]
 
 
-def _abaisse_sans_autorite_metier(user, action_seuil, cle_action, nouveau):
-    """Un administrateur technique sans autorité de commandement ne peut pas abaisser un seuil métier (auto-élévation)."""
-    if is_master_admin(user) or action_seuil.technique or user_role_level(user) >= RoleLevel.COMMANDANT:
-        return False
-    return nouveau < seuil_role(cle_action, ship_id_for_user(user))
+def peut_voir_securite(user):
+    """Consulter les seuils : administrateur technique ou autorité de commandement."""
+    return est_administrateur_technique(user) or user_role_level(user) >= RoleLevel.COMMANDANT
 
 
-def _lignes_seuils(ship_id, portee_visee):
+def peut_modifier_seuil(user, action_seuil):
+    """Un seuil technique relève de l'administration technique, un seuil métier du commandement (AC-13) ;
+    l'administrateur technique seul ne touche à aucun seuil métier, ni pour le renforcer ni pour l'abaisser."""
+    if is_master_admin(user):
+        return True
+    if action_seuil.technique:
+        return est_administrateur_technique(user)
+    return user_role_level(user) >= RoleLevel.COMMANDANT
+
+
+def _lignes_seuils(ship_id, portee_visee, user=None):
     """Construit les lignes affichables pour l'onglet Sécurité des Réglages :
     une ligne par action configurable de la portée demandée (SHIP ou
     GLOBALE), avec son seuil actuel (configuré pour ce navire, ou seuil par
@@ -74,6 +82,7 @@ def _lignes_seuils(ship_id, portee_visee):
             "categorie": action.categorie,
             "niveau_actuel": seuil_role(action.cle, ship_id),
             "niveau_defaut": action.defaut,
+            "modifiable": user is None or peut_modifier_seuil(user, action),
         }
         for action in REGISTRE_ACTIONS
         if action.portee == portee_visee
@@ -328,7 +337,7 @@ class SettingsView(LoginRequiredMixin, View):
             tab_ok = request.method == 'GET' and (
                 tab == 'notifications'
                 or (tab == 'equipage' and peut_voir_equipage)
-                or (tab == 'seuils_role' and est_admin_navire)
+                or (tab == 'seuils_role' and peut_voir_securite(request.user))
                 or (tab in ('utilisateurs', 'responsables') and peut_gerer_responsables)
                 or (tab == 'modules' and peut_gerer_modules)
             )
@@ -337,7 +346,7 @@ class SettingsView(LoginRequiredMixin, View):
             action_seuil_ok = (
                 request.method == 'POST'
                 and action in ('update_role_threshold', 'reset_role_threshold')
-                and est_admin_navire
+                and peut_voir_securite(request.user)
             )
             action_responsable_ok = (
                 request.method == 'POST'
@@ -383,7 +392,7 @@ class SettingsView(LoginRequiredMixin, View):
             active_tab = 'notifications'
             if tab == 'equipage' and peut_voir_equipage:
                 active_tab = 'equipage'
-            elif tab == 'seuils_role' and est_admin_navire:
+            elif tab == 'seuils_role' and peut_voir_securite(request.user):
                 active_tab = 'seuils_role'
             elif tab in ('utilisateurs', 'responsables') and peut_gerer_responsables:
                 active_tab = 'responsables'
@@ -393,7 +402,7 @@ class SettingsView(LoginRequiredMixin, View):
                 'active_tab': active_tab,
                 'user_notification_time': fmt_time(getattr(profile, 'notification_time', None)),
                 'user_notification_time_soir': fmt_time(getattr(profile, 'notification_time_soir', None)),
-                'peut_gerer_seuils': est_admin_navire,
+                'peut_gerer_seuils': peut_voir_securite(request.user),
                 'peut_gerer_responsables': peut_gerer_responsables,
                 'peut_gerer_modules': peut_gerer_modules,
                 'peut_voir_equipage': peut_voir_equipage,
@@ -409,7 +418,7 @@ class SettingsView(LoginRequiredMixin, View):
                 mon_ship_id = ship_id_for_user(request.user)
                 context.update({
                     'seuils_ship': Ship.objects.filter(pk=mon_ship_id).first(),
-                    'seuils_lignes': _lignes_seuils(mon_ship_id, 'SHIP'),
+                    'seuils_lignes': _lignes_seuils(mon_ship_id, 'SHIP', request.user),
                     'seuils_lignes_globales': [],
                     'peut_editer_global': False,
                     'roles_pour_seuils': ROLES_POUR_SEUILS,
@@ -535,7 +544,7 @@ class SettingsView(LoginRequiredMixin, View):
             # éditer la configuration GLOBALE (flotte) des référentiels communs.
             context.update({
                 'seuils_ship': selected_ship,
-                'seuils_lignes': _lignes_seuils(selected_ship.id if selected_ship else None, 'SHIP'),
+                'seuils_lignes': _lignes_seuils(selected_ship.id if selected_ship else None, 'SHIP', request.user),
                 'seuils_lignes_globales': _lignes_seuils(None, PORTEE_GLOBALE),
                 'parametres_taches': ParametresTaches.courants(),
                 'parametres_annonces': ParametresAnnonces.courants(),
@@ -853,6 +862,8 @@ class SettingsView(LoginRequiredMixin, View):
             action_seuil = REGISTRE_PAR_CLE.get(cle_action)
             if action_seuil is None:
                 messages.error(request, "Seuil de rôle inconnu.")
+            elif not peut_modifier_seuil(request.user, action_seuil):
+                raise PermissionDenied
             elif action_seuil.portee == PORTEE_GLOBALE and not is_master_admin(request.user):
                 messages.error(request, "Seuls les administrateurs généraux peuvent modifier ce référentiel commun à toute la flotte.")
             else:
@@ -874,8 +885,6 @@ class SettingsView(LoginRequiredMixin, View):
                         elif not is_master_admin(request.user) and RoleLevel[nouveau_role] > (
                                 RoleLevel.ADMIN_NAVIRE if action_seuil.technique else RoleLevel.COMMANDANT):
                             messages.error(request, "Ce seuil ne peut pas être relevé jusqu'à retirer l'autorité aux titulaires.")
-                        elif _abaisse_sans_autorite_metier(request.user, action_seuil, cle_action, RoleLevel[nouveau_role]):
-                            messages.error(request, "Sans autorité de commandement, un seuil ne peut qu'être renforcé.")
                         elif not seuil_autorise(cle_action, RoleLevel[nouveau_role]):
                             messages.error(request, "Ce seuil ne peut pas descendre sous l'autorité minimale de l'action : il ne peut qu'être renforcé.")
                         else:
@@ -887,8 +896,6 @@ class SettingsView(LoginRequiredMixin, View):
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> {nouveau_role}",
                             )
                             messages.success(request, "Seuil de rôle mis à jour.")
-                    elif _abaisse_sans_autorite_metier(request.user, action_seuil, cle_action, action_seuil.defaut):
-                        messages.error(request, "Sans autorité de commandement, un seuil ne peut qu'être renforcé.")
                     else:
                         if cle_action in config.thresholds:
                             ancien = config.thresholds.pop(cle_action)

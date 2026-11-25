@@ -143,17 +143,33 @@ class ApiProfilsTests(MondeFictif):
 
 
 class SeuilsTechniqueTests(MondeFictif):
-    def test_l_administrateur_technique_ne_peut_que_renforcer_un_seuil_metier(self):
-        from matrix.core.role_thresholds import seuil_role
-        for cle in ("liste_service_publication", "feuille_service_visa_service", "alerte_organisation_validation"):
+    def _poster(self, nom, action, cle, role="EQUIPIER"):
+        return self.client_de(nom).post("/parametre/", {"action": action, "cle_action": cle, "nouveau_role": role, "ship_id": self.navire.pk})
+
+    def test_l_administrateur_technique_seul_ne_modifie_aucun_seuil_metier(self):
+        for cle in ("liste_service_publication", "feuille_service_visa_service", "alerte_organisation_validation", "asset_ecriture_simple"):
             defaut = seuil_role(cle, self.navire.pk)
-            client = self.client_de("admin_navire")
-            client.post("/parametre/", {"action": "update_role_threshold", "cle_action": cle, "nouveau_role": "EQUIPIER", "ship_id": self.navire.pk})
+            for role in ("EQUIPIER", "COMMANDANT"):  # ni abaisser ni renforcer
+                self.assertEqual(self._poster("admin_navire", "update_role_threshold", cle, role).status_code, 403, cle)
             self.assertEqual(seuil_role(cle, self.navire.pk), defaut, cle)
             RoleThresholdConfig.objects.update_or_create(ship=self.navire, defaults={"thresholds": {cle: "COMMANDANT"}})
-            client.post("/parametre/", {"action": "reset_role_threshold", "cle_action": cle})
+            self.assertEqual(self._poster("admin_navire", "reset_role_threshold", cle).status_code, 403, cle)
             self.assertEqual(seuil_role(cle, self.navire.pk), RoleLevel.COMMANDANT, cle)
             RoleThresholdConfig.objects.all().delete()
+
+    def test_l_administrateur_technique_regle_un_seuil_technique_et_consulte_les_autres(self):
+        self.assertEqual(self._poster("admin_navire", "update_role_threshold", "mot_de_passe_reinitialisation", "ADMIN_NAVIRE").status_code, 302)
+        reponse = self.client_de("admin_navire").get("/parametre/?tab=seuils_role")
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, "Lecture seule")
+
+    def test_le_commandant_regle_un_seuil_metier_mais_pas_sous_un_plancher(self):
+        self._poster("cdt_b", "update_role_threshold", "asset_ecriture_simple", "CHEF_SERVICE")
+        self.assertEqual(seuil_role("asset_ecriture_simple", self.navire.pk), RoleLevel.CHEF_SERVICE)
+        self._poster("cdt_b", "update_role_threshold", "module_gestion", "EQUIPIER")
+        self.assertEqual(seuil_role("module_gestion", self.navire.pk), RoleLevel.COMMANDANT)
+        self.assertEqual(self._poster("equipier_b1", "update_role_threshold", "asset_ecriture_simple", "CHEF_SERVICE").status_code, 403)
+        self.assertTrue(AuditLog.objects.filter(action="update_role_threshold", actor=self.cdt_b).exists())
 
     def test_un_seuil_metier_enregistre_au_palier_obsolete_equivaut_au_commandant(self):
         RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"asset_ecriture_simple": "ADMIN_NAVIRE"})

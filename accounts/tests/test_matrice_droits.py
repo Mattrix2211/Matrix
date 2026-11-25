@@ -18,7 +18,7 @@ ONGLETS_AUTORISES = {
     "master": set(ONGLETS),
     "admin_a": {"seuils_role", "notifications"},
     "admin_b": {"seuils_role", "notifications"},
-    "commandant": {"modules", "notifications"},
+    "commandant": {"modules", "seuils_role", "notifications"},
     "chef": {"notifications"},
     "equipier": {"notifications"},
 }
@@ -256,12 +256,19 @@ class ParametresMatriceTests(MatriceDroitsBase):
     def test_seuils_de_role_bornes_au_navire_de_l_administrateur(self):
         self.connecter("admin_a")
         self.client.post("/parametre/", {
-            "action": "update_role_threshold", "cle_action": "module_gestion", "nouveau_role": "COMMANDANT", "ship_id": self.b.pk,
+            "action": "update_role_threshold", "cle_action": "mot_de_passe_reinitialisation", "nouveau_role": "MASTER_ADMIN", "ship_id": self.b.pk,
+        })
+        self.assertFalse(RoleThresholdConfig.objects.filter(ship=self.b).exists())
+        self.client.post("/parametre/", {
+            "action": "update_role_threshold", "cle_action": "mot_de_passe_reinitialisation", "nouveau_role": "ADMIN_NAVIRE", "ship_id": self.b.pk,
         })
         self.assertTrue(RoleThresholdConfig.objects.filter(ship=self.a).exists())
         self.assertFalse(RoleThresholdConfig.objects.filter(ship=self.b).exists())
         self.assertTrue(AuditLog.objects.filter(action="update_role_threshold", actor=self.acteurs["admin_a"]).exists())
         self.connecter("commandant")
+        self.client.post("/parametre/", {"action": "update_role_threshold", "cle_action": "module_gestion", "nouveau_role": "EQUIPIER"})
+        self.assertNotIn("module_gestion", RoleThresholdConfig.objects.get(ship=self.a).thresholds)  # plancher d'autorité
+        self.connecter("chef")
         reponse = self.client.post("/parametre/", {"action": "update_role_threshold", "cle_action": "module_gestion", "nouveau_role": "EQUIPIER"})
         self.assertEqual(reponse.status_code, 403)
 

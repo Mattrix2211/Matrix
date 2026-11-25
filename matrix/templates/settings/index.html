@@ -464,6 +464,9 @@
               <tr>
                 <td>{{ ligne.libelle }}</td>
                 <td>
+                  {% if not ligne.modifiable %}
+                    {% for code, label in roles_pour_seuils %}{% if ligne.niveau_actuel.name == code %}{{ label }}{% endif %}{% endfor %}
+                  {% else %}
                   <form method="post" class="d-flex gap-2">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_role_threshold" />
@@ -477,9 +480,12 @@
                     </select>
                     <button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button>
                   </form>
+                  {% endif %}
                 </td>
                 <td>
-                  {% if ligne.niveau_actuel != ligne.niveau_defaut %}
+                  {% if not ligne.modifiable %}
+                    <small class="text-muted">Lecture seule</small>
+                  {% elif ligne.niveau_actuel != ligne.niveau_defaut %}
                   <form method="post" style="display:inline">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="reset_role_threshold" />

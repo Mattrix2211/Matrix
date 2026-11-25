@@ -196,16 +196,16 @@ VERIFICATIONS = (
         donnees=lambda m: {"action": "update_role_threshold", "cle_action": "module_gestion", "nouveau_role": "EQUIPIER", "ship_id": m.navire.pk},
         effet=lambda m: __import__("matrix.core.role_thresholds", fromlist=["x"]).seuil_role("module_gestion", m.navire.pk) < 7,
         attendu={"admin_navire": "refus", "cdt_admin": "refus", "cdt_b": "refus", "master_admin": "refus"},
-        codes={"admin_navire": 302, "cdt_admin": 302},  # redirection avec message ; le jumeau V24 prouve que l'adresse et l'action sont valides
+        codes={"admin_navire": 403, "cdt_admin": 302},  # redirection avec message ; le jumeau V24 prouve que l'adresse et l'action sont valides
     ),
     Verification(
-        "V24-seuil-sans-plancher-reste-reglable", "WEB-REGLAGES", "post", "/parametre/",
+        "V24-seuil-metier-sans-plancher-reste-reglable-par-le-commandement", "WEB-REGLAGES", "post", "/parametre/",
         donnees=lambda m: {"action": "update_role_threshold", "cle_action": "asset_ecriture_simple", "nouveau_role": "CHEF_SERVICE", "ship_id": m.navire.pk},
         effet=lambda m: __import__("matrix.core.role_thresholds", fromlist=["x"]).seuil_role("asset_ecriture_simple", m.navire.pk) == 4,
-        attendu={"admin_navire": "acces", "cdt_b": "refus", "equipier_b1": "refus", "admin_abe": "refus"},
+        attendu={"cdt_b": "acces", "cdt_admin": "acces", "admin_navire": "refus", "equipier_b1": "refus", "admin_abe": "refus"},
     ),
     Verification(
-        "V26-seuil-de-circuit-non-abaissable-sans-commandement", "WEB-REGLAGES", "post", "/parametre/",
+        "V26-seuil-de-circuit-fermé-à-l-administrateur-technique-seul", "WEB-REGLAGES", "post", "/parametre/",
         donnees=lambda m: {"action": "update_role_threshold", "cle_action": "liste_service_publication", "nouveau_role": "EQUIPIER", "ship_id": m.navire.pk},
         effet=lambda m: __import__("matrix.core.role_thresholds", fromlist=["x"]).seuil_role("liste_service_publication", m.navire.pk) < 2,
         attendu={"admin_navire": "refus", "bsc_admin": "refus", "admin_abe": "refus", "cdt_admin": "acces", "master_admin": "acces"},
