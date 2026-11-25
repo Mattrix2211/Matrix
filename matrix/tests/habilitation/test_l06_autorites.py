@@ -181,3 +181,18 @@ class SeuilsTechniqueTests(MondeFictif):
         self.assertFalse(peut_reinitialiser_cible(self.admin_navire, self.staff_sans_droit))
         reponse = self.client_de("admin_navire").post("/users/", {"action": "set_password", "pk": self.staff_sans_droit.pk})
         self.assertEqual(reponse.status_code, 302)  # message, pas de page 403 ni de mot de passe provisoire
+
+
+class RelationsUtilisateurTests(MondeFictif):
+    def test_toute_nouvelle_relation_vers_un_compte_est_examinee(self):
+        """Une relation vers l'utilisateur peut porter une autorité (désignation) : elle doit être classée soit dans
+        `accounts.services.DESIGNATIONS` (protège le compte à la réinitialisation), soit dans la liste des relations
+        examinées et jugées sans autorité (`relations_utilisateur_examinees.txt`). Une nouvelle relation fait échouer ce test."""
+        from pathlib import Path
+
+        from accounts.services import DESIGNATIONS
+        examinees = set(Path(__file__).with_name("relations_utilisateur_examinees.txt").read_text(encoding="utf-8").split())
+        actuelles = {r.get_accessor_name() for r in User._meta.related_objects}
+        self.assertEqual(actuelles - set(DESIGNATIONS) - examinees, set(),
+                         "Nouvelle relation vers l'utilisateur : l'ajouter à DESIGNATIONS si elle donne une autorité, sinon au fichier des relations examinées.")
+        self.assertEqual(set(DESIGNATIONS) - actuelles, set(), "Désignation supprimée ou renommée.")

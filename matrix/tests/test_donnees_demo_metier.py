@@ -2,6 +2,7 @@
 from collections import Counter
 from datetime import timedelta
 from io import StringIO
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
@@ -27,8 +28,11 @@ from quarts.models import (
 class DonneesDemoMetierTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        call_command("seed_demo", stdout=StringIO())
-        cls.jour = timezone.localdate()
+        # Instant de référence maîtrisé : la démonstration et le jour testé partent du même instant, même près de minuit.
+        instant = timezone.localtime().replace(hour=12, minute=0, second=0, microsecond=0)
+        with mock.patch("django.utils.timezone.now", return_value=instant):
+            call_command("seed_demo", stdout=StringIO())
+        cls.jour = instant.date()
 
     def _marin(self, nom):
         return User.objects.get(username=nom)
