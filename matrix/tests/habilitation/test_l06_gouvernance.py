@@ -145,11 +145,11 @@ class CatalogueFormationsTests(MondeFictif):
         commune.refresh_from_db()
         self.assertIsNone(commune.applies_to_ship_id)
         affaiblie = {"course": cours.pk, "applies_to_role": "EQUIPIER", "applies_to_ship": self.navire.pk, "required": False}
-        self.assertEqual(self._api("cdt_b", "post", "/api/training/requirements/", affaiblie).status_code, 403)
+        self.assertEqual(self._api("cdt_b", "post", "/api/training/requirements/", affaiblie).status_code, 400)
         renforcee = dict(affaiblie, required=True)
         self.assertEqual(self._api("cdt_b", "post", "/api/training/requirements/", renforcee).status_code, 201)
         locale = TrainingRequirement.objects.get(course=cours, applies_to_ship=self.navire)
-        self.assertEqual(self._api("cdt_b", "patch", f"/api/training/requirements/{locale.pk}/", {"required": False}).status_code, 403)
+        self.assertEqual(self._api("cdt_b", "patch", f"/api/training/requirements/{locale.pk}/", {"required": False}).status_code, 400)
 
     def test_l_administrateur_technique_garde_l_administration_technique_du_module(self):
         # Le module reste lisible et son administration technique inchangée ; seule l'écriture du référentiel commun disparaît.

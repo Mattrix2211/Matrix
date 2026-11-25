@@ -34,10 +34,10 @@ def restaurer(apps, schema_editor):
         apres = journal.details.split("apres=")[1].split(";")[0]
         fonction = journal.details.split("fonction_a_confirmer=")[1]
         # Un rôle modifié depuis la migration n'est pas écrasé.
-        UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_technique=True, role=apres).update(
+        restaure = UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_technique=True, role=apres).update(
             role="ADMIN_NAVIRE", administrateur_technique=False, fonction_coma="" if fonction == "aucune" else fonction)
-        # Le journal n'est jamais supprimé : la trace d'origine est conservée sous un libellé d'annulation.
-        AuditLog.objects.filter(pk=journal.pk).update(action=ACTION + "_annulee")
+        # Le journal n'est jamais supprimé : la trace est conservée, sous un libellé qui dit si le profil a été restauré.
+        AuditLog.objects.filter(pk=journal.pk).update(action=ACTION + ("_annulee" if restaure else "_non_restauree"))
 
 
 class Migration(migrations.Migration):

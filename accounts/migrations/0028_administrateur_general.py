@@ -22,10 +22,10 @@ def restaurer(apps, schema_editor):
     UserProfile = apps.get_model("accounts", "UserProfile")
     AuditLog = apps.get_model("accounts", "AuditLog")
     for journal in AuditLog.objects.filter(action=ACTION):
-        UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_general=True, role="EQUIPIER").update(
+        restaure = UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_general=True, role="EQUIPIER").update(
             role="MASTER_ADMIN", administrateur_general=False)
-        # Le journal n'est jamais supprimé : la trace d'origine est conservée sous un libellé d'annulation.
-        AuditLog.objects.filter(pk=journal.pk).update(action=ACTION + "_annulee")
+        # Le journal n'est jamais supprimé : la trace est conservée, sous un libellé qui dit si le profil a été restauré.
+        AuditLog.objects.filter(pk=journal.pk).update(action=ACTION + ("_annulee" if restaure else "_non_restauree"))
 
 
 class Migration(migrations.Migration):

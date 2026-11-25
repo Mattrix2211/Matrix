@@ -312,23 +312,7 @@ class TrainingRequirementPermission(RolePermission):
             deja=SimpleNamespace(ship=getattr(existant, "applies_to_ship", None), service=getattr(existant, "applies_to_service", None),
                                  sector=getattr(existant, "applies_to_sector", None), section=getattr(existant, "applies_to_section", None)),
         )
-        if ok and self._affaiblit_exigence_commune(request, existant):
-            self.message = "Une exigence locale renforce l'exigence commune, elle ne peut pas la lever."
-            return False
         return ok
-
-    @staticmethod
-    def _affaiblit_exigence_commune(request, existant):
-        """Vrai si une exigence locale rendrait facultative une formation que l'exigence commune impose (AC-20)."""
-        data = request.data
-        requis = data.get("required") if "required" in data else getattr(existant, "required", True)
-        if requis not in (False, 0, "0", "false", "False", "off"):
-            return False
-        cours = entier_ou_none(data.get("course")) if "course" in data else getattr(existant, "course_id", None)
-        role = data.get("applies_to_role") if "applies_to_role" in data else getattr(existant, "applies_to_role", "")
-        return bool(cours) and TrainingRequirement.objects.filter(
-            course_id=cours, required=True, applies_to_ship__isnull=True, applies_to_service__isnull=True,
-            applies_to_sector__isnull=True, applies_to_section__isnull=True, applies_to_role__in=(role or "", "")).exists()
 
     @staticmethod
     def _cible_archivee(existant, *identifiants):

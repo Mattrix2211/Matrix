@@ -29,6 +29,24 @@ class TrainingRequirementSerializer(serializers.ModelSerializer):
         model = TrainingRequirement
         fields = "__all__"
 
+    CIBLES = ("applies_to_ship", "applies_to_service", "applies_to_sector", "applies_to_section")
+
+    def validate(self, attrs):
+        """Une exigence locale renforce l'exigence commune, elle ne la lève jamais (AC-20) : contrôle sur les valeurs finales."""
+        def final(champ, defaut=None):
+            return attrs[champ] if champ in attrs else getattr(self.instance, champ, defaut)
+
+        if any(final(c) for c in self.CIBLES) and not final("required", True):
+            communes = TrainingRequirement.objects.filter(
+                course=final("course"), required=True, applies_to_ship__isnull=True, applies_to_service__isnull=True,
+                applies_to_sector__isnull=True, applies_to_section__isnull=True)
+            role = final("applies_to_role", "")
+            if role:
+                communes = communes.filter(applies_to_role__in=(role, ""))
+            if communes.exists():
+                raise serializers.ValidationError("Une exigence locale renforce l'exigence commune, elle ne peut pas la lever.")
+        return attrs
+
 class TrainingSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingSession

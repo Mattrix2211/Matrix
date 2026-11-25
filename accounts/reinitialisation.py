@@ -3,7 +3,8 @@
 Parcours : une autorité habilitée demande la réinitialisation ; Matrix génère un code temporaire (seule son empreinte salée est
 conservée) que l'autorité remet au titulaire après vérification de son identité ; le titulaire définit lui-même son nouveau mot
 de passe sur la page publique de réinitialisation ; le code est alors invalidé et les sessions anciennes tombent. Le code
-n'authentifie jamais, ne vaut que pour sa demande et son compte, expire (30 minutes par défaut) et se bloque après 5 essais.
+n'authentifie jamais, ne vaut que pour sa demande et son compte, expire (30 minutes par défaut) ; les essais erronés bloquent
+progressivement la seule source qui les commet.
 
 Pour un compte porteur d'une autorité, la vérification d'identité est indépendante et imposée par le mécanisme : deux codes
 sont nécessaires, l'un remis à l'initiateur, l'autre généré seulement quand un second responsable distinct, compétent pour ce
