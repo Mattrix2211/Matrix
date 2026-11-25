@@ -219,6 +219,18 @@ class FonctionAConfirmer(TimeStampedModel):
         ]
 
 
+class InitialisationBatiment(TimeStampedModel):
+    """Trace unique de l'initialisation des premières autorités d'un bâtiment (AC-09) : l'unicité par bâtiment verrouille la
+    procédure, y compris contre deux exécutions simultanées."""
+
+    ship = models.OneToOneField(Ship, on_delete=models.PROTECT, related_name="initialisation")
+    operateur = models.CharField(max_length=128)
+    autorisation = models.CharField(max_length=200)
+    commandant = models.ForeignKey(User, on_delete=models.PROTECT, related_name="initialisations_commandant")
+    administrateur_technique = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.PROTECT, related_name="initialisations_technique")
+
+
 class InstanceDemo(models.Model):
     """Marqueur d'une base de démonstration : une base marquée ne démarre pas en production."""
     cree_le = models.DateTimeField(auto_now_add=True)
