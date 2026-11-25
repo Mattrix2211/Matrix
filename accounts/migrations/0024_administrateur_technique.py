@@ -36,7 +36,8 @@ def restaurer(apps, schema_editor):
         # Un rôle modifié depuis la migration n'est pas écrasé.
         UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_technique=True, role=apres).update(
             role="ADMIN_NAVIRE", administrateur_technique=False, fonction_coma="" if fonction == "aucune" else fonction)
-        journal.delete()
+        # Le journal n'est jamais supprimé : la trace d'origine est conservée sous un libellé d'annulation.
+        AuditLog.objects.filter(pk=journal.pk).update(action=ACTION + "_annulee")
 
 
 class Migration(migrations.Migration):

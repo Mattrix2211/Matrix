@@ -61,6 +61,19 @@ def _role_attribution_autorisee(acting_user, role_cible):
     return role_cible in allowed and role_cible != Roles.ADMIN_NAVIRE
 
 
+def _changement_de_role_refuse(acting_user, cible, nouveau_role):
+    """Message de refus si `acting_user` ne peut pas changer le rôle de `cible` (même règle qu'à l'API) : jamais le sien, et
+    l'administrateur général ne touche qu'au commandement du bâtiment (AC-10, AC-15)."""
+    profil = getattr(cible, "profile", None)
+    if not nouveau_role or (profil and profil.role == nouveau_role):
+        return None
+    if cible.pk == acting_user.pk:
+        return "Vous ne pouvez pas modifier votre propre rôle."
+    if est_administrateur_general(acting_user) and (not profil or profil.role not in ManageUsersPermission.ROLES_DE_GOUVERNANCE):
+        return "L'administrateur général ne désigne ni ne révoque que le commandant et le commandant en second."
+    return None
+
+
 def _longueurs_refusees(request, valeurs_compte, valeurs_profil):
     """Message en français et True si un texte dépasse la longueur de sa colonne (PostgreSQL refuserait l'enregistrement)."""
     try:
@@ -306,13 +319,19 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 if not _role_attribution_autorisee(request.user, role):
                     messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
                     return redirect("user-directory")
+                modifies = 0
                 for user in users:
+                    refus = _changement_de_role_refuse(request.user, user, role)
+                    if refus:
+                        messages.error(request, f"{user.username} : {refus}")
+                        continue
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     ancien_role = profile.role
                     profile.role = role
                     profile.save(update_fields=["role"])
+                    modifies += 1
                     AuditLog.objects.create(actor=request.user, action="bulk_update_role", target_user=user, details=f"role={ancien_role} -> {role}")
-                messages.success(request, f"Rôle mis à jour pour {count} utilisateur(s).")
+                messages.success(request, f"Rôle mis à jour pour {modifies} utilisateur(s).")
             elif action == "bulk_update_ship":
                 ship_id = request.POST.get("ship_id")
                 # Valeur de destination validée contre le périmètre de l'appelant :
@@ -540,6 +559,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             # (cf. _utilisateurs_gerables_par).
             try:
                 user = _utilisateurs_gerables_par(request.user).get(pk=pk)
+                refus = _changement_de_role_refuse(request.user, user, role)
+                if refus:
+                    messages.error(request, refus)
+                    return redirect("user-directory")
                 # Valeurs de destination (navire/service/secteur/section) validées
                 # contre le périmètre de l'appelant AVANT toute modification du
                 # compte (cf. resoudre_affectation_dans_perimetre), exactement

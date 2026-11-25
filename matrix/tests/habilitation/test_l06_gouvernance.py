@@ -71,6 +71,30 @@ class GouvernanceTests(MondeFictif):
         self.assertEqual(UserProfile.objects.get(user=cible).role, "COMMANDANT")
 
 
+    def test_l_annuaire_web_applique_les_memes_garde_fous_que_l_api(self):
+        client = self.client_de("general_commandant")
+        # Auto-attribution : l'administrateur général cumulant un grade ne se désigne pas lui-même par l'annuaire.
+        propre = UserProfile.objects.get(user__username="general_commandant")
+        client.post("/users/", {"action": "edit_user", "pk": propre.user_id, "role": "COMMANDANT_EN_SECOND"})
+        propre.refresh_from_db()
+        self.assertEqual(propre.role, "COMMANDANT")
+        cible = self.chef_service_b
+        client.post("/users/", {"action": "edit_user", "pk": cible.pk, "role": "EQUIPIER"})
+        self.assertEqual(UserProfile.objects.get(user=cible).role, "CHEF_SERVICE")  # pas d'autre autorité que le commandement
+        client.post("/users/", {"action": "bulk_update_role", "selected_ids": [cible.pk, propre.user_id], "role": "EQUIPIER"})
+        self.assertEqual(UserProfile.objects.get(user=cible).role, "CHEF_SERVICE")
+        propre.refresh_from_db()
+        self.assertEqual(propre.role, "COMMANDANT")
+
+
+    def test_un_seuil_metier_ne_monte_pas_au_niveau_de_gouvernance_meme_pour_un_cumul(self):
+        from matrix.core.role_thresholds import seuil_role
+        avant = seuil_role("asset_ecriture_simple", self.navire.pk)
+        self._poster("general_commandant", {"action": "update_role_threshold", "cle_action": "asset_ecriture_simple",
+                                            "nouveau_role": "MASTER_ADMIN", "ship_id": self.navire.pk})
+        self.assertEqual(seuil_role("asset_ecriture_simple", self.navire.pk), avant)
+
+
 class CatalogueFormationsTests(MondeFictif):
     def setUp(self):
         self.general = User.objects.create_user(username="general_form", password="pass")
@@ -109,6 +133,23 @@ class CatalogueFormationsTests(MondeFictif):
         self.assertEqual(self._api("cdt_b", "post", "/api/training/requirements/", locale).status_code, 201)
         self.assertEqual(self._api("cdt_abe", "post", "/api/training/requirements/", locale).status_code, 403)  # autre bâtiment
         self.assertEqual(TrainingRequirement.objects.count(), 2)
+
+    def test_une_exigence_commune_ne_devient_pas_locale_par_le_commandement_et_le_local_ne_l_affaiblit_pas(self):
+        cours = TrainingCourse.objects.create(title="Cours commun", validity_days=30)
+        self._api("general_form", "post", "/api/training/requirements/", {"course": cours.pk, "applies_to_role": "EQUIPIER"})
+        commune = TrainingRequirement.objects.get(course=cours)
+        url = f"/api/training/requirements/{commune.pk}/"
+        for nom in ("cdt_b", "admin_navire", "chef_service_b"):
+            self.assertEqual(self._api(nom, "patch", url, {"applies_to_ship": self.navire.pk}).status_code, 403, nom)
+            self.assertEqual(self._api(nom, "delete", url).status_code, 403, nom)
+        commune.refresh_from_db()
+        self.assertIsNone(commune.applies_to_ship_id)
+        affaiblie = {"course": cours.pk, "applies_to_role": "EQUIPIER", "applies_to_ship": self.navire.pk, "required": False}
+        self.assertEqual(self._api("cdt_b", "post", "/api/training/requirements/", affaiblie).status_code, 403)
+        renforcee = dict(affaiblie, required=True)
+        self.assertEqual(self._api("cdt_b", "post", "/api/training/requirements/", renforcee).status_code, 201)
+        locale = TrainingRequirement.objects.get(course=cours, applies_to_ship=self.navire)
+        self.assertEqual(self._api("cdt_b", "patch", f"/api/training/requirements/{locale.pk}/", {"required": False}).status_code, 403)
 
     def test_l_administrateur_technique_garde_l_administration_technique_du_module(self):
         # Le module reste lisible et son administration technique inchangée ; seule l'écriture du référentiel commun disparaît.

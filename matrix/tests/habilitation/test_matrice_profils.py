@@ -18,7 +18,6 @@ PLAN = (Path(settings.BASE_DIR) / "docs" / "PLAN_LOTS_REPRISE.md").read_text(enc
 # Elles sont couvertes en attendant par des suites existantes (champ `couverture` du registre) ou par un lot suivant.
 SANS_PREUVE_EXECUTEE = {
     "ADMIN-AUTRES": "L34",  # administration : fermeture par module et écriture par modèle
-    "ADMIN-ORGANISATION": "L06",  # organisation et habilitations : droits, traces, planchers
     "API-DISCUSSIONS": "L32",
     "API-FORMATIONS": "L32",
     "API-MAINTENANCE": "L32",
@@ -34,7 +33,6 @@ SANS_PREUVE_EXECUTEE = {
     "WEB-MATERIEL": "L32",
     "WEB-MEDIA": "L30",
     "WEB-PERSONNEL": "L34",  # accueil, recherche, notifications : fermeture par module (notifications : L35)
-    "WEB-QUARTS": "L06",
     "WEB-RAPPORTS": "L32",
     "WEB-RETEX": "L32",
     "WEB-TABLEAUX": "L30",

@@ -102,15 +102,28 @@ def _avec_reprises(operation):
             time.sleep(0.02 * (essai + 1))
 
 
-def enregistrer_echec(identifiant, source):
+def _compte_existant(identifiant):
+    from django.contrib.auth import get_user_model
+    return get_user_model().objects.filter(username__iexact=identifiant).exists()
+
+
+def enregistrer_echec(identifiant, source, seuil=None, existe=None):
+    """Compte un échec. Un identifiant inexistant n'ouvre aucun compteur (sinon un flot d'identifiants inventés ferait croître
+    la table sans borne) ; il est refusé comme les autres, sans différence visible. `seuil` : essais d'un code de réinitialisation,
+    sans compteur global."""
     identifiant = cle_identifiant(identifiant)
     if not identifiant:
+        return
+    if existe is None:
+        existe = _compte_existant(identifiant)
+    if not existe:
         return
 
     def compter():
         with transaction.atomic():
-            _echec_sur(identifiant, source, settings.TENTATIVES_CONNEXION_MAX, "connexion_limitee")
-            _echec_sur(identifiant, SOURCE_GLOBALE, settings.TENTATIVES_CONNEXION_MAX * FACTEUR_GLOBAL, "connexion_limitee_globale")
+            _echec_sur(identifiant, source, seuil or settings.TENTATIVES_CONNEXION_MAX, "connexion_limitee")
+            if seuil is None:
+                _echec_sur(identifiant, SOURCE_GLOBALE, settings.TENTATIVES_CONNEXION_MAX * FACTEUR_GLOBAL, "connexion_limitee_globale")
 
     try:
         _avec_reprises(compter)

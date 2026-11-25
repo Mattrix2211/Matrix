@@ -63,7 +63,9 @@ class MigrationAdministrateursTests(TransactionTestCase):
         self.assertEqual(self._etat(retour, comptes)["admin_coma"][0], "ADMIN_NAVIRE")
         self.assertEqual(self._etat(retour, comptes)["commandant"][0], "COMMANDANT")
         self.assertEqual(retour.get_model("accounts", "UserProfile").objects.get(user_id=comptes["admin_coma"]).fonction_coma, "COMANAV")
-        self.assertFalse(retour.get_model("accounts", "AuditLog").objects.filter(action="l06_migration_role").exists())
+        journal_retour = retour.get_model("accounts", "AuditLog").objects
+        self.assertFalse(journal_retour.filter(action="l06_migration_role").exists())
+        self.assertEqual(journal_retour.filter(action="l06_migration_role_annulee").count(), 2)  # la trace n'est jamais supprimée
 
     def test_retour_arriere_respecte_un_role_modifie(self):
         base = self._migrer(AVANT)
@@ -107,7 +109,9 @@ class MigrationsAdministrateurGeneralEtProvisoiresTests(TransactionTestCase):
         self.assertEqual(apres.get_model("accounts", "AuditLog").objects.filter(action="l06_migration_administrateur_general").count(), 1)
         retour = self._migrer(("accounts", "0027_echec_connexion"))
         self.assertEqual(retour.get_model("accounts", "UserProfile").objects.get(user__username="general").role, "MASTER_ADMIN")
-        self.assertFalse(retour.get_model("accounts", "AuditLog").objects.filter(action="l06_migration_administrateur_general").exists())
+        journal_retour = retour.get_model("accounts", "AuditLog").objects
+        self.assertFalse(journal_retour.filter(action="l06_migration_administrateur_general").exists())
+        self.assertEqual(journal_retour.filter(action="l06_migration_administrateur_general_annulee").count(), 1)
 
     def test_un_mot_de_passe_provisoire_existant_est_invalide(self):
         base = self._migrer(("accounts", "0028_administrateur_general"))

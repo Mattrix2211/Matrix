@@ -202,6 +202,21 @@ VERIFICATIONS = (
                  "equipier_b1": "refus"},
     ),
     Verification(
+        "V30-administration-django-de-l-organisation", "ADMIN-ORGANISATION", "get", "/admin/org/ship/",
+        attendu={"equipier_b1": "refus", "cdt_b": "refus", "second_b": "refus", "admin_navire": "refus", "staff_sans_droit": "refus",
+                 "master_admin": "acces"},
+    ),
+    Verification(
+        "V31-creation-d-une-liste-de-quarts", "WEB-QUARTS", "post", "/quarts/",
+        donnees=lambda m: {
+            "action": "creer_quart", "nom": "V31", "perimetre": f"ship:{m.navire.pk}", "date_debut": "2030-01-07", "date_fin": "2030-01-13",
+            "fonction_quart": __import__("accounts.models", fromlist=["FonctionQuartChoice"]).FonctionQuartChoice.objects.get_or_create(
+                name="V31", defaults={"active": True})[0].pk},
+        effet=lambda m: __import__("quarts.models", fromlist=["Quart"]).Quart.objects.filter(nom="V31").exists(),
+        attendu={"cdt_b": "acces", "cdt_admin": "acces", "master_admin": "refus", "admin_navire": "refus", "equipier_b1": "refus",
+                 "chef_service_b": "refus", "second_b": "refus"},
+    ),
+    Verification(
         "V20-auto-attribution-droits-techniques", "API-COMPTES", "patch", lambda m: f"/api/accounts/profiles/{m.equipier_b1.profile.pk}/",
         donnees={"administrateur_technique": True}, effet=lambda m: type(m.equipier_b1.profile).objects.get(pk=m.equipier_b1.profile.pk).administrateur_technique,
         attendu={"equipier_b1": "refus", "chef_service_b": "refus", "cdt_b": "refus"}, codes={"equipier_b1": 403},

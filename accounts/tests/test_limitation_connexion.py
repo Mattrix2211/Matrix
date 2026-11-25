@@ -33,6 +33,15 @@ class LimitationTests(TestCase):
     def _couple(self, identifiant, source):
         return CompteurConnexion.objects.get(identifiant=identifiant, source=source)
 
+    def test_un_identifiant_inexistant_n_ouvre_aucun_compteur(self):
+        for i in range(30):
+            _tenter(f"invente-{i}", "x", adresse=f"10.1.0.{i}")
+        self.assertEqual(CompteurConnexion.objects.count(), 0)
+        self.assertFalse(_connecte("invente-0", "x"))
+
+    def test_la_date_d_activite_est_indexee_pour_la_purge(self):
+        self.assertTrue(CompteurConnexion._meta.get_field("derniere_activite").db_index)
+
     def test_valeurs_par_defaut_validees(self):
         self.assertEqual(
             (settings.TENTATIVES_CONNEXION_MAX, settings.VERROUILLAGE_CONNEXION_MINUTES, settings.TENTATIVES_CODE_MAX,

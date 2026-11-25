@@ -159,6 +159,21 @@ class RecuperationTests(TestCase):
             recuperation.habiliter_operateur("Court", "systeme-court", "court")
         self.assertFalse(any("phrase-secrete" in a.details for a in AuditLog.objects.all()))
 
+    def test_deux_operateurs_ne_partagent_ni_nom_ni_identite_systeme(self):
+        OperateurRecuperation.objects.filter(pk=self.operateur2.pk).delete()
+        with self.assertRaises(ValidationError):  # même nom : la double validation ne se contourne pas par homonymie
+            recuperation.habiliter_operateur("Opérateur Un", "systeme-trois", "phrase-secrete-trois-3")
+        with self.assertRaises(ValidationError):  # même identité système : message clair, pas de traceback
+            recuperation.habiliter_operateur("Opérateur Trois", "systeme-un", "phrase-secrete-trois-3")
+        self.assertEqual(OperateurRecuperation.objects.count(), 1)
+
+    def test_une_nouvelle_recuperation_remplace_l_ouverte_et_la_precedente_est_annulee(self):
+        premiere, _ = recuperation.ouvrir(self.operateur1, "general", "justification", False)
+        seconde, _ = recuperation.ouvrir(self.operateur2, "general", "justification", False)
+        premiere.refresh_from_db()
+        self.assertEqual(premiere.statut, DemandeReinitialisation.Statut.ANNULEE)
+        self.assertEqual(seconde.statut, DemandeReinitialisation.Statut.EN_ATTENTE_VERIFICATION)
+
     def test_les_sessions_anterieures_sont_revoquees(self):
         session = Client()
         session.force_login(self.general)

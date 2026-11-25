@@ -17,8 +17,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
-from django.db.models import F
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from matrix.core.roles import ROLE_TO_LEVEL, RoleLevel
@@ -70,6 +69,25 @@ def _annuler_ouvertes(cible):
     DemandeReinitialisation.objects.filter(user=cible, statut__in=DemandeReinitialisation.OUVERTES).update(statut=Statut.ANNULEE)
 
 
+def _verrouiller_compte(cible):
+    """Sérialise les ouvertures de demande d'un même compte (PostgreSQL) ; la contrainte d'unicité garde l'invariant."""
+    get_user_model().objects.select_for_update().filter(pk=cible.pk).first()
+
+
+def _ouvrir_exclusivement(cible, creer, *, preserver_recuperation=False):
+    """Annule la demande ouverte du compte puis crée la nouvelle, sans erreur 500 si deux ouvertures se croisent."""
+    try:
+        with transaction.atomic():
+            _verrouiller_compte(cible)
+            if preserver_recuperation and DemandeReinitialisation.objects.filter(
+                    user=cible, statut__in=DemandeReinitialisation.OUVERTES, nature=DemandeReinitialisation.Nature.RECUPERATION).exists():
+                raise ValidationError("Une récupération d'accès est en cours pour ce compte : elle doit aboutir ou expirer.")
+            _annuler_ouvertes(cible)
+            return creer()
+    except IntegrityError:
+        raise ValidationError("Une autre demande vient d'être ouverte pour ce compte : réessayez.")
+
+
 def initier(acteur, cible):
     """Ouvre une demande ; renvoie (demande, code_initiateur). Le code n'est jamais ré-affichable."""
     from .services import peut_reinitialiser_cible
@@ -79,8 +97,8 @@ def initier(acteur, cible):
     niveaux = niveaux_de_protection([cible])
     verification = exige_verification_independante(cible, niveaux[cible.pk])
     code = generer_code()
-    with transaction.atomic():
-        _annuler_ouvertes(cible)
+
+    def creer():
         demande = DemandeReinitialisation.objects.create(
             user=cible, initiateur=acteur, verification_requise=verification, code_initiateur="",
             statut=Statut.EN_ATTENTE_VERIFICATION if verification else Statut.ACTIVE, expire_le=timezone.now() + _validite())
@@ -90,6 +108,9 @@ def initier(acteur, cible):
             actor=acteur, action="reinitialisation_demandee", target_user=cible,
             details=f"demande={demande.pk}; verification_independante={'oui' if verification else 'non'}; "
                     f"valide jusqu'au {demande.expire_le:%d/%m/%Y %H:%M}")
+        return demande
+
+    demande = _ouvrir_exclusivement(cible, creer, preserver_recuperation=True)
     from notifications.models import Notification, NotificationLevel
     Notification.objects.create(
         user=cible, level=NotificationLevel.WARNING, categorie="securite",
@@ -151,10 +172,23 @@ def _echec_generique():
     return ValidationError("Identifiant ou code invalide, expiré ou déjà utilisé.")
 
 
-def utiliser(identifiant, code_initiateur, code_verificateur, nouveau_mot_de_passe, source="inconnue"):
-    """Étape du titulaire : définit son nouveau mot de passe avec le(s) code(s). Message d'erreur volontairement unique."""
+def _utilisateur_pour(identifiant):
+    """Correspondance exacte d'abord ; insensible à la casse seulement si elle désigne un compte unique."""
     User = get_user_model()
-    utilisateur = User.objects.filter(username__iexact=(identifiant or "").strip(), is_active=True).first()
+    identifiant = (identifiant or "").strip()
+    exact = User.objects.filter(username=identifiant, is_active=True).first()
+    if exact is not None:
+        return exact
+    candidats = list(User.objects.filter(username__iexact=identifiant, is_active=True)[:2])
+    return candidats[0] if len(candidats) == 1 else None
+
+
+def utiliser(identifiant, code_initiateur, code_verificateur, nouveau_mot_de_passe, source="inconnue"):
+    """Étape du titulaire : définit son nouveau mot de passe avec le(s) code(s). Message d'erreur volontairement unique.
+
+    Les essais erronés sont comptés par couple (demande, source) avec blocage progressif de cette source : un tiers qui
+    connaît un identifiant ne peut pas bloquer la demande du titulaire (AC-18)."""
+    utilisateur = _utilisateur_pour(identifiant)
     if utilisateur is None:
         raise _echec_generique()
     demande = DemandeReinitialisation.objects.filter(user=utilisateur, statut=Statut.ACTIVE).first()
@@ -162,24 +196,16 @@ def utiliser(identifiant, code_initiateur, code_verificateur, nouveau_mot_de_pas
         if demande is not None:
             DemandeReinitialisation.objects.filter(pk=demande.pk, statut=Statut.ACTIVE).update(statut=Statut.EXPIREE)
         raise _echec_generique()
-    # Compteur d'essais atomique, propre à la demande : au-delà du seuil la demande est bloquée définitivement.
-    DemandeReinitialisation.objects.filter(pk=demande.pk, statut=Statut.ACTIVE).update(essais=F("essais") + 1)
-    demande.refresh_from_db()
-    if demande.essais > settings.TENTATIVES_CODE_MAX:
-        if DemandeReinitialisation.objects.filter(pk=demande.pk, statut=Statut.ACTIVE).update(statut=Statut.BLOQUEE):
-            AuditLog.objects.create(actor=None, action="reinitialisation_bloquee", target_user=utilisateur,
-                                    details=f"demande={demande.pk}; source={source}; trop d'essais de code")
+    cle = f"code:{demande.pk}"
+    if securite.est_limite(cle, source):
         raise _echec_generique()
     valide = _verifier_empreinte(demande, "initiateur", code_initiateur, demande.code_initiateur)
     if demande.verification_requise:
         valide = _verifier_empreinte(demande, "verificateur", code_verificateur, demande.code_verificateur or "!") and valide
     if not valide:
+        securite.enregistrer_echec(cle, source, seuil=settings.TENTATIVES_CODE_MAX, existe=True)
         raise _echec_generique()
-    try:
-        validate_password(nouveau_mot_de_passe, utilisateur)
-    except ValidationError:
-        # Le code n'est pas consommé par un mot de passe refusé ; l'essai reste compté.
-        raise
+    validate_password(nouveau_mot_de_passe, utilisateur)  # un mot de passe refusé ne consomme pas le code
     with transaction.atomic():
         # Usage unique : seule la première utilisation concurrente passe l'état ACTIVE à UTILISEE.
         if not DemandeReinitialisation.objects.filter(pk=demande.pk, statut=Statut.ACTIVE).update(statut=Statut.UTILISEE, utilisee_le=timezone.now()):
@@ -187,7 +213,11 @@ def utiliser(identifiant, code_initiateur, code_verificateur, nouveau_mot_de_pas
         utilisateur.set_password(nouveau_mot_de_passe)  # invalide les sessions ouvertes (empreinte de session)
         utilisateur.save(update_fields=["password"])
         if demande.attribuer_administrateur_general:
+            if UserProfile.objects.filter(administrateur_general=True, user__is_active=True).exists():
+                raise _echec_generique()
             UserProfile.objects.filter(user=utilisateur).update(administrateur_general=True)
+            AuditLog.objects.create(actor=None, action="changement_administrateur_general", target_user=utilisateur,
+                                    details=f"administrateur_general: False -> True (récupération, demande={demande.pk})")
         securite.effacer_compteurs(utilisateur.username)
         AuditLog.objects.create(
             actor=None, action="reinitialisation_effectuee", target_user=utilisateur,

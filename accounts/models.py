@@ -234,7 +234,7 @@ class CompteurConnexion(models.Model):
     niveau = models.PositiveIntegerField(default=0)
     bloque_jusqua = models.DateTimeField(null=True, blank=True)
     derniere_reussite = models.DateTimeField(null=True, blank=True)
-    derniere_activite = models.DateTimeField()
+    derniere_activite = models.DateTimeField(db_index=True)  # indexé : la purge filtre dessus
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["identifiant", "source"], name="un_compteur_par_identifiant_et_source")]
@@ -252,7 +252,6 @@ class DemandeReinitialisation(TimeStampedModel):
         UTILISEE = "UTILISEE", "Utilisée"
         EXPIREE = "EXPIREE", "Expirée"
         ANNULEE = "ANNULEE", "Annulée"
-        BLOQUEE = "BLOQUEE", "Bloquée (trop d'essais)"
 
     class Nature(models.TextChoices):
         REINITIALISATION = "REINITIALISATION", "Réinitialisation"
@@ -273,7 +272,6 @@ class DemandeReinitialisation(TimeStampedModel):
     code_verificateur = models.CharField(max_length=255, blank=True, default="")
     statut = models.CharField(max_length=24, choices=Statut.choices, default=Statut.ACTIVE)
     expire_le = models.DateTimeField()
-    essais = models.PositiveIntegerField(default=0)
     utilisee_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -287,7 +285,7 @@ class OperateurRecuperation(TimeStampedModel):
     """Opérateur habilité à la récupération d'un administrateur général (AC-17) : identité système et phrase secrète
     personnelle (empreinte salée), indépendantes des comptes applicatifs."""
 
-    nom = models.CharField(max_length=128)
+    nom = models.CharField(max_length=128, unique=True)
     identifiant_systeme = models.CharField(max_length=128, unique=True)
     phrase = models.CharField(max_length=255)
     actif = models.BooleanField(default=True)

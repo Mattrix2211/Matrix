@@ -265,6 +265,11 @@ class TrainingRequirementPermission(RolePermission):
                 (entier_ou_none(data.get(c)) if c in data else getattr(existant, c + "_id", None)) for c in champs)
         return not any(entier_ou_none(data.get(c)) for c in champs)
 
+    @staticmethod
+    def _est_commune_en_base(obj):
+        return not any(getattr(obj, c + "_id", None) for c in
+                       ("applies_to_ship", "applies_to_service", "applies_to_sector", "applies_to_section"))
+
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return super().has_permission(request, view)
@@ -280,7 +285,8 @@ class TrainingRequirementPermission(RolePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
             return True
-        if self._est_commune(request, existant=obj):
+        # Modifier ou supprimer une exigence commune existante reste réservé à l'AG, même pour la rendre locale.
+        if self._est_commune(request, existant=obj) or self._est_commune_en_base(obj):
             return est_administrateur_general(request.user) and self._perimetre_valide(request, existant=obj)
         return super().has_object_permission(request, view, obj) and self._perimetre_valide(request, existant=obj)
 
@@ -306,7 +312,23 @@ class TrainingRequirementPermission(RolePermission):
             deja=SimpleNamespace(ship=getattr(existant, "applies_to_ship", None), service=getattr(existant, "applies_to_service", None),
                                  sector=getattr(existant, "applies_to_sector", None), section=getattr(existant, "applies_to_section", None)),
         )
+        if ok and self._affaiblit_exigence_commune(request, existant):
+            self.message = "Une exigence locale renforce l'exigence commune, elle ne peut pas la lever."
+            return False
         return ok
+
+    @staticmethod
+    def _affaiblit_exigence_commune(request, existant):
+        """Vrai si une exigence locale rendrait facultative une formation que l'exigence commune impose (AC-20)."""
+        data = request.data
+        requis = data.get("required") if "required" in data else getattr(existant, "required", True)
+        if requis not in (False, 0, "0", "false", "False", "off"):
+            return False
+        cours = entier_ou_none(data.get("course")) if "course" in data else getattr(existant, "course_id", None)
+        role = data.get("applies_to_role") if "applies_to_role" in data else getattr(existant, "applies_to_role", "")
+        return bool(cours) and TrainingRequirement.objects.filter(
+            course_id=cours, required=True, applies_to_ship__isnull=True, applies_to_service__isnull=True,
+            applies_to_sector__isnull=True, applies_to_section__isnull=True, applies_to_role__in=(role or "", "")).exists()
 
     @staticmethod
     def _cible_archivee(existant, *identifiants):

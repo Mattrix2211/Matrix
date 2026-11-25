@@ -20,11 +20,13 @@ git submodule update --init --recursive   # design system (logo, charte graphiqu
 pip install -r requirements.txt
 
 python manage.py migrate
-python manage.py createsuperuser
+python manage.py createsuperuser   # sans prérogative applicative : voir ci-dessous pour le premier administrateur général
 python manage.py runserver
 ```
 
 Accès : http://127.0.0.1:8000/ (admin : `/admin/`)
+
+**Premier administrateur général** : le superutilisateur Django n'a aucune prérogative applicative. Habiliter deux opérateurs (`python manage.py habiliter_operateur_recuperation --nom NOM`, depuis deux comptes système distincts), puis `python manage.py recuperer_acces_administrateur ouvrir --identifiant ID --attribuer --justification "…"` et `valider` par le second opérateur ; détail dans `docs/recette/L06_MIGRATION_ET_PREUVES.md` §17.
 
 **Données de démonstration** : ne jamais lancer `seed_demo*` sur la base de développement ou de production. La démonstration se prépare sur une base séparée, avec `lancer_demo.bat` (Windows) ou `python scripts/preparer_instance_test.py --reinitialiser` (voir `docs/TESTS_MARINS.md`). Les commandes `seed_demo*` refusent de s'exécuter ailleurs. Les mots de passe sont générés au hasard ; `python scripts/preparer_instance_test.py --identifiants` les affiche. Recette Windows : `docs/recette/L01_recette_windows.md`.
 

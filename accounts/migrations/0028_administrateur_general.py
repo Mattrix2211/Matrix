@@ -24,7 +24,8 @@ def restaurer(apps, schema_editor):
     for journal in AuditLog.objects.filter(action=ACTION):
         UserProfile.objects.filter(user_id=journal.target_user_id, administrateur_general=True, role="EQUIPIER").update(
             role="MASTER_ADMIN", administrateur_general=False)
-        journal.delete()
+        # Le journal n'est jamais supprimé : la trace d'origine est conservée sous un libellé d'annulation.
+        AuditLog.objects.filter(pk=journal.pk).update(action=ACTION + "_annulee")
 
 
 class Migration(migrations.Migration):

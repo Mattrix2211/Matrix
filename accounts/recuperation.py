@@ -20,7 +20,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import AuditLog, DemandeReinitialisation, OperateurRecuperation, UserProfile
-from .reinitialisation import Statut, _annuler_ouvertes, _empreinte, generer_code
+from .reinitialisation import Statut, _empreinte, _ouvrir_exclusivement, generer_code
 
 OPERATEURS_MINIMUM = 2
 
@@ -42,6 +42,10 @@ def habiliter_operateur(nom, identifiant_systeme, phrase):
         raise ValidationError("La phrase secrète doit compter au moins 12 caractères.")
     if OperateurRecuperation.objects.filter(actif=True).count() >= OPERATEURS_MINIMUM:
         raise ValidationError("Les deux opérateurs sont déjà habilités : un changement relève d'une intervention d'exploitation tracée.")
+    if OperateurRecuperation.objects.filter(nom=nom).exists():
+        raise ValidationError("Ce nom d'opérateur est déjà utilisé.")
+    if OperateurRecuperation.objects.filter(identifiant_systeme=identifiant_systeme).exists():
+        raise ValidationError("Cette identité système est déjà habilitée : chaque opérateur utilise son propre compte d'exploitation.")
     operateur = OperateurRecuperation.objects.create(
         nom=nom, identifiant_systeme=identifiant_systeme, phrase=make_password(phrase))
     AuditLog.objects.create(actor=None, action="operateur_recuperation_habilite", details=f"nom={nom}; identite_systeme={identifiant_systeme}")
@@ -74,8 +78,8 @@ def ouvrir(operateur, identifiant_compte, justification, attribuer=False):
     elif not profil.administrateur_general:
         raise ValidationError("Cette procédure ne concerne que les comptes d'administrateur général.")
     code = generer_code()
-    with transaction.atomic():
-        _annuler_ouvertes(compte)
+
+    def creer():
         demande = DemandeReinitialisation.objects.create(
             user=compte, nature=DemandeReinitialisation.Nature.RECUPERATION, operateur_initiateur=operateur.nom,
             justification=justification.strip(), verification_requise=True, attribuer_administrateur_general=attribuer,
@@ -87,6 +91,9 @@ def ouvrir(operateur, identifiant_compte, justification, attribuer=False):
             actor=None, action="recuperation_ouverte", target_user=compte,
             details=f"demande={demande.pk}; operateur={operateur.nom}; attribution={'oui' if attribuer else 'non'}; "
                     f"justification={justification.strip()[:300]}")
+        return demande
+
+    demande = _ouvrir_exclusivement(compte, creer)
     return demande, code
 
 
@@ -102,8 +109,9 @@ def valider(operateur, demande_id):
         if demande.expire_le <= timezone.now():
             DemandeReinitialisation.objects.filter(pk=demande.pk).update(statut=Statut.EXPIREE)
             raise ValidationError("La demande a expiré.")
-        premier = OperateurRecuperation.objects.filter(nom=demande.operateur_initiateur).first()
-        if premier is None or premier.pk == operateur.pk or premier.identifiant_systeme == operateur.identifiant_systeme:
+        premier = OperateurRecuperation.objects.filter(nom=demande.operateur_initiateur).first()  # `nom` est unique
+        if premier is None or premier.pk == operateur.pk or premier.identifiant_systeme == operateur.identifiant_systeme \
+                or premier.nom == operateur.nom:
             raise PermissionDenied
         demande.code_verificateur = _empreinte(demande.pk, demande.user_id, "verificateur", code)
         demande.operateur_verificateur, demande.statut = operateur.nom, Statut.ACTIVE

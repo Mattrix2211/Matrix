@@ -169,7 +169,7 @@ REGISTRE_ACTIONS = [
     ),
     ActionSeuil(
         "mot_de_passe_reinitialisation",
-        "Réinitialiser le mot de passe d'un marin du bâtiment (mot de passe provisoire à changer à la connexion)",
+        "Réinitialiser le mot de passe d'un marin du bâtiment (code à usage unique remis au titulaire)",
         "Comptes", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE, technique=True,
     ),
     ActionSeuil(

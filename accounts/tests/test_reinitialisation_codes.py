@@ -66,17 +66,55 @@ class ParcoursSimpleTests(MondeCodes):
         self.assertFalse(any(code in t or brut in t or NOUVEAU in t for t in textes))
         self.assertTrue(demande.code_initiateur.startswith("pbkdf2_"))
 
-    def test_code_incorrect_puis_blocage_apres_cinq_essais_meme_avec_le_bon_code(self):
+    def test_essais_errones_bloquent_leur_source_sans_bloquer_la_demande_du_titulaire(self):
         demande, code = reinitialisation.initier(self.technique, self.marin)
         for _ in range(5):
             with self.assertRaises(ValidationError):
-                reinitialisation.utiliser("marin", "AAAA-BBBB-CCCC-DDDD", "", NOUVEAU)
-        with self.assertRaises(ValidationError):
-            reinitialisation.utiliser("marin", code, "", NOUVEAU)  # 6e essai : demande bloquée
+                reinitialisation.utiliser("marin", "AAAA-BBBB-CCCC-DDDD", "", NOUVEAU, source="10.9.9.9")
+        with self.assertRaises(ValidationError):  # la source du tiers est bloquée, même avec le bon code
+            reinitialisation.utiliser("marin", code, "", NOUVEAU, source="10.9.9.9")
         demande.refresh_from_db()
-        self.assertEqual(demande.statut, DemandeReinitialisation.Statut.BLOQUEE)
-        self.assertTrue(AuditLog.objects.filter(action="reinitialisation_bloquee", target_user=self.marin).exists())
+        self.assertEqual(demande.statut, DemandeReinitialisation.Statut.ACTIVE)
+        self.assertTrue(AuditLog.objects.filter(action="connexion_limitee", details__contains=f"code:{demande.pk}").exists())
         self.assertTrue(User.objects.get(pk=self.marin.pk).check_password("ancien-mdp-123"))
+        reinitialisation.utiliser("marin", code, "", NOUVEAU, source="10.0.0.5")  # le vrai titulaire, depuis son poste
+        self.assertTrue(User.objects.get(pk=self.marin.pk).check_password(NOUVEAU))
+
+    def test_identifiants_proches_par_la_casse_ne_detournent_pas_la_demande(self):
+        _compte("Marin", navire=self.navire)
+        demande, code = reinitialisation.initier(self.technique, self.marin)
+        reinitialisation.utiliser("marin", code, "", NOUVEAU)  # correspondance exacte d'abord
+        self.assertTrue(User.objects.get(pk=self.marin.pk).check_password(NOUVEAU))
+        with self.assertRaises(ValidationError):  # insensible à la casse seulement si un seul compte correspond
+            reinitialisation.utiliser("MARIN", code, "", NOUVEAU)
+
+    def test_deux_ouvertures_qui_se_croisent_ne_donnent_pas_d_erreur_serveur(self):
+        from django.db import IntegrityError
+        with self.assertRaises(ValidationError):
+            reinitialisation._ouvrir_exclusivement(self.marin, mock.Mock(side_effect=IntegrityError))
+
+    def test_une_reinitialisation_ne_annule_pas_une_recuperation_en_cours(self):
+        DemandeReinitialisation.objects.create(
+            user=self.marin, nature=DemandeReinitialisation.Nature.RECUPERATION, code_initiateur="x", verification_requise=True,
+            statut=DemandeReinitialisation.Statut.EN_ATTENTE_VERIFICATION, expire_le=timezone.now() + timedelta(minutes=30))
+        with self.assertRaises(ValidationError):
+            reinitialisation.initier(self.technique, self.marin)
+        self.assertEqual(DemandeReinitialisation.objects.filter(user=self.marin, statut__in=DemandeReinitialisation.OUVERTES).count(), 1)
+
+    def test_attribution_de_recuperation_refusee_si_un_administrateur_general_existe_a_l_utilisation(self):
+        demande = DemandeReinitialisation.objects.create(
+            user=self.marin, nature=DemandeReinitialisation.Nature.RECUPERATION, attribuer_administrateur_general=True,
+            code_initiateur="", statut=DemandeReinitialisation.Statut.ACTIVE, expire_le=timezone.now() + timedelta(minutes=30))
+        demande.code_initiateur = reinitialisation._empreinte(demande.pk, self.marin.pk, "initiateur", "AAAA-BBBB-CCCC-DDDD")
+        demande.save()
+        with self.assertRaises(ValidationError):  # self.general existe déjà
+            reinitialisation.utiliser("marin", "AAAA-BBBB-CCCC-DDDD", "", NOUVEAU)
+        self.assertFalse(UserProfile.objects.get(user=self.marin).administrateur_general)
+        self.assertTrue(User.objects.get(pk=self.marin.pk).check_password("ancien-mdp-123"))
+        UserProfile.objects.filter(administrateur_general=True).update(administrateur_general=False)
+        reinitialisation.utiliser("marin", "AAAA-BBBB-CCCC-DDDD", "", NOUVEAU)
+        self.assertTrue(UserProfile.objects.get(user=self.marin).administrateur_general)
+        self.assertTrue(AuditLog.objects.filter(action="changement_administrateur_general", target_user=self.marin).exists())
 
     def test_code_expire(self):
         demande, code = reinitialisation.initier(self.technique, self.marin)
