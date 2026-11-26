@@ -350,6 +350,49 @@ class TrainingRequirement(TimeStampedModel):
     course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="requirements")
     required = models.BooleanField(default=True)
 
+    CIBLES = ("applies_to_ship", "applies_to_service", "applies_to_sector", "applies_to_section")
+
+    @property
+    def est_commune(self):
+        """Exigence commune (aucun rattachement : toute la flotte) ; sinon locale (une unité du bâtiment)."""
+        return not any(getattr(self, champ + "_id") for champ in self.CIBLES)
+
+    def _du_meme_cours_et_role(self):
+        """Exigences du même cours dont le rôle recoupe le sien : même rôle, ou l'un des deux sans rôle (tous les rôles)."""
+        autres = TrainingRequirement.objects.filter(course_id=self.course_id).exclude(pk=self.pk)
+        if not self.applies_to_role:
+            return autres
+        return autres.filter(Q(applies_to_role=self.applies_to_role) | Q(applies_to_role=""))
+
+    def _communes(self):
+        return self._du_meme_cours_et_role().filter(**{c + "__isnull": True for c in self.CIBLES})
+
+    def verifier_coherence(self):
+        """Règle unique d'AC-20 : une exigence locale renforce l'exigence commune, elle ne la lève jamais. Appliquée à
+        l'enregistrement du modèle, donc à l'API, aux formulaires et à l'administration, quel que soit l'ordre des opérations."""
+        if not self.est_commune and not self.required and self.course_id and self._communes().filter(required=True).exists():
+            raise ValidationError({"required": "Une exigence locale renforce l'exigence commune, elle ne peut pas la lever."})
+
+    def clean(self):
+        super().clean()
+        self.verifier_coherence()
+
+    def _renforcer_les_locales(self):
+        """Une exigence commune devenue obligatoire relève les exigences locales facultatives qu'elle recoupe, avec trace."""
+        from accounts.models import AuditLog
+
+        for locale in self._du_meme_cours_et_role().filter(required=False).exclude(**{c + "__isnull": True for c in self.CIBLES}):
+            TrainingRequirement.objects.filter(pk=locale.pk).update(required=True)
+            AuditLog.objects.create(
+                actor=None, action="exigence_locale_renforcee",
+                details=f"exigence={locale.pk}; cours={self.course_id}; required: False -> True (exigence commune {self.pk} obligatoire)")
+
+    def save(self, *args, **kwargs):
+        self.verifier_coherence()
+        super().save(*args, **kwargs)
+        if self.est_commune and self.required:
+            self._renforcer_les_locales()
+
 class TrainingSession(TimeStampedModel):
     STATUS = (
         ("PLANNED", "Planifiée"),

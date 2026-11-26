@@ -963,7 +963,7 @@ class ReinitialisationMotDePasseView(View):
             try:
                 reinitialisation.utiliser(
                     request.POST.get("identifiant", ""), request.POST.get("code_initiateur", ""), request.POST.get("code_verificateur", ""),
-                    mot_de_passe, source=securite.source_de(request))
+                    mot_de_passe, source=securite.source_de(request), postes=securite.postes_de(request))
                 messages.success(request, "Votre mot de passe est défini : vous pouvez vous connecter.")
                 return redirect("login")
             except ValidationError as exc:

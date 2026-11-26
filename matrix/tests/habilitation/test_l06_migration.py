@@ -5,7 +5,8 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 AVANT = ("accounts", "0023_protection_suppression_unites")
-APRES = ("accounts", "0029_securite_reinitialisation_administrateur_general")
+APRES = ("accounts", "0030_corrections_securite_l06")
+AVANT_0030 = ("accounts", "0029_securite_reinitialisation_administrateur_general")
 
 
 class MigrationAdministrateursTests(TransactionTestCase):
@@ -124,3 +125,47 @@ class MigrationsAdministrateurGeneralEtProvisoiresTests(TransactionTestCase):
         User = apres.get_model("auth", "User")
         self.assertTrue(User.objects.get(username="provisoire").password.startswith("!"))
         self.assertEqual(User.objects.get(username="normal").password, "pbkdf2_sha256$1$x$y")
+
+
+class Migration0030Tests(TransactionTestCase):
+    """0030 rattrape une base qui a déjà appliqué la version initiale de 0029 (schéma et données)."""
+
+    def _migrer(self, cible):
+        executeur = MigrationExecutor(connection)
+        executeur.migrate([cible])
+        return executeur.loader.project_state([cible]).apps
+
+    def tearDown(self):
+        self._migrer(APRES)
+
+    def test_mise_a_niveau_d_une_base_en_0029_sans_perte_ni_divergence(self):
+        base = self._migrer(AVANT_0030)
+        User = base.get_model("auth", "User")
+        Demande, Operateur, Compteur = (base.get_model("accounts", n) for n in ("DemandeReinitialisation", "OperateurRecuperation", "CompteurConnexion"))
+        from django.utils import timezone
+        marin, autre = User.objects.create(username="marin"), User.objects.create(username="autre")
+        maintenant = timezone.now()
+        Demande.objects.create(user=marin, statut="BLOQUEE", code_initiateur="x", expire_le=maintenant, essais=7)
+        Demande.objects.create(user=autre, statut="ACTIVE", code_initiateur="y", expire_le=maintenant, essais=2)
+        Operateur.objects.create(nom="Alice", identifiant_systeme="sys-a", phrase="x")
+        Operateur.objects.create(nom="Alice", identifiant_systeme="sys-b", phrase="x")
+        Compteur.objects.create(identifiant="marin", source="10.0.0.1", essais=3, derniere_activite=maintenant)
+        for i in range(5):
+            Compteur.objects.create(identifiant=f"invente-{i}", source="10.0.0.1", essais=1, derniere_activite=maintenant)
+
+        apres = self._migrer(APRES)
+        Demande, Operateur, Compteur = (apres.get_model("accounts", n) for n in ("DemandeReinitialisation", "OperateurRecuperation", "CompteurConnexion"))
+        self.assertEqual(Demande.objects.get(user__username="marin").statut, "ANNULEE")
+        self.assertEqual(Demande.objects.get(user__username="autre").statut, "ACTIVE")
+        self.assertFalse(any(f.name == "essais" for f in Demande._meta.get_fields()))
+        self.assertEqual(sorted(Operateur.objects.values_list("nom", flat=True)), ["Alice", "Alice (2)"])
+        self.assertEqual(sorted(Operateur.objects.values_list("identifiant_systeme", flat=True)), ["sys-a", "sys-b"])
+        self.assertEqual(list(Compteur.objects.values_list("identifiant", flat=True)), ["marin"])  # les identifiants inventés disparaissent
+        self.assertTrue(Compteur._meta.get_field("derniere_activite").db_index)
+        self.assertTrue(Operateur._meta.get_field("nom").unique)
+
+    def test_base_neuve_et_retour_arriere_de_0030(self):
+        apres = self._migrer(APRES)
+        self.assertEqual(apres.get_model("accounts", "OperateurRecuperation").objects.count(), 0)
+        retour = self._migrer(AVANT_0030)
+        self.assertTrue(any(f.name == "essais" for f in retour.get_model("accounts", "DemandeReinitialisation")._meta.get_fields()))

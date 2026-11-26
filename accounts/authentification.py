@@ -1,7 +1,9 @@
-"""Connexion surveillée (AC-18) : limitation progressive par couple (identifiant, source), voir `accounts/securite.py`.
+"""Connexion surveillée (AC-18) : limitation progressive par couple (identifiant, source) et par poste connu, voir
+`accounts/securite.py`.
 
 Un code de réinitialisation n'est pas un mot de passe : il n'ouvre jamais de session (AC-16).
 """
+from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 
 from . import securite
@@ -12,7 +14,10 @@ class ConnexionSurveilleeBackend(ModelBackend):
         if username is None:
             username = kwargs.get("username")
         source = securite.source_de(request) if request is not None else "inconnue"
-        if securite.est_limite(username, source):
+        poste = securite.poste_valide(securite.postes_de(request), username) if request is not None else None
+        if securite.est_limite(username, source, poste):
+            # Même coût de calcul qu'un identifiant inexistant : le temps de réponse ne révèle ni le compte ni le blocage.
+            get_user_model()().set_password(password)
             return None
         utilisateur = super().authenticate(request, username=username, password=password, **kwargs)
         if utilisateur is None:
@@ -22,7 +27,7 @@ class ConnexionSurveilleeBackend(ModelBackend):
                 return None
             if base is not None:
                 base._echec_connexion_compte = True
-            securite.enregistrer_echec(username, source)
+            securite.enregistrer_echec(username, source, poste=poste)
             return None
-        securite.enregistrer_reussite(username, source)
+        securite.enregistrer_reussite(username, source, request)
         return utilisateur

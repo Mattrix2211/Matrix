@@ -117,6 +117,8 @@ MIDDLEWARE = [
     "matrix.core.middleware.ContexteConfigurationMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Poste connu du titulaire : cookie signé de la limitation des connexions (accounts/securite.py)
+    "accounts.middleware.PosteConnuMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     # Retire le caractère NUL des paramètres d'URL et des formulaires (erreur 500 sous PostgreSQL)
@@ -229,6 +231,26 @@ VERROUILLAGE_CONNEXION_MINUTES = _entier_borne("MATRIX_VERROUILLAGE_CONNEXION_MI
 VERROUILLAGE_CONNEXION_PLAFOND_MINUTES = _entier_borne("MATRIX_VERROUILLAGE_CONNEXION_PLAFOND_MINUTES", 240, 15, 1440)
 CONSERVATION_COMPTEURS_JOURS = _entier_borne("MATRIX_CONSERVATION_COMPTEURS_JOURS", 30, 7, 365)
 RECUPERATION_VALIDITE_MINUTES = _entier_borne("MATRIX_RECUPERATION_VALIDITE_MINUTES", 30, 10, 120)
+
+
+def _mandataires_de_confiance(valeur):
+    """Mandataires inverses dont l'en-tête X-Forwarded-For est cru (AC-18) : vide par défaut. Un réseau qui couvre toute
+    l'adresse est refusé, car il reviendrait à croire n'importe quel client."""
+    import ipaddress
+
+    reseaux = []
+    for element in [e.strip() for e in (valeur or "").split(",") if e.strip()][:20]:
+        try:
+            reseau = ipaddress.ip_network(element, strict=False)
+        except ValueError:
+            raise ImproperlyConfigured(f"MATRIX_MANDATAIRES_DE_CONFIANCE : « {element} » n'est pas une adresse ou un réseau valide.")
+        if reseau.prefixlen == 0:
+            raise ImproperlyConfigured("MATRIX_MANDATAIRES_DE_CONFIANCE : un réseau couvrant toutes les adresses n'est pas accepté.")
+        reseaux.append(reseau)
+    return tuple(reseaux)
+
+
+MANDATAIRES_DE_CONFIANCE = _mandataires_de_confiance(os.environ.get("MATRIX_MANDATAIRES_DE_CONFIANCE", ""))
 AUTHENTICATION_BACKENDS = ["accounts.authentification.ConnexionSurveilleeBackend"]
 
 LANGUAGE_CODE = "fr"

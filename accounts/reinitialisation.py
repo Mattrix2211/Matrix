@@ -12,6 +12,7 @@ compte, a lui-même validé la demande depuis sa propre session. L'initiateur se
 """
 import secrets
 from datetime import timedelta
+from functools import lru_cache
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -77,7 +78,7 @@ def _verrouiller_compte(cible):
 
 def _ouvrir_exclusivement(cible, creer, *, preserver_recuperation=False):
     """Annule la demande ouverte du compte puis crée la nouvelle, sans erreur 500 si deux ouvertures se croisent."""
-    try:
+    def ouvrir():
         with transaction.atomic():
             _verrouiller_compte(cible)
             if preserver_recuperation and DemandeReinitialisation.objects.filter(
@@ -85,6 +86,9 @@ def _ouvrir_exclusivement(cible, creer, *, preserver_recuperation=False):
                 raise ValidationError("Une récupération d'accès est en cours pour ce compte : elle doit aboutir ou expirer.")
             _annuler_ouvertes(cible)
             return creer()
+
+    try:
+        return securite.avec_reprises(ouvrir)  # SQLite sérialise les écritures : un verrou momentané se rejoue
     except IntegrityError:
         raise ValidationError("Une autre demande vient d'être ouverte pour ce compte : réessayez.")
 
@@ -184,27 +188,40 @@ def _utilisateur_pour(identifiant):
     return candidats[0] if len(candidats) == 1 else None
 
 
-def utiliser(identifiant, code_initiateur, code_verificateur, nouveau_mot_de_passe, source="inconnue"):
+def _echec_temporise():
+    """Même coût de calcul qu'une vérification de code : l'échec ne révèle ni le compte, ni la demande, ni le blocage."""
+    check_password("x", _empreinte_factice())
+    return _echec_generique()
+
+
+@lru_cache(maxsize=1)
+def _empreinte_factice():
+    return make_password("empreinte-factice")
+
+
+def utiliser(identifiant, code_initiateur, code_verificateur, nouveau_mot_de_passe, source="inconnue", postes=None):
     """Étape du titulaire : définit son nouveau mot de passe avec le(s) code(s). Message d'erreur volontairement unique.
 
-    Les essais erronés sont comptés par couple (demande, source) avec blocage progressif de cette source : un tiers qui
-    connaît un identifiant ne peut pas bloquer la demande du titulaire (AC-18)."""
+    Les essais erronés sont comptés par couple (demande, source), avec blocage progressif de cette source, et au total pour la
+    demande (cinq fois le seuil) : au-delà, seules les sources inconnues du titulaire sont refusées. Le titulaire qui présente
+    son poste connu n'est jamais arrêté par les essais d'un tiers (AC-18)."""
     utilisateur = _utilisateur_pour(identifiant)
     if utilisateur is None:
-        raise _echec_generique()
+        raise _echec_temporise()
     demande = DemandeReinitialisation.objects.filter(user=utilisateur, statut=Statut.ACTIVE).first()
     if demande is None or demande.expire_le <= timezone.now():
         if demande is not None:
             DemandeReinitialisation.objects.filter(pk=demande.pk, statut=Statut.ACTIVE).update(statut=Statut.EXPIREE)
-        raise _echec_generique()
+        raise _echec_temporise()
     cle = f"code:{demande.pk}"
-    if securite.est_limite(cle, source):
-        raise _echec_generique()
+    poste = securite.poste_valide(postes, utilisateur.username)
+    if securite.est_limite(cle, source, poste):
+        raise _echec_temporise()
     valide = _verifier_empreinte(demande, "initiateur", code_initiateur, demande.code_initiateur)
     if demande.verification_requise:
         valide = _verifier_empreinte(demande, "verificateur", code_verificateur, demande.code_verificateur or "!") and valide
     if not valide:
-        securite.enregistrer_echec(cle, source, seuil=settings.TENTATIVES_CODE_MAX, existe=True)
+        securite.enregistrer_echec(cle, source, seuil=settings.TENTATIVES_CODE_MAX, existe=True, poste=poste)
         raise _echec_generique()
     validate_password(nouveau_mot_de_passe, utilisateur)  # un mot de passe refusé ne consomme pas le code
     with transaction.atomic():
@@ -219,7 +236,8 @@ def utiliser(identifiant, code_initiateur, code_verificateur, nouveau_mot_de_pas
             UserProfile.objects.filter(user=utilisateur).update(administrateur_general=True)
             AuditLog.objects.create(actor=None, action="changement_administrateur_general", target_user=utilisateur,
                                     details=f"administrateur_general: False -> True (récupération, demande={demande.pk})")
-        securite.effacer_compteurs(utilisateur.username)
+        securite.effacer_compteurs(utilisateur.username)  # les postes connus sont aussi révoqués
+        securite.effacer_compteurs(cle)
         AuditLog.objects.create(
             actor=None, action="reinitialisation_effectuee", target_user=utilisateur,
             details=f"demande={demande.pk}; nature={demande.nature}; source={source}")
