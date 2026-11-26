@@ -29,5 +29,8 @@ class ConnexionSurveilleeBackend(ModelBackend):
                 base._echec_connexion_compte = True
             securite.enregistrer_echec(username, source, poste=poste)
             return None
-        securite.enregistrer_reussite(username, source, request)
+        # Le poste connu ne se retient que pour une connexion de navigateur, jamais pour une authentification Basic de l'API.
+        base = getattr(request, "_request", request)
+        navigateur = request if base is not None and not getattr(base, "META", {}).get("HTTP_AUTHORIZATION") else None
+        securite.enregistrer_reussite(username, source, navigateur)
         return utilisateur

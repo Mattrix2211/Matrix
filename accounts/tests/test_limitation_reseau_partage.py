@@ -245,3 +245,28 @@ def _requete_avec(client):
     requete = RequestFactory().get("/")
     requete.COOKIES = {k: v.value for k, v in client.cookies.items()}
     return requete
+
+
+class SourcesParticulieresTests(TestCase):
+    def test_un_client_ipv4_vu_en_ipv6_mappe_garde_son_adresse(self):
+        source = lambda a: securite.source_de(RequestFactory().get("/", REMOTE_ADDR=a))  # noqa: E731
+        self.assertEqual(source("::ffff:203.0.113.9"), "203.0.113.9")
+        self.assertNotEqual(source("::ffff:203.0.113.9"), source("::ffff:198.51.100.2"))
+
+    @override_settings(MANDATAIRES_DE_CONFIANCE=MANDATAIRE)
+    def test_une_adresse_mappee_transmise_par_le_mandataire_est_lue_comme_ipv4(self):
+        requete = RequestFactory().get("/", REMOTE_ADDR="::ffff:10.1.1.1", HTTP_X_FORWARDED_FOR="::ffff:198.51.100.7")
+        self.assertEqual(securite.source_de(requete), "198.51.100.7")
+
+    def test_l_authentification_basic_de_l_api_ne_cree_aucun_poste_connu(self):
+        import base64
+        User.objects.create_user(username="script", password="bon-mdp-123")
+        jeton = base64.b64encode(b"script:bon-mdp-123").decode()
+        for _ in range(securite.POSTES_PAR_IDENTIFIANT + 3):
+            reponse = Client(REMOTE_ADDR="192.0.2.8").get("/api/training/requirements/", HTTP_AUTHORIZATION=f"Basic {jeton}")
+            self.assertIn(reponse.status_code, (200, 403))
+        self.assertFalse(CompteurConnexion.objects.filter(identifiant="script", source__startswith="poste:").exists())
+        self.assertNotIn(securite.COOKIE_POSTE, reponse.cookies)
+        # Le navigateur, lui, retient son poste.
+        self.assertTrue(_connecte(_poster(Client(REMOTE_ADDR="192.0.2.8"), "script", "bon-mdp-123")))
+        self.assertEqual(CompteurConnexion.objects.filter(identifiant="script", source__startswith="poste:").count(), 1)

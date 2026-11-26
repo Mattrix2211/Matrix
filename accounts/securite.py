@@ -43,9 +43,11 @@ def cle_identifiant(identifiant):
 
 def _adresse(texte):
     try:
-        return ipaddress.ip_address((texte or "").strip())
+        adresse = ipaddress.ip_address((texte or "").strip())
     except ValueError:
         return None
+    # Serveur en double pile : un client IPv4 vu en IPv6 « mappé » reste une adresse IPv4 (sinon tous partageraient « ::/64 »).
+    return adresse.ipv4_mapped if adresse.version == 6 and adresse.ipv4_mapped else adresse
 
 
 def _normalisee(adresse):

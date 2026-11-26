@@ -19,7 +19,7 @@ def nettoyer(apps, schema_editor):
         nom, rang = operateur.nom, 1
         while nom in vus:
             rang += 1
-            nom = f"{operateur.nom} ({rang})"
+            nom = f"{operateur.nom[:120]} ({rang})"
         vus.add(nom)
         if nom != operateur.nom:
             Operateur.objects.filter(pk=operateur.pk).update(nom=nom)
