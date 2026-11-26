@@ -411,3 +411,7 @@ Aucun compte de secours, identifiant ou mot de passe prédéfini n'existe. En **
 
 Un scénario « non exécuté » n'est pas un scénario validé : SQLite est réservé au développement et à la recette locale ; l'exploitation à plusieurs opérateurs simultanés suppose PostgreSQL.
 
+## 23. Clôture définitive et réserves transférées (PO, 26/11/2026)
+
+Le PO a clos L06 pour la poursuite du développement : code testé et relu `e94e186` (4 174 tests par moteur, 4 152 réussis et 22 ignorés ; dixième relecture favorable), dernier commit `58691cc`, `main` inchangé à `6ef16ad`. **Cette clôture n'est ni une homologation de sécurité, ni une autorisation de fusion, ni une autorisation de déploiement.** Les réserves résiduelles ne sont pas supprimées : elles sont portées par le registre des blocages avant déploiement (`docs/PLAN_LOTS_REPRISE.md` §9, lignes « L06 — … ») et rattachées à la qualification avant déploiement, à l'exploitation ou à L38. L06 n'est pas rouvert pour des améliorations facultatives.
+
