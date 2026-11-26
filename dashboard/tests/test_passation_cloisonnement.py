@@ -588,6 +588,22 @@ class PartageAuteurSupprimeTests(Monde):
         self.assertContains(suivi, "rang supérieur subsiste")
         self.assertIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
 
+    def test_double_clic_sur_revoquer_et_ligne_partagee_sans_lien_mort(self):
+        cle = ligne_cle(self.synthese, T_A1A)
+        partage, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.chef_section_b1a.pk)
+        client = Client()
+        client.force_login(self.chef_section_a1a)
+        url = reverse("passation-partage-revoquer", args=[self.synthese.pk, partage.pk])
+        self.assertEqual(client.post(url).status_code, 302)
+        self.assertContains(client.post(url, follow=True), "déjà révoqué")  # pas de 404 au second clic de l'auteur
+        intrus = Client()
+        intrus.force_login(self.chef_section_b1a)
+        self.assertEqual(intrus.post(url).status_code, 404)  # un tiers ne devine pas l'existence
+        partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.chef_section_b1a.pk)
+        page = intrus.get(reverse("passation", args=[self.synthese.pk])).content.decode()
+        self.assertIn(T_A1A, page)
+        self.assertNotIn(f"/taches/{Tache.objects.get(titre=T_A1A).pk}/", page)  # la ligne partagée n'offre pas de lien mort
+
     def test_compte_sans_profil_donne_le_message_unique(self):
         sans_profil = User.objects.create_user("sans_profil", password="x")
         UserProfile.objects.filter(user=sans_profil).delete()

@@ -163,7 +163,7 @@ def contenu_visible(user, synthese, plafond=30):
                 if propre or cle in partagees:
                     lignes.append({**ligne, "partage_recu": (not propre) and cle in partagees})
             groupes.append({**groupe, "lignes": lignes})
-        blocs.append({**bloc, "groupes": groupes, "vide": "Aucune information de ce type dans votre périmètre ni partagée avec vous."})
+        blocs.append({**bloc, "groupes": groupes, "vide": "Aucune information de ce type à votre niveau ni partagée avec vous."})
     return _annoter({"blocs": _recalculer(blocs, plafond), "restreint": True, "ancien": False}, synthese, couv)
 
 
@@ -232,5 +232,7 @@ def peut_voir_partage(user, partage):
 
 
 def partages_de_ligne(synthese, cle):
-    return PartagePassation.objects.filter(synthese=synthese, cle_ligne=cle).select_related(
-        "partage_par", "revoque_par", "marin", "service", "sector", "section")
+    partages = list(PartagePassation.objects.filter(synthese=synthese, cle_ligne=cle).select_related("partage_par", "revoque_par"))
+    for partage in partages:
+        partage.synthese = synthese  # déjà chargée : ne pas relire son contenu figé pour chaque partage
+    return partages

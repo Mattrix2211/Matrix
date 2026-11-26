@@ -404,7 +404,11 @@ class PassationRevocationView(LoginRequiredMixin, View):
             raise Http404("La synthèse de passation est désactivée.")
         synthese = get_object_or_404(syntheses_visibles(request.user), pk=pk)
         partage = get_object_or_404(PartagePassation, pk=partage_pk, synthese=synthese)
+        partage.synthese = synthese
         if not peut_revoquer(request.user, partage):
+            if not partage.actif and peut_voir_partage(request.user, partage):  # double clic : déjà révoqué
+                messages.info(request, "Ce partage est déjà révoqué.")
+                return redirect(f"{reverse('passation-partage', args=[synthese.pk])}?ligne={quote(partage.cle_ligne)}")
             raise Http404  # l'existence d'un partage ne se devine pas
         revoquer(request.user, partage)
         restants = PartagePassation.objects.filter(

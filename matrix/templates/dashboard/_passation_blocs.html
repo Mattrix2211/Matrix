@@ -1,7 +1,7 @@
 {% if contenu.ancien %}
-<div class="alert alert-info">Cette synthèse a été figée avant le cloisonnement par périmètre : son détail est réservé au commandement du bâtiment.</div>
+<div class="alert alert-info">Cette synthèse a été figée avant le cloisonnement par niveau de responsabilité : son détail est réservé au commandement du bâtiment.</div>
 {% elif contenu.restreint %}
-<p class="small text-muted mb-3">Cette page ne présente que les informations de votre périmètre de responsabilité, celles qui vous concernent et celles qui ont été partagées avec vous.</p>
+<p class="small text-muted mb-3">Cette page ne présente que les informations de votre niveau de responsabilité, celles qui vous concernent et celles qui ont été partagées avec vous.</p>
 {% endif %}
 {% for bloc in contenu.blocs %}
 <section class="mx-surface mb-3 passation-bloc">
@@ -13,7 +13,7 @@
   {% if bloc.groupes|length > 1 or groupe.titre != bloc.titre %}<h3 class="h6 mt-2">{{ groupe.titre }} ({{ groupe.total }})</h3>{% endif %}
   <ul class="list-unstyled mb-1">
     {% for l in groupe.lignes %}
-    <li class="mb-1">{% if pdf %}<strong>{{ l.titre }}</strong>{% else %}<a href="{{ l.url }}"><strong>{{ l.titre }}</strong></a>{% endif %}{% if l.detail %} — <span class="text-muted">{{ l.detail }}</span>{% endif %}
+    <li class="mb-1">{% if pdf or l.partage_recu %}<strong>{{ l.titre }}</strong>{% else %}<a href="{{ l.url }}"><strong>{{ l.titre }}</strong></a>{% endif %}{% if l.detail %} — <span class="text-muted">{{ l.detail }}</span>{% endif %}
       {% if l.partage_recu %}<span class="badge text-bg-info">Partagé avec vous</span>{% endif %}
       {% if l.partage_avec %}<span class="badge text-bg-light border" title="Partagé avec : {{ l.partage_avec|join:', ' }}">Partagé ({{ l.partage_avec|length }})</span>{% endif %}
       {% if not pdf and l.cle %}{% if l.peut_partager or l.partage_avec %}<a class="small no-print ms-1" href="{% url 'passation-partage' synthese.pk %}?ligne={{ l.cle|urlencode }}">{% if l.peut_partager %}Partager{% else %}Voir les partages{% endif %}</a>{% endif %}{% endif %}
@@ -25,5 +25,5 @@
   {% endif %}
 </section>
 {% empty %}
-{% if not contenu.ancien %}<p class="text-muted">Aucune information de cette synthèse ne relève de votre périmètre ni n'a été partagée avec vous.</p>{% endif %}
+{% if not contenu.ancien %}<p class="text-muted">Aucune information de cette synthèse ne relève de votre niveau ni n'a été partagée avec vous.</p>{% endif %}
 {% endfor %}
