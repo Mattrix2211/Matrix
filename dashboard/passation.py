@@ -94,21 +94,20 @@ def _nom(marin):
     return (marin.get_full_name() or marin.get_username()) if marin else "personne"
 
 
-def _taches(navire, aujourdhui):
+def _taches(navire, aujourdhui, h):
     ouvertes = list(
         Tache.objects.filter(navire_q(navire.pk, "assigne__profile__"), partagee=True, statut__in=Tache.STATUTS_OUVERTS)
         .select_related("assigne__profile").order_by("pk")
     )
     libelles = dict(Tache.STATUT_CHOICES)
     groupes = []
-    memo = {}
     # Les tâches bloquées d'abord : ce sont elles que l'équipage montant doit débloquer.
     for statut in (Tache.STATUT_BLOQUEE, Tache.STATUT_EN_COURS, Tache.STATUT_A_FAIRE):
         lignes = [
             _ligne(
                 f"tache:{t.pk}", t.titre,
                 f"{_nom(t.assigne)} · échéance {_date(t.echeance)}" + (f" · {t.motif_blocage}" if t.motif_blocage else ""),
-                reverse("tache-detail", args=[t.pk]), portee_du_marin(t.assigne, memo),
+                reverse("tache-detail", args=[t.pk]), portee_du_marin(t.assigne, h),
                 "danger" if t.en_retard_au(aujourdhui) else ("attention" if statut == Tache.STATUT_BLOQUEE else ""),
             )
             for t in ouvertes if t.statut == statut
@@ -179,11 +178,10 @@ def _stock(filtre_stock, h):
     return _bloc("stock", "Stock sous le seuil", [_groupe("Sous le seuil", lignes)], "Stock conforme.")
 
 
-def _qualifications(user, navire, aujourdhui):
+def _qualifications(user, navire, aujourdhui, h):
     """Dossiers individuels de formation : soumis à leurs propres habilitations, ils ne se partagent pas (AC-03)."""
-    memo = {}
     lignes = [
-        _ligne(f"qualification:{q['marin'].pk}:{q['cours']}", q["titre"], q["detail"], q["url"], portee_du_marin(q["marin"], memo),
+        _ligne(f"qualification:{q['marin'].pk}:{q['cours']}", q["titre"], q["detail"], q["url"], portee_du_marin(q["marin"], h),
                "danger" if q["expiree"] else "attention", partageable=False)
         for q in qualifications_equipe(user, aujourdhui, navire)
     ]
@@ -259,12 +257,12 @@ def contenu_passation(user, navire):
         "version": VERSION_CONTENU,
         "genere_le": timezone.now().isoformat(timespec="seconds"),
         "blocs": [
-            _taches(navire, aujourdhui),
+            _taches(navire, aujourdhui, h),
             _maintenance_en_retard(occurrences, h),
             _tickets(tickets, h),
             _anomalies(navire, h),
             _stock(navire_q(navire.pk), h),
-            _qualifications(user, navire, aujourdhui),
+            _qualifications(user, navire, aujourdhui, h),
             _listes_a_venir(navire, h),
             _annonces_sans_accuse(navire, aujourdhui, h),
             _demandes(navire, h),
@@ -409,7 +407,15 @@ class PassationRevocationView(LoginRequiredMixin, View):
         if not peut_revoquer(request.user, partage):
             raise Http404  # l'existence d'un partage ne se devine pas
         revoquer(request.user, partage)
-        messages.success(request, "Partage révoqué : le destinataire ne le voit plus.")
+        restants = PartagePassation.objects.filter(
+            synthese=synthese, cle_ligne=partage.cle_ligne, type_destinataire=partage.type_destinataire, marin_id=partage.marin_id,
+            fonction=partage.fonction, service_id=partage.service_id, sector_id=partage.sector_id, section_id=partage.section_id,
+            revoque_le__isnull=True).exists()
+        if restants:
+            messages.warning(request, "Votre partage est révoqué ; un partage équivalent d'un rang supérieur subsiste : le destinataire "
+                                      "lit encore cette information.")
+        else:
+            messages.success(request, "Partage révoqué : le destinataire ne le voit plus.")
         return redirect(f"{reverse('passation-partage', args=[synthese.pk])}?ligne={quote(partage.cle_ligne)}")
 
 

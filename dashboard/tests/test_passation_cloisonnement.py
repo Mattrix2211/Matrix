@@ -562,6 +562,40 @@ class PartageRobustesseTests(Monde):
         self.assertLess(len(requetes), 90, "le coût de génération ne doit pas croître avec le nombre de lignes")
 
 
+class PartageAuteurSupprimeTests(Monde):
+    def test_la_page_et_la_revocation_survivent_a_la_suppression_de_l_auteur(self):
+        cle = ligne_cle(self.synthese, T_A1A)
+        auteur = self.marin("auteur_ephemere", "CHEF_SECTION", section=self.a1a)
+        partage, _ = partager(auteur, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        auteur.delete()
+        client = Client()
+        client.force_login(self.cdt)
+        page = client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle})
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "un marin supprimé")
+        self.assertContains(page, "Révoquer")
+        self.assertEqual(client.post(reverse("passation-partage-revoquer", args=[self.synthese.pk, partage.pk])).status_code, 302)
+        self.assertNotIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
+        self.assertContains(client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle}), "Révoqué le")
+
+    def test_message_de_revocation_honnete_quand_un_partage_de_rang_superieur_subsiste(self):
+        cle = ligne_cle(self.synthese, T_A1A)
+        bas, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        partager(self.cdt, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        client = Client()
+        client.force_login(self.chef_section_a1a)
+        suivi = client.post(reverse("passation-partage-revoquer", args=[self.synthese.pk, bas.pk]), follow=True)
+        self.assertContains(suivi, "rang supérieur subsiste")
+        self.assertIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
+
+    def test_compte_sans_profil_donne_le_message_unique(self):
+        sans_profil = User.objects.create_user("sans_profil", password="x")
+        UserProfile.objects.filter(user=sans_profil).delete()
+        with self.assertRaises(ValidationError) as ctx:
+            partager(self.chef_section_a1a, self.synthese, ligne_cle(self.synthese, T_A1A), "MARIN", sans_profil.pk)
+        self.assertEqual(ctx.exception.messages, ["Destinataire introuvable dans ce bâtiment."])
+
+
 def ligne_cle(synthese, titre):
     for bloc in synthese.contenu["blocs"]:
         for groupe in bloc["groupes"]:

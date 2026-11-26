@@ -57,7 +57,7 @@
   <ul class="list-unstyled mb-0">
     {% for p, revocable in partages %}
     <li class="mb-1">
-      {{ p.libelle_destinataire }} — partagé par {{ p.partage_par.get_full_name|default:p.partage_par.username|default:"un marin supprimé" }} le {{ p.created_at|date:"d/m/Y H:i" }}
+      {{ p.libelle_destinataire }} — partagé par {% if p.partage_par %}{{ p.partage_par.get_full_name|default:p.partage_par.username }}{% else %}un marin supprimé{% endif %} le {{ p.created_at|date:"d/m/Y H:i" }}
       {% if p.revoque_le %}<span class="badge text-bg-secondary">Révoqué le {{ p.revoque_le|date:"d/m/Y H:i" }}{% if p.revoque_par %} par {{ p.revoque_par.get_full_name|default:p.revoque_par.username }}{% endif %}</span>
       {% elif revocable %}
       <form method="post" action="{% url 'passation-partage-revoquer' synthese.pk p.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">Révoquer</button></form>

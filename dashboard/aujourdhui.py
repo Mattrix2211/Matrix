@@ -259,7 +259,7 @@ def qualifications_equipe(user, aujourdhui, navire=None):
                                              user__in=utilisateurs_visibles_par(user).filter(is_active=True).exclude(pk=user.pk))
     if navire is not None:
         dossiers = dossiers.filter(navire_q(navire.pk, "user__profile__"))
-    for q in dossiers.select_related("user", "course").order_by("-completed_at", "-created_at"):
+    for q in dossiers.select_related("user__profile", "course").order_by("-completed_at", "-created_at"):
         derniere.setdefault((q.user_id, q.course_id), q)
     echues = sorted((q for q in derniere.values() if q.expires_at <= limite), key=lambda q: q.expires_at)
     return [

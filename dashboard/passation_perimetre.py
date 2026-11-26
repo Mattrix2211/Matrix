@@ -68,16 +68,10 @@ class Hierarchie:
         return {"service": service_id, "secteur": sector_id, "section": section_id, "marins": sorted({m for m in marins if m})}
 
 
-def portee_du_marin(marin, memo=None):
-    """Portée d'une ligne qui concerne un marin : son unité (résolue jusqu'au bâtiment) et lui-même ; `memo` évite de
-    recalculer l'unité d'un même marin pour chacune de ses lignes (génération)."""
-    if memo is not None and marin.pk in memo:
-        return dict(memo[marin.pk])
-    _, service, secteur, section = chaine(marin)
-    resultat = {"service": service, "secteur": secteur, "section": section, "marins": [marin.pk]}
-    if memo is not None:
-        memo[marin.pk] = resultat
-    return dict(resultat)
+def portee_du_marin(marin, hierarchie):
+    """Portée d'une ligne qui concerne un marin : son unité (profil déjà chargé, hiérarchie résolue) et lui-même."""
+    profil = marin.profile
+    return hierarchie.portee(service_id=profil.service_id, sector_id=profil.sector_id, section_id=profil.section_id, marins=[marin.pk])
 
 
 def dans_la_couverture(couv, ligne_portee, avec_marins=True):

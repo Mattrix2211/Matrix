@@ -9,7 +9,7 @@ Un partage par émetteur : si deux responsables partagent la même information a
 une autorité qui révoque retire tous les partages équivalents qu'elle a le droit de retirer.
 """
 from django.contrib.auth import get_user_model
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -67,7 +67,7 @@ def _cible(synthese, type_destinataire, valeur):
             if valeur not in noms:
                 raise ValidationError(ERREUR_DESTINATAIRE)
             return {"fonction": valeur}, noms[valeur]
-    except (ValueError, TypeError, User.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
+    except (ValueError, TypeError, ObjectDoesNotExist):  # inconnu, inactif, sans profil : un seul message
         pass
     raise ValidationError(ERREUR_DESTINATAIRE)
 
