@@ -109,6 +109,27 @@ Modification de comportement attendue (documentée) : un marin du bâtiment ouvr
 
 `org.0019_partage_passation` : crée `PartagePassation` (table neuve, aucune donnée existante modifiée ; contrainte de cohérence « un seul destinataire »). Aucune donnée de `SynthesePassation` n'est migrée ni réécrite.
 
-## 10. Résultats, relecture, archive
+## 10. Résultats, relectures, archive
 
-À compléter à la clôture du lot (sections suivantes).
+Le code final testé et relu est **`3761fe9`** ; les commits suivants ne modifient que `docs/` et l'archive de preuves (`git diff --name-only 3761fe9..HEAD`).
+
+| Exécution | Moteur | Tests | Résultat | Ignorés |
+|---|---|---|---|---|
+| Référence L06 `e94e186` | SQLite / PostgreSQL 16 | 4174 / 4174 | OK / OK | 22 / 22 |
+| Intermédiaire `0f19776` | SQLite / PostgreSQL 16 | 4212 / 4212 | 2 échecs de vocabulaire / idem | 23 / 22 |
+| **Final `3761fe9`** | SQLite / PostgreSQL 16 | **4213 / 4213** | **OK / OK** | 23 / 22 |
+
++39 tests par rapport à la référence ; aucun test supprimé ni affaibli. Le scénario de concurrence du partage (`test_passation_concurrence`) ne s'exécute que sur PostgreSQL ; SQLite, réservé au développement, ne le valide pas.
+
+| # | Code relu | Verdict | Suite donnée |
+|---|---|---|---|
+| 1 | `04b817e` | À corriger : doublons de partage sous concurrence ; marin concerné révoquant sa hiérarchie ; mineurs (oracle de comptes, N+1, historique en cascade, second émetteur) | verrou, un partage par émetteur, rang de révocation, historique restreint, message unique, génération sans requête par ligne, SET_NULL (`71c7c7d`) |
+| 2 | `71c7c7d` | À corriger : page de partage en erreur 500 si l'auteur est supprimé | gabarit robuste, message de révocation fidèle, compte sans profil, coût par marin (`0f19776`) |
+| 3 | `0f19776` | Favorable ; les suites complètes révèlent deux tests de vocabulaire | libellés « niveau de responsabilité », second clic neutre, ligne partagée sans lien mort, contenu figé non relu par partage (`3761fe9`) |
+| 4 | `3761fe9` | **Favorable, aucun bloquant, aucun important** | code final |
+
+Migration `org.0019` rejouée sur SQLite et PostgreSQL 16 : mise à niveau, `makemigrations --check`, retour arrière à `org.0018`, restauration depuis la sauvegarde ; contenu antérieur inchangé.
+
+**Mineurs consignés** (ne bloquent pas la clôture) : la page de partage croît d'environ 0,8 requête par partage (accès au profil de l'auteur ; `select_related("partage_par__profile")` possible) ; deux clics réellement simultanés sur « Révoquer » peuvent afficher le même message de succès ; le formulaire de partage liste les marins actifs du bâtiment (annuaire déjà exposé par d'autres modules : à confirmer avec le PO) ; la portée d'une ligne est figée à la génération (un marin muté garde la lecture de ses propres lignes passées). **Hors L30** : V34 et V35/V10 (§8).
+
+Archive des preuves : `docs/recette/preuves/L30_preuves.tar.gz` (empreinte SHA-256 dans `L30_preuves.tar.gz.sha256`) : références Git, environnement, commandes, journaux complets, rejeux de migration, rapports de relecture.
