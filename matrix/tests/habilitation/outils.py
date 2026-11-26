@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import transaction
 from django.test import Client, TestCase
 from django.utils import timezone
@@ -17,7 +18,7 @@ from assets.models import Asset, AssetType
 from logistics.models import CorrectiveTicket
 from matrix.core.equipage import decider_releve, proposer_releve
 from org.models import ParametresPassation, Sector, Section, Service, Ship, SynthesePassation
-from taches.models import Tache
+from taches.models import PieceJointeTache, Tache
 
 User = get_user_model()
 MOT_DE_PASSE_TEST = "pass"
@@ -87,6 +88,8 @@ class MondeFictif(TestCase):
                                                 statut="A_FAIRE", partagee=False)
         cls.tache_partagee_s2 = Tache.objects.create(titre=MARQUEUR_S2, assigne=u["equipier_b2"], created_by=u["chef_section_b2"],
                                                      statut="BLOQUEE", motif_blocage="Pièce", partagee=True)
+        cls.piece_s2 = PieceJointeTache.objects.create(
+            tache=cls.tache_partagee_s2, nom="preuve-s2.txt", fichier=SimpleUploadedFile("preuve-s2.txt", b"CONTENU-MEDIA-SECTION-2"))
         cls.tache_service2 = Tache.objects.create(titre="TACHE-SERVICE-SECURITE", assigne=u["equipier_sec"], created_by=u["chef_service_sec"],
                                                   statut="A_FAIRE", partagee=True)
         cls.tache_a = Tache.objects.create(titre="TACHE-EQUIPAGE-A", assigne=u["equipier_a"], created_by=u["equipier_a"], statut="A_FAIRE")
@@ -152,7 +155,7 @@ def observer(verification, monde, profil):
     if effet is False:
         return "refus", code
     if verification.contenu:
-        corps = reponse.content.decode("utf-8", "replace")
+        corps = (b"".join(reponse.streaming_content) if reponse.streaming else reponse.content).decode("utf-8", "replace")
         return ("acces+" if verification.contenu in corps else "acces-"), code
     return "acces", code
 

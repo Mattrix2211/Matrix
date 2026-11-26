@@ -22,7 +22,6 @@ SANS_PREUVE_EXECUTEE = {
     "API-FORMATIONS": "L32",
     "API-MAINTENANCE": "L32",
     "API-MATERIEL": "L32",
-    "API-TABLEAUX": "L30",
     "WEB-ABSENCES": "L32",
     "WEB-DOCUMENTATION": "L32",
     "WEB-ECHANGES": "L10",
@@ -31,11 +30,9 @@ SANS_PREUVE_EXECUTEE = {
     "WEB-LOGISTIQUE": "L32",
     "WEB-MAINTENANCE": "L32",
     "WEB-MATERIEL": "L32",
-    "WEB-MEDIA": "L30",
     "WEB-PERSONNEL": "L34",  # accueil, recherche, notifications : fermeture par module (notifications : L35)
     "WEB-RAPPORTS": "L32",
     "WEB-RETEX": "L32",
-    "WEB-TABLEAUX": "L30",
 }
 
 

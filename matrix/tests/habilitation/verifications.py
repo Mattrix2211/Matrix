@@ -50,14 +50,14 @@ VERIFICATIONS = (
     Verification(
         "V01-passation-par-perimetre", "WEB-PASSATION", "get", lambda m: f"/dashboard/passation/{m.synthese.pk}/",
         contenu=MARQUEUR_S2,
+        # L30 (ARB-02) : la page s'ouvre à tout marin du bâtiment mais ne rend que son périmètre ; « acces- » = page ouverte sans le
+        # contenu de la section 2, « acces+ » = contenu présent (témoins positifs : le marin concerné et les chefs du périmètre).
         attendu={
-            "equipier_b1": "refus", "equipier_a": "refus", "equipier_abe": "refus",
+            "equipier_b1": "acces-", "equipier_b2": "acces+", "equipier_a": "acces-", "equipier_abe": "refus",
             "chef_section_b1": "acces-", "chef_section_b2": "acces+", "chef_secteur_b": "acces+", "chef_service_b": "acces+",
             "chef_service_sec": "acces-", "comanav_b": "acces+", "comaeq_b": "acces-", "cdt_b": "acces+", "second_b": "acces+",
-            "admin_navire": "refus", "bsc_admin": "refus", "cdt_admin": "acces+", "master_admin": "refus",
+            "admin_navire": "acces-", "bsc_admin": "acces-", "cdt_admin": "acces+", "master_admin": "refus",
         },
-        ecarts_connus={"chef_section_b1": "acces+", "chef_service_sec": "acces+", "comaeq_b": "acces+"},
-        lot_correctif="L30 (confidentialité par périmètre)",
     ),
     Verification(
         "V02-tache-privee", "WEB-TACHES", "get", lambda m: f"/taches/{m.tache_privee.pk}/", contenu="TACHE-PRIVEE-SECTION-2",
@@ -215,6 +215,61 @@ VERIFICATIONS = (
         effet=lambda m: __import__("quarts.models", fromlist=["Quart"]).Quart.objects.filter(nom="V31").exists(),
         attendu={"cdt_b": "acces", "cdt_admin": "acces", "master_admin": "refus", "admin_navire": "refus", "equipier_b1": "refus",
                  "chef_service_b": "refus", "second_b": "refus"},
+    ),
+    Verification(
+        "V32-vue-flotte", "WEB-TABLEAUX", "get", "/dashboard/flotte/",
+        attendu={
+            "equipier_b1": "refus", "equipier_a": "refus", "equipier_abe": "refus", "admin_navire": "refus", "bsc_admin": "refus",
+            "admin_abe": "refus", "chef_section_b1": "acces", "chef_secteur_b": "acces", "chef_service_b": "acces", "comanav_b": "acces",
+            "cdt_b": "acces", "second_b": "acces", "cdt_admin": "acces", "cdt_abe": "acces", "master_admin": "acces",
+        },
+    ),
+    Verification(
+        "V33-vue-comanav", "WEB-TABLEAUX", "get", "/dashboard/comanav/",
+        attendu={
+            "equipier_b1": "refus", "chef_section_b1": "refus", "chef_service_b": "refus", "comaeq_b": "refus", "admin_navire": "refus",
+            "bsc_admin": "refus", "master_admin": "refus", "equipier_abe": "refus", "soutien_terre": "refus",
+            "comanav_b": "acces", "cdt_b": "acces", "second_b": "acces", "cdt_admin": "acces", "cdt_abe": "acces",
+        },
+    ),
+    Verification(
+        # Un ticket de la section Incendie (service Sécurité, commandant adjoint COMAEQ) : « [1,0,0,0,0,0] » = ticket compté.
+        "V34-tableau-de-bord-api-perimetre", "API-TABLEAUX", "get", "/api/dashboard/corrective_open/", contenu='"data":[1,0,0,0,0,0]',
+        attendu={
+            "chef_service_sec": "acces+", "cdt_b": "acces+", "second_b": "acces+", "cdt_admin": "acces+", "comaeq_b": "acces+",
+            "chef_service_b": "acces-", "chef_section_b1": "acces-", "equipier_b1": "acces-", "admin_navire": "acces-",
+            "equipier_abe": "acces-", "cdt_abe": "acces-", "master_admin": "acces+", "soutien_terre": "acces+",
+        },
+        # Un compte rattaché au niveau du bâtiment sans fonction (administrateur technique) lit les agrégats de tout le bâtiment :
+        # le bornage suit le rattachement du profil, non la fonction. Hors passation, consigné pour un lot de lecture par périmètre.
+        ecarts_connus={"admin_navire": "acces+"}, lot_correctif="L32 (à confirmer : bornage de la lecture des tableaux, hors L30)",
+    ),
+    Verification(
+        # Pièce jointe d'une tâche partagée de la section 2 : livrée selon le droit de consulter la tâche, 404 sinon.
+        "V35-piece-jointe-media", "WEB-MEDIA", "get", lambda m: f"/media/{m.piece_s2.fichier.name}", contenu="CONTENU-MEDIA-SECTION-2",
+        attendu={
+            "equipier_b2": "acces+", "chef_section_b2": "acces+", "chef_secteur_b": "acces+", "chef_service_b": "acces+", "cdt_b": "acces+",
+            "second_b": "acces+", "cdt_admin": "acces+", "equipier_b1": "refus", "chef_section_b1": "refus", "chef_service_sec": "refus",
+            "comaeq_b": "refus", "admin_navire": "refus", "bsc_admin": "refus", "master_admin": "refus", "equipier_abe": "refus",
+            "cdt_abe": "refus", "soutien_terre": "acces+",
+        },
+        # V10 (L29) : le droit de consulter une tâche suit le bâtiment, non le service rattaché au commandant adjoint.
+        ecarts_connus={"comaeq_b": "acces+"}, lot_correctif="L32 (V10, commandant adjoint hors de ses services)",
+    ),
+    Verification(
+        # Partage ciblé d'UNE ligne de la passation (AC-03) : l'émetteur doit couvrir la ligne par son propre périmètre.
+        "V36-partage-d-une-information-de-passation", "WEB-PASSATION", "post", lambda m: f"/dashboard/passation/{m.synthese.pk}/partage/",
+        donnees=lambda m: {
+            "ligne": next(l["cle"] for b in m.synthese.contenu["blocs"] for g in b["groupes"] for l in g["lignes"] if l["titre"] == MARQUEUR_S2),
+            "type_destinataire": "MARIN", "destinataire": m.equipier_sec.pk},
+        effet=lambda m: __import__("org.models", fromlist=["PartagePassation"]).PartagePassation.objects.filter(
+            synthese=m.synthese, marin=m.equipier_sec).exists(),
+        attendu={
+            "equipier_b2": "acces", "chef_section_b2": "acces", "chef_secteur_b": "acces", "chef_service_b": "acces", "comanav_b": "acces",
+            "cdt_b": "acces", "second_b": "acces", "cdt_admin": "acces", "equipier_b1": "refus", "chef_section_b1": "refus",
+            "chef_service_sec": "refus", "comaeq_b": "refus", "admin_navire": "refus", "bsc_admin": "refus", "master_admin": "refus",
+            "equipier_abe": "refus", "cdt_abe": "refus", "soutien_terre": "refus",
+        },
     ),
     Verification(
         "V20-auto-attribution-droits-techniques", "API-COMPTES", "patch", lambda m: f"/api/accounts/profiles/{m.equipier_b1.profile.pk}/",

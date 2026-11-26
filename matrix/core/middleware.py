@@ -248,7 +248,7 @@ CHEMINS_PERSONNELS = (
     "/calendar/personnel/",
 )
 # Écritures restant permises à l'équipage à terre : personnelles, fils de discussion, demandes et annonces.
-CHEMINS_ECRITURE_A_TERRE = (*CHEMINS_PERSONNELS, "/taches/commentaire/", "/demandes/", "/annonces/")
+CHEMINS_ECRITURE_A_TERRE = (*CHEMINS_PERSONNELS, "/taches/commentaire/", "/demandes/", "/annonces/", "/dashboard/passation/")
 # Soutien à terre (sans bâtiment) : écritures personnelles, commentaires et circuits du catalogue flotte
 # (responsables de spécialité) ; les vues revérifient leurs droits. Tout le reste est refusé par défaut.
 CHEMINS_ECRITURE_SOUTIEN = (

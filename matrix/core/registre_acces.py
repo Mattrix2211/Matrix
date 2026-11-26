@@ -53,8 +53,10 @@ REGLES = (
     _r("WEB-DECONNEXION", r"^logout/$", justification="Déconnexion : sans effet pour un visiteur non connecté."),
     _r("WEB-MEDIA", r"^media/", controles=("authentifie", "proprietaire_objet", "perimetre_batiment"), lecture_sensible=True,
        couverture=("matrix.tests.test_etancheite_equipage_peripherie", "matrix.tests.test_etancheite_equipage_vues")),
-    _r("WEB-PASSATION", r"^dashboard/passation/", controles=_QUERYSET, lecture_sensible=True,
-       ecarts=("A14, NE-06 : la synthèse n'est pas bornée à la section ou au service → L30",)),
+    _r("WEB-PASSATION", r"^dashboard/passation/", controles=(*_QUERYSET, "proprietaire_objet"), lecture_sensible=True,
+       couverture=("dashboard.tests.test_passation_cloisonnement",),
+       justification="Le contenu figé porte la portée de chaque ligne ; le serveur ne rend que le périmètre de l'utilisateur et les "
+                     "lignes qui lui sont partagées (ARB-02, AC-03). Écriture limitée au partage et à sa révocation."),
     _r("WEB-TABLEAUX", r"^dashboard/", controles=_QUERYSET, lecture_sensible=True,
        ecarts=("A25 : l'accueil et les tableaux affichent des données d'un module désactivé → L34",),
        couverture=("matrix.tests.test_etancheite_equipage_vues",)),

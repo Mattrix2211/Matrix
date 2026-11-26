@@ -493,6 +493,63 @@ class SynthesePassation(TimeStampedModel):
         return f"Passation {self.equipage_sortant or '?'} → {self.equipage_montant} sur {self.ship} ({self.created_at:%d/%m/%Y})"
 
 
+class PartagePassation(TimeStampedModel):
+    """Partage ciblé d'UNE information d'une synthèse de passation (AC-03) : lecture seule, jamais la passation entière.
+
+    La ligne partagée est désignée par sa clé stable dans le contenu figé (`cle_ligne`) ; le destinataire est un marin, une
+    fonction, une section, un secteur ou un service, évalué à la lecture (une mutation ou une révocation joue immédiatement).
+    La ligne est conservée à la révocation : l'historique (auteur, destinataire, date, révocation) n'est jamais effacé."""
+
+    class Destinataire(models.TextChoices):
+        MARIN = "MARIN", "Un marin"
+        FONCTION = "FONCTION", "Une fonction"
+        SECTION = "SECTION", "Une section"
+        SECTEUR = "SECTEUR", "Un secteur"
+        SERVICE = "SERVICE", "Un service"
+
+    synthese = models.ForeignKey(SynthesePassation, on_delete=models.CASCADE, related_name="partages")
+    cle_ligne = models.CharField(max_length=64)
+    libelle = models.CharField(max_length=200, blank=True, default="", help_text="Titre de la ligne au moment du partage (historique).")
+    partage_par = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="partages_passation_emis")
+    type_destinataire = models.CharField(max_length=10, choices=Destinataire.choices)
+    marin = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE, related_name="partages_passation_recus")
+    fonction = models.CharField(max_length=140, blank=True, default="", help_text="« coma:CODE » (commandant adjoint) ou « service:Nom ».")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    revoque_le = models.DateTimeField(null=True, blank=True)
+    revoque_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="partages_passation_revoques")
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+        constraints = [
+            models.CheckConstraint(
+                name="partage_passation_un_seul_destinataire",
+                condition=(
+                    models.Q(type_destinataire="MARIN", marin__isnull=False, service__isnull=True, sector__isnull=True, section__isnull=True, fonction="")
+                    | models.Q(type_destinataire="FONCTION", marin__isnull=True, service__isnull=True, sector__isnull=True, section__isnull=True)
+                    & ~models.Q(fonction="")
+                    | models.Q(type_destinataire="SECTION", section__isnull=False, marin__isnull=True, service__isnull=True, sector__isnull=True, fonction="")
+                    | models.Q(type_destinataire="SECTEUR", sector__isnull=False, marin__isnull=True, service__isnull=True, section__isnull=True, fonction="")
+                    | models.Q(type_destinataire="SERVICE", service__isnull=False, marin__isnull=True, sector__isnull=True, section__isnull=True, fonction="")
+                ),
+            ),
+        ]
+        indexes = [models.Index(fields=["synthese", "cle_ligne"])]
+
+    @property
+    def actif(self):
+        return self.revoque_le is None
+
+    def libelle_destinataire(self):
+        if self.type_destinataire == self.Destinataire.MARIN:
+            return self.marin.get_full_name() or self.marin.get_username()
+        if self.type_destinataire == self.Destinataire.FONCTION:
+            return self.fonction.split(":", 1)[-1]
+        cible = {"SECTION": self.section, "SECTEUR": self.sector, "SERVICE": self.service}[self.type_destinataire]
+        return f"{self.get_type_destinataire_display().lower()} {cible}"
+
+
 class ParametresPassation(TimeStampedModel):
     """Réglage de la synthèse de passation, commun à la flotte (un seul enregistrement, modifié dans les Réglages)."""
     active = models.BooleanField(default=True, verbose_name="Synthèse de passation à la relève")

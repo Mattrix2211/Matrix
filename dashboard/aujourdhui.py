@@ -264,6 +264,7 @@ def qualifications_equipe(user, aujourdhui, navire=None):
     echues = sorted((q for q in derniere.values() if q.expires_at <= limite), key=lambda q: q.expires_at)
     return [
         {"titre": q.course.title, "url": reverse("formation-detail", args=[q.course_id]), "expiree": q.expires_at < aujourdhui,
+         "marin": q.user, "cours": q.course_id,
          "detail": f"{q.user.get_full_name() or q.user.get_username()} · {'expirée' if q.expires_at < aujourdhui else 'échéance'} le {q.expires_at:%d/%m/%Y}"}
         for q in echues
     ]

@@ -12,6 +12,7 @@ from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
 from annonces.models import Annonce
 from assets.models import Asset, AssetType
 from dashboard.passation import generer_passation_manuelle, syntheses_visibles
+from dashboard.passation_perimetre import contenu_visible
 from demandes.models import Demande
 from logistics.models import Anomalie, CorrectiveTicket, StockPiece
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
@@ -196,8 +197,10 @@ class DroitsTests(PassationBase):
         for user in (self.cdt_a, self.cdt_b, self.chef_a, self.chef_b):
             self.assertEqual(self.code(user), 200, user.username)
 
-    def test_equipier_et_anonyme_exclus(self):
-        self.assertEqual(self.code(self.equipier_b), 404)
+    def test_equipier_ne_lit_que_ce_qui_le_concerne_et_anonyme_exclu(self):
+        # ARB-02 : un marin consulte la synthèse dans son périmètre (ce qui le concerne) ; auparavant elle lui était fermée.
+        self.assertEqual(self.code(self.equipier_b), 200)
+        self.assertEqual(sum(b["total"] for b in contenu_visible(self.equipier_b, self.synthese)["blocs"]), 0)
         self.client.logout()
         self.assertEqual(self.client.get(self.url).status_code, 302)
 
@@ -208,9 +211,11 @@ class DroitsTests(PassationBase):
             self.assertEqual(self.code(etranger), 404, role)
             self.assertFalse(syntheses_visibles(etranger).exists())
 
-    def test_chef_hors_des_deux_equipages_exclu(self):
+    def test_l_equipage_n_est_pas_un_critere_de_lecture(self):
+        # ARB-02 : le périmètre de responsabilité décide, pas l'équipage ; un chef d'un autre équipage du même secteur lit comme les autres.
         chef_c = marin("chef_c", "CHEF_SECTEUR", self.navire, "C", self.service, self.secteur)
-        self.assertEqual(self.code(chef_c), 404)
+        self.assertEqual(self.code(chef_c), 200)
+        self.assertEqual(contenu_visible(chef_c, self.synthese), contenu_visible(self.chef_a, self.synthese))
 
     def test_page_imprimable_et_pdf(self):
         self.client.force_login(self.cdt_b)

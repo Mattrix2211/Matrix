@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .comanav import VueComanavView
-from .passation import PassationPdfView, PassationView
+from .passation import PassationPartageView, PassationPdfView, PassationRevocationView, PassationView
 from .web_views import (
     DashboardClasseNavireChoixView,
     DashboardClasseNavireView,
@@ -21,6 +21,8 @@ urlpatterns = [
     path("comanav/", VueComanavView.as_view(), name="vue-comanav"),
     path("passation/<int:pk>/", PassationView.as_view(), name="passation"),
     path("passation/<int:pk>/pdf/", PassationPdfView.as_view(), name="passation-pdf"),
+    path("passation/<int:pk>/partage/", PassationPartageView.as_view(), name="passation-partage"),
+    path("passation/<int:pk>/partage/<int:partage_pk>/revoquer/", PassationRevocationView.as_view(), name="passation-partage-revoquer"),
     path("specialite/", DashboardSpecialiteChoixView.as_view(), name="dashboard-specialite-choix"),
     path("specialite/<int:pk>/", DashboardSpecialiteView.as_view(), name="dashboard-specialite"),
     path("classe-navire/", DashboardClasseNavireChoixView.as_view(), name="dashboard-classe-navire-choix"),

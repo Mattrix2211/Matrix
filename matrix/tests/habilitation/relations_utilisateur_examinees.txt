@@ -87,6 +87,9 @@ mentions_recues
 message_set
 notifications
 occurrencestatuslog_set
+partages_passation_emis
+partages_passation_recus
+partages_passation_revoques
 partrequest_set
 places_affectees
 profile

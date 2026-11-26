@@ -106,6 +106,8 @@ web|catalogue/propositions/<uuid:pk>/refuser/|POST|WEB-MATERIEL
 web|catalogue/propositions/<uuid:pk>/verifier/|GET,POST|WEB-MATERIEL
 web|catalogue/propositions/<uuid:pk>/viser/|POST|WEB-MATERIEL
 web|catalogue/propositions/nouvelle/|GET,POST|WEB-MATERIEL
+web|dashboard/passation/<int:pk>/partage/<int:partage_pk>/revoquer/|POST|WEB-PASSATION
+web|dashboard/passation/<int:pk>/partage/|GET,POST|WEB-PASSATION
 web|dashboard/pret-appareillage/item/<int:pk>/cocher/|POST|WEB-TABLEAUX
 web|dashboard/pret-appareillage/ouvrir/|POST|WEB-TABLEAUX
 web|dashboard/pret-appareillage/session/<int:pk>/signer/|POST|WEB-TABLEAUX

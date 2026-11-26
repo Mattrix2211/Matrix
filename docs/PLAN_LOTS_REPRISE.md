@@ -96,6 +96,7 @@ Conditions de clôture communes : tests positifs et négatifs du lot verts sur S
 - **Tests.** T-L06-1 admin seul refusé sur échange, publication, visa (négatif, web et API) ; T-L06-2 admin + fonction métier autorisé (positif) ; T-L06-3 auto-attribution refusée ; T-L06-4 plancher refusé ; T-L06-5 second : actes propres autorisés, actes du commandant refusés ; T-L06-6 trace d'audit ; T-L06-7 migration : comptes existants conservés, sur SQLite et PostgreSQL, avec sauvegarde restaurable.
 
 ### L30 — Confidentialité des passations
+- **Statut : développement autorisé le 26/11/2026** (après la clôture définitive de L06), branche `claude/l30-passations-cloisonnement-v11` créée à partir de `58691cc` ; **implémenté, en cours de recette et de relecture** : preuves et architecture dans `docs/recette/L30_PASSATIONS_CLOISONNEMENT.md`. Critères complémentaires CA-L30-6 à 9 : informations indirectes, révocation et changement d'affectation, preuves héritées de L29 (V32 à V35), non-régression du socle L06.
 - **Décision complémentaire AC-03** : partage ciblé (droits par échelon, lecture seule, révocable, tracé).
 - **Objectif et périmètre.** Visibilité par périmètre de responsabilité, partage ciblé, équipage à terre sans limite de durée.
 - **Décisions.** ARB-02 ; A14, NE-06.
