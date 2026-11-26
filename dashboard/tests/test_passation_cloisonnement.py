@@ -462,3 +462,110 @@ class PartageCibleTests(Monde):
     def test_generation_notifie_toujours_les_chefs_du_montant_sans_contenu(self):
         for notification in Notification.objects.filter(user=self.chef_section_a1a):
             self.assertNotIn(T_A1A, notification.verb)
+
+
+class PartageRobustesseTests(Monde):
+    """Retour de relecture : doublons, révocation par une autorité seulement, historique, destinataires détachés, volumétrie."""
+
+    def cle(self, titre):
+        return ligne_cle(self.synthese, titre)
+
+    def test_une_revocation_retire_les_doublons_equivalents(self):
+        cle = self.cle(T_A1A)
+        premier, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        # Doublon actif de même cible et de même auteur (double clic simultané avant verrouillage).
+        PartagePassation.objects.create(
+            synthese=self.synthese, cle_ligne=cle, libelle=T_A1A, partage_par=self.chef_section_a1a, type_destinataire="MARIN",
+            marin=self.eq_b1a, destinataire_libelle="eq_b1a")
+        self.assertEqual(PartagePassation.objects.filter(revoque_le__isnull=True).count(), 2)
+        self.assertEqual(revoquer(self.chef_section_a1a, premier), 2)
+        self.assertNotIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
+        self.assertEqual(PartagePassation.objects.filter(revoque_le__isnull=True).count(), 0)
+
+    def test_chaque_emetteur_a_son_partage_et_l_autorite_retire_tous_les_equivalents(self):
+        cle = self.cle(T_A1A)
+        a, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        b, cree = partager(self.chef_service_a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        self.assertTrue(cree)
+        self.assertNotEqual(a.pk, b.pk)
+        self.assertEqual(AuditLog.objects.filter(action="passation_partagee").count(), 2)
+        # L'auteur de moindre rang ne retire que le sien : le destinataire garde l'accès par l'autre partage.
+        self.assertEqual(revoquer(self.chef_section_a1a, a), 1)
+        self.assertIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
+        # L'autorité qui couvre la ligne retire tout ce qui reste.
+        self.assertEqual(revoquer(self.chef_service_a, b), 1)
+        self.assertNotIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
+        c, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        d, _ = partager(self.chef_service_a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        self.assertEqual(revoquer(self.chef_section_a1a, c), 1)  # un subordonné ne défait pas le partage de son supérieur…
+        with self.assertRaises(PermissionDenied):
+            revoquer(self.chef_section_a1a, d)
+        self.assertIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
+        e, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        self.assertEqual(revoquer(self.chef_service_a, e), 2)  # …l'autorité de rang supérieur retire tout, y compris le sien
+
+    def test_un_marin_concerne_ne_revoque_ni_ne_voit_les_partages_de_sa_hierarchie(self):
+        cle = self.cle(T_A1A)
+        partage, _ = partager(self.chef_service_a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        with self.assertRaises(PermissionDenied):
+            revoquer(self.eq_a1a, partage)  # le marin concerné par la ligne n'est pas une autorité
+        client = Client()
+        client.force_login(self.eq_a1a)
+        page = client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle})
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Aucun partage")  # ni destinataires choisis par la hiérarchie, ni bouton de révocation
+        self.assertNotContains(page, "partagé par")
+        self.assertNotContains(page, "Révoquer")
+        self.assertEqual(client.post(reverse("passation-partage-revoquer", args=[self.synthese.pk, partage.pk])).status_code, 404)
+        partage.refresh_from_db()
+        self.assertTrue(partage.actif)
+        # Témoin positif : le marin voit et révoque ce qu'il a lui-même partagé.
+        propre, _ = partager(self.eq_a1a, self.synthese, cle, "MARIN", self.eq_a1b.pk)
+        self.assertContains(client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle}), "Révoquer")
+        self.assertEqual(revoquer(self.eq_a1a, propre), 1)
+
+    def test_message_unique_pour_tout_destinataire_refuse(self):
+        cle = self.cle(T_A1A)
+        messages = set()
+        for valeur in (self.marin_etranger.pk, 99999, User.objects.create_user("inactif", password="x").pk):
+            User.objects.filter(username="inactif").update(is_active=False)
+            with self.assertRaises(ValidationError) as ctx:
+                partager(self.chef_section_a1a, self.synthese, cle, "MARIN", valeur)
+            messages.add(tuple(ctx.exception.messages))
+        self.assertEqual(len(messages), 1)
+
+    def test_la_suppression_d_un_destinataire_ou_d_une_unite_conserve_l_historique(self):
+        cle = self.cle(T_A1A)
+        vers_marin, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        section = Section.objects.create(sector=self.sb1, name="Éphémère")
+        vers_section, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", section.pk)
+        self.eq_b1a.delete()
+        section.delete()
+        for partage in (vers_marin, vers_section):
+            partage.refresh_from_db()
+            self.assertTrue(partage.actif)
+            self.assertTrue(partage.libelle_destinataire())  # libellé figé : l'historique reste lisible
+        self.assertEqual(PartagePassation.objects.count(), 2)
+        self.assertEqual(self.lit(self.chef_section_b1a) & {T_A1A}, set())  # le partage détaché n'ouvre rien à personne
+
+    def test_la_generation_ne_fait_pas_une_requete_par_ligne(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        for i in range(40):
+            Anomalie.objects.create(titre=f"A-{i}", description="x", created_by=self.cdt, ship=self.navire, service=self.sa,
+                                    sector=self.sa1, section=self.a1a)
+            StockPiece.objects.create(reference=f"R{i}", designation="x", quantite=0, quantite_minimale=2, ship=self.navire,
+                                      service=self.sa, sector=self.sa1, section=self.a1b)
+        with CaptureQueriesContext(connection) as requetes:
+            contenu_passation(self.cdt, self.navire)
+        self.assertLess(len(requetes), 90, "le coût de génération ne doit pas croître avec le nombre de lignes")
+
+
+def ligne_cle(synthese, titre):
+    for bloc in synthese.contenu["blocs"]:
+        for groupe in bloc["groupes"]:
+            for ligne in groupe["lignes"]:
+                if titre in ligne["titre"]:
+                    return ligne["cle"]
+    raise AssertionError(titre)

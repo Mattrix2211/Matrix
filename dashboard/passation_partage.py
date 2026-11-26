@@ -5,22 +5,26 @@ périmètre (aucun partage transitif d'une ligne reçue, aucun droit conféré p
 marquée non partageable ; le destinataire relève du bâtiment de la synthèse ; chaque partage et chaque révocation sont historisés
 (auteur, destinataire, date) et jamais effacés. Le destinataire est évalué à la lecture : une mutation ou une révocation joue
 immédiatement ; les données déjà consultées, imprimées ou exportées avant révocation restent entre les mains de leur lecteur.
+Un partage par émetteur : si deux responsables partagent la même information avec la même cible, chacun a sa ligne d'historique, et
+une autorité qui révoque retire tous les partages équivalents qu'elle a le droit de retirer.
 """
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
-from annonces.services import chaine
-from notifications.models import Notification
 from matrix.core.scopes import navire_q
-from org.models import PartagePassation, Section, Sector, Service
+from notifications.models import Notification
+from notifications.services import creer_notifications_en_masse
+from org.models import PartagePassation, Section, Sector, Service, SynthesePassation
 
 from .passation_perimetre import ligne_de, peut_partager, peut_revoquer
 
 TYPES = PartagePassation.Destinataire
 User = get_user_model()
+ERREUR_DESTINATAIRE = "Destinataire introuvable dans ce bâtiment."  # message unique : aucun indice sur les comptes d'un autre bâtiment
 
 
 def destinataires_proposes(synthese):
@@ -40,78 +44,101 @@ def destinataires_proposes(synthese):
 
 
 def _cible(synthese, type_destinataire, valeur):
-    """(champs du modèle, libellé) du destinataire demandé, ou ValidationError (hors du bâtiment, inconnu, fonction inexistante)."""
+    """(champs du modèle, libellé figé) du destinataire demandé, ou ValidationError au message unique (hors du bâtiment, inconnu,
+    fonction inexistante : rien ne distingue ces cas)."""
     navire = synthese.ship
     try:
         if type_destinataire == TYPES.MARIN:
             marin = User.objects.select_related("profile").get(pk=int(valeur), is_active=True)
             if marin.profile.navire_id_effectif != navire.pk:
-                raise ValidationError("Ce marin ne relève pas du bâtiment de la synthèse.")
-            return {"marin": marin}
+                raise ValidationError(ERREUR_DESTINATAIRE)
+            return {"marin": marin}, marin.get_full_name() or marin.get_username()
         if type_destinataire == TYPES.SERVICE:
-            return {"service": Service.objects.get(pk=int(valeur), ship=navire)}
+            service = Service.objects.get(pk=int(valeur), ship=navire)
+            return {"service": service}, f"service {service.name}"
         if type_destinataire == TYPES.SECTEUR:
-            return {"sector": Sector.objects.get(pk=int(valeur), service__ship=navire)}
+            secteur = Sector.objects.select_related("service").get(pk=int(valeur), service__ship=navire)
+            return {"sector": secteur}, f"secteur {secteur}"
         if type_destinataire == TYPES.SECTION:
-            return {"section": Section.objects.get(pk=int(valeur), sector__service__ship=navire)}
+            section = Section.objects.select_related("sector__service").get(pk=int(valeur), sector__service__ship=navire)
+            return {"section": section}, f"section {section}"
         if type_destinataire == TYPES.FONCTION:
-            if valeur not in {cle for cle, _ in destinataires_proposes(synthese)["fonctions"]}:
-                raise ValidationError("Cette fonction n'existe pas.")
-            return {"fonction": valeur}
+            noms = dict(destinataires_proposes(synthese)["fonctions"])
+            if valeur not in noms:
+                raise ValidationError(ERREUR_DESTINATAIRE)
+            return {"fonction": valeur}, noms[valeur]
     except (ValueError, TypeError, User.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
-        raise ValidationError("Destinataire introuvable dans ce bâtiment.")
-    raise ValidationError("Type de destinataire inconnu.")
+        pass
+    raise ValidationError(ERREUR_DESTINATAIRE)
 
 
 def _membres(partage):
-    """Marins actuellement désignés par un partage (pour les prévenir)."""
+    """Marins actuellement désignés par un partage (pour les prévenir), requêtes sur la hiérarchie des profils."""
     if partage.type_destinataire == TYPES.MARIN:
-        return [partage.marin]
+        return [partage.marin] if partage.marin_id else []
     profils = UserProfile.objects.filter(navire_q(partage.synthese.ship_id), user__is_active=True).select_related("user")
     if partage.type_destinataire == TYPES.FONCTION:
         genre, _, nom = partage.fonction.partition(":")
         profils = profils.filter(fonction_coma=nom, role="ETAT_MAJOR") if genre == "coma" else profils.filter(fonction_service=nom)
-        return [p.user for p in profils if p.navire_id_effectif == partage.synthese.ship_id]
-    cle = {TYPES.SECTION: ("section", partage.section_id), TYPES.SECTEUR: ("secteur", partage.sector_id),
-           TYPES.SERVICE: ("service", partage.service_id)}[partage.type_destinataire]
-    indice = {"service": 1, "secteur": 2, "section": 3}[cle[0]]
-    return [p.user for p in profils if p.navire_id_effectif == partage.synthese.ship_id and chaine(p.user)[indice] == cle[1]]
+    elif partage.type_destinataire == TYPES.SECTION:
+        profils = profils.filter(section_id=partage.section_id)
+    elif partage.type_destinataire == TYPES.SECTEUR:
+        profils = profils.filter(Q(sector_id=partage.sector_id) | Q(section__sector_id=partage.sector_id))
+    else:
+        profils = profils.filter(Q(service_id=partage.service_id) | Q(sector__service_id=partage.service_id)
+                                 | Q(section__sector__service_id=partage.service_id))
+    return [p.user for p in profils if p.navire_id_effectif == partage.synthese.ship_id]
 
 
 def partager(user, synthese, cle, type_destinataire, valeur):
-    """Partage la ligne `cle` ; renvoie (partage, créé). PermissionDenied si `user` ne peut pas partager cette ligne."""
+    """Partage la ligne `cle` ; renvoie (partage, créé). PermissionDenied si `user` ne peut pas partager cette ligne.
+
+    Un même émetteur ne crée pas deux partages actifs identiques (double clic, requêtes simultanées : la synthèse est verrouillée) ;
+    un autre émetteur a son propre partage, donc sa propre trace."""
     ligne = ligne_de(synthese, cle)
     if not peut_partager(user, synthese, ligne):
         raise PermissionDenied
-    cible = _cible(synthese, type_destinataire, valeur)
-    existant = PartagePassation.objects.filter(
-        synthese=synthese, cle_ligne=cle, type_destinataire=type_destinataire, revoque_le__isnull=True,
-        **cible,
-    ).first()
-    if existant:
-        return existant, False
+    cible, libelle_cible = _cible(synthese, type_destinataire, valeur)
     with transaction.atomic():
+        SynthesePassation.objects.select_for_update().get(pk=synthese.pk)
+        existant = PartagePassation.objects.filter(
+            synthese=synthese, cle_ligne=cle, type_destinataire=type_destinataire, revoque_le__isnull=True, partage_par=user, **cible).first()
+        if existant:
+            return existant, False
         partage = PartagePassation.objects.create(
             synthese=synthese, cle_ligne=cle, libelle=ligne["titre"][:200], partage_par=user,
-            type_destinataire=type_destinataire, **cible)
+            type_destinataire=type_destinataire, destinataire_libelle=libelle_cible[:200], **cible)
         AuditLog.objects.create(
             actor=user, action="passation_partagee",
             details=f"synthese={synthese.pk}; ligne={cle}; destinataire={partage.libelle_destinataire()}; partage={partage.pk}")
-    for marin in {m.pk: m for m in _membres(partage) if m.pk != user.pk}.values():
-        Notification.objects.create(
-            user=marin, target=synthese,
-            verb=f"{user.get_full_name() or user.get_username()} a partagé avec vous une information de la synthèse de passation de {synthese.ship.name}.")
+        auteur = user.get_full_name() or user.get_username()
+        creer_notifications_en_masse(
+            Notification(user=m, target=synthese, verb=f"{auteur} a partagé avec vous une information de la synthèse de passation de "
+                                                       f"{synthese.ship.name}.")
+            for m in {m.pk: m for m in _membres(partage) if m.pk != user.pk}.values())
     return partage, True
 
 
 def revoquer(user, partage):
-    """Révoque un partage actif (auteur du partage ou autorité qui couvre la ligne) ; la trace est conservée."""
+    """Révoque un partage actif (auteur du partage ou autorité qui couvre la ligne) ; la trace est conservée.
+
+    Tous les partages actifs équivalents (même information, même destinataire) que `user` a le droit de retirer le sont : une
+    révocation ne laisse pas le destinataire lire encore par un doublon. Renvoie le nombre de partages révoqués."""
     if not peut_revoquer(user, partage):
         raise PermissionDenied
+    equivalents = PartagePassation.objects.filter(
+        synthese_id=partage.synthese_id, cle_ligne=partage.cle_ligne, type_destinataire=partage.type_destinataire,
+        marin_id=partage.marin_id, fonction=partage.fonction, service_id=partage.service_id, sector_id=partage.sector_id,
+        section_id=partage.section_id, revoque_le__isnull=True)
+    revoques = 0
     with transaction.atomic():
-        if not PartagePassation.objects.filter(pk=partage.pk, revoque_le__isnull=True).update(revoque_le=timezone.now(), revoque_par=user):
-            return False
-        AuditLog.objects.create(
-            actor=user, action="passation_partage_revoque",
-            details=f"synthese={partage.synthese_id}; ligne={partage.cle_ligne}; destinataire={partage.libelle_destinataire()}; partage={partage.pk}")
-    return True
+        for candidat in equivalents.select_related("synthese"):
+            if not peut_revoquer(user, candidat):
+                continue
+            if PartagePassation.objects.filter(pk=candidat.pk, revoque_le__isnull=True).update(revoque_le=timezone.now(), revoque_par=user):
+                revoques += 1
+                AuditLog.objects.create(
+                    actor=user, action="passation_partage_revoque",
+                    details=f"synthese={candidat.synthese_id}; ligne={candidat.cle_ligne}; destinataire={candidat.libelle_destinataire()}; "
+                            f"partage={candidat.pk}")
+    return revoques

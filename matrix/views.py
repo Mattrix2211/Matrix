@@ -155,7 +155,7 @@ def _lignes_equipage(navire, utilisateur):
         'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
         'releve_secours': bool(releve) and not erreur_secours_releve(utilisateur, releve),
         'passation_activee': passation_activee(),
-        'syntheses_passation': list(syntheses_visibles(utilisateur).filter(ship=navire)[:5]),
+        'syntheses_passation': list(syntheses_visibles(utilisateur).filter(ship=navire).defer("contenu")[:5]),
         'passation_generable': peut_generer_passation(utilisateur, navire) and navire.double_equipage,
     }
 

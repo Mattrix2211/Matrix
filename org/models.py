@@ -498,7 +498,8 @@ class PartagePassation(TimeStampedModel):
 
     La ligne partagée est désignée par sa clé stable dans le contenu figé (`cle_ligne`) ; le destinataire est un marin, une
     fonction, une section, un secteur ou un service, évalué à la lecture (une mutation ou une révocation joue immédiatement).
-    La ligne est conservée à la révocation : l'historique (auteur, destinataire, date, révocation) n'est jamais effacé."""
+    L'historique n'est jamais effacé : la révocation le complète, et la suppression d'un compte ou d'une unité laisse le partage
+    inerte (destinataire détaché) avec son libellé figé."""
 
     class Destinataire(models.TextChoices):
         MARIN = "MARIN", "Un marin"
@@ -512,26 +513,28 @@ class PartagePassation(TimeStampedModel):
     libelle = models.CharField(max_length=200, blank=True, default="", help_text="Titre de la ligne au moment du partage (historique).")
     partage_par = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="partages_passation_emis")
     type_destinataire = models.CharField(max_length=10, choices=Destinataire.choices)
-    marin = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE, related_name="partages_passation_recus")
+    destinataire_libelle = models.CharField(max_length=200, blank=True, default="", help_text="Destinataire au moment du partage (historique).")
+    marin = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="partages_passation_recus")
     fonction = models.CharField(max_length=140, blank=True, default="", help_text="« coma:CODE » (commandant adjoint) ou « service:Nom ».")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     revoque_le = models.DateTimeField(null=True, blank=True)
     revoque_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="partages_passation_revoques")
 
     class Meta:
         ordering = ("-created_at", "-pk")
         constraints = [
+            # Un seul type de destinataire renseigné ; la cible peut être détachée (SET_NULL) après suppression de son objet.
             models.CheckConstraint(
                 name="partage_passation_un_seul_destinataire",
                 condition=(
-                    models.Q(type_destinataire="MARIN", marin__isnull=False, service__isnull=True, sector__isnull=True, section__isnull=True, fonction="")
+                    models.Q(type_destinataire="MARIN", service__isnull=True, sector__isnull=True, section__isnull=True, fonction="")
                     | models.Q(type_destinataire="FONCTION", marin__isnull=True, service__isnull=True, sector__isnull=True, section__isnull=True)
                     & ~models.Q(fonction="")
-                    | models.Q(type_destinataire="SECTION", section__isnull=False, marin__isnull=True, service__isnull=True, sector__isnull=True, fonction="")
-                    | models.Q(type_destinataire="SECTEUR", sector__isnull=False, marin__isnull=True, service__isnull=True, section__isnull=True, fonction="")
-                    | models.Q(type_destinataire="SERVICE", service__isnull=False, marin__isnull=True, sector__isnull=True, section__isnull=True, fonction="")
+                    | models.Q(type_destinataire="SECTION", marin__isnull=True, service__isnull=True, sector__isnull=True, fonction="")
+                    | models.Q(type_destinataire="SECTEUR", marin__isnull=True, service__isnull=True, section__isnull=True, fonction="")
+                    | models.Q(type_destinataire="SERVICE", marin__isnull=True, sector__isnull=True, section__isnull=True, fonction="")
                 ),
             ),
         ]
@@ -542,12 +545,7 @@ class PartagePassation(TimeStampedModel):
         return self.revoque_le is None
 
     def libelle_destinataire(self):
-        if self.type_destinataire == self.Destinataire.MARIN:
-            return self.marin.get_full_name() or self.marin.get_username()
-        if self.type_destinataire == self.Destinataire.FONCTION:
-            return self.fonction.split(":", 1)[-1]
-        cible = {"SECTION": self.section, "SECTEUR": self.sector, "SERVICE": self.service}[self.type_destinataire]
-        return f"{self.get_type_destinataire_display().lower()} {cible}"
+        return self.destinataire_libelle or self.type_destinataire.lower()
 
 
 class ParametresPassation(TimeStampedModel):

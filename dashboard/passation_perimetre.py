@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from accounts.models import Roles
 from annonces.services import chaine
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
-from org.models import PartagePassation, Service
+from org.models import PartagePassation, Section, Sector, Service
 
 VERSION_CONTENU = 2
 
@@ -52,18 +52,20 @@ def couverture(user):
     return Couverture(navire_id, user.pk, False, frozenset(services), frozenset(secteurs), frozenset(sections))
 
 
-def portee(*, ship=None, service=None, sector=None, section=None, marins=()):
-    """Portée d'une ligne : unité d'organisation résolue en remontant la hiérarchie, et marins concernés."""
-    if section is not None:
-        sector = sector or section.sector
-    if sector is not None:
-        service = service or sector.service
-    return {
-        "service": service.pk if service else None,
-        "secteur": sector.pk if sector else None,
-        "section": section.pk if section else None,
-        "marins": sorted({m for m in marins if m}),
-    }
+class Hierarchie:
+    """Secteurs et sections d'un bâtiment (deux requêtes) : résout la portée d'une ligne depuis des identifiants, sans requête par ligne."""
+
+    def __init__(self, navire_id):
+        self.service_du_secteur = dict(Sector.objects.filter(service__ship_id=navire_id).values_list("pk", "service_id"))
+        self.secteur_de_la_section = dict(Section.objects.filter(sector__service__ship_id=navire_id).values_list("pk", "sector_id"))
+
+    def portee(self, *, service_id=None, sector_id=None, section_id=None, marins=()):
+        """Portée d'une ligne : unité d'organisation résolue en remontant la hiérarchie, et marins concernés."""
+        if section_id:
+            sector_id = sector_id or self.secteur_de_la_section.get(section_id)
+        if sector_id:
+            service_id = service_id or self.service_du_secteur.get(sector_id)
+        return {"service": service_id, "secteur": sector_id, "section": section_id, "marins": sorted({m for m in marins if m})}
 
 
 def portee_du_marin(marin, memo=None):
@@ -78,10 +80,12 @@ def portee_du_marin(marin, memo=None):
     return dict(resultat)
 
 
-def dans_la_couverture(couv, ligne_portee):
+def dans_la_couverture(couv, ligne_portee, avec_marins=True):
+    """La ligne relève-t-elle de la couverture ? `avec_marins=False` : par l'autorité hiérarchique seulement (ni « ce qui me
+    concerne », ni partage) : c'est l'autorité qui révoque et qui voit l'historique des partages."""
     if couv.batiment:
         return True
-    if couv.utilisateur_id in ligne_portee.get("marins", ()):
+    if avec_marins and couv.utilisateur_id in ligne_portee.get("marins", ()):
         return True
     return bool(
         (ligne_portee.get("section") in couv.sections)
@@ -174,14 +178,16 @@ def _annoter(resultat, synthese, couv):
     if synthese.contenu.get("version") != VERSION_CONTENU:
         return resultat
     par_ligne = {}
-    for partage in synthese.partages.filter(revoque_le__isnull=True).select_related("marin", "service", "sector", "section"):
-        par_ligne.setdefault(partage.cle_ligne, []).append(partage.libelle_destinataire())
+    for partage in synthese.partages.filter(revoque_le__isnull=True):
+        par_ligne.setdefault(partage.cle_ligne, []).append((partage.libelle_destinataire(), partage.partage_par_id))
     for bloc in resultat["blocs"]:
         for groupe in bloc["groupes"]:
             for ligne in groupe["lignes"]:
-                autorite = (not ligne.get("partage_recu")) and dans_la_couverture(couv, ligne.get("portee", {}))
-                ligne["peut_partager"] = bool(autorite and ligne.get("partageable", True))
-                ligne["partage_avec"] = par_ligne.get(ligne.get("cle", ""), []) if autorite else []
+                propre = (not ligne.get("partage_recu")) and dans_la_couverture(couv, ligne.get("portee", {}))
+                autorite = (not ligne.get("partage_recu")) and dans_la_couverture(couv, ligne.get("portee", {}), avec_marins=False)
+                ligne["peut_partager"] = bool(propre and ligne.get("partageable", True))
+                # L'autorité voit tous les partages de la ligne ; un marin seulement ceux qu'il a lui-même consentis.
+                ligne["partage_avec"] = [nom for nom, auteur in par_ligne.get(ligne.get("cle", ""), []) if autorite or auteur == couv.utilisateur_id]
     return resultat
 
 
@@ -205,14 +211,30 @@ def peut_partager(user, synthese, ligne):
     return synthese.contenu.get("version") == VERSION_CONTENU and dans_la_couverture(couv, ligne.get("portee", {}))
 
 
+def _autorite_sur(user, partage):
+    """Autorité hiérarchique (chef, commandant adjoint, second, commandant) dont le périmètre couvre la ligne : jamais un marin
+    simplement concerné par la ligne, ni un statut d'administration."""
+    couv = couverture(user)
+    ligne = ligne_de(partage.synthese, partage.cle_ligne)
+    if couv is None or couv.navire_id != partage.synthese.ship_id or ligne is None:
+        return False
+    return partage.synthese.contenu.get("version") == VERSION_CONTENU and dans_la_couverture(couv, ligne.get("portee", {}), avec_marins=False)
+
+
 def peut_revoquer(user, partage):
-    """Révocation : l'auteur du partage, ou une autorité habilitée sur la ligne (périmètre qui la couvre)."""
+    """Révocation : l'auteur du partage, ou l'autorité hiérarchique qui couvre la ligne et dont le rang n'est pas inférieur à celui
+    de l'auteur (un subordonné ne défait pas le partage de son supérieur ; un auteur parti ou supprimé n'oppose aucun rang)."""
     if partage.revoque_le is not None:
         return False
     if partage.partage_par_id == user.pk:
         return True
-    ligne = ligne_de(partage.synthese, partage.cle_ligne)
-    return peut_partager(user, partage.synthese, ligne)
+    auteur = partage.partage_par
+    return _autorite_sur(user, partage) and (auteur is None or user_role_level(user) >= user_role_level(auteur))
+
+
+def peut_voir_partage(user, partage):
+    """Historique d'un partage (même révoqué) : son auteur et l'autorité hiérarchique de la ligne."""
+    return partage.partage_par_id == user.pk or _autorite_sur(user, partage)
 
 
 def partages_de_ligne(synthese, cle):
