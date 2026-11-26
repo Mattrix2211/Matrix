@@ -97,13 +97,14 @@ def _taches(navire, aujourdhui):
     )
     libelles = dict(Tache.STATUT_CHOICES)
     groupes = []
+    memo = {}
     # Les tâches bloquées d'abord : ce sont elles que l'équipage montant doit débloquer.
     for statut in (Tache.STATUT_BLOQUEE, Tache.STATUT_EN_COURS, Tache.STATUT_A_FAIRE):
         lignes = [
             _ligne(
                 f"tache:{t.pk}", t.titre,
                 f"{_nom(t.assigne)} · échéance {_date(t.echeance)}" + (f" · {t.motif_blocage}" if t.motif_blocage else ""),
-                reverse("tache-detail", args=[t.pk]), portee_du_marin(t.assigne),
+                reverse("tache-detail", args=[t.pk]), portee_du_marin(t.assigne, memo),
                 "danger" if t.en_retard_au(aujourdhui) else ("attention" if statut == Tache.STATUT_BLOQUEE else ""),
             )
             for t in ouvertes if t.statut == statut
@@ -178,8 +179,9 @@ def _stock(filtre_stock):
 
 def _qualifications(user, navire, aujourdhui):
     """Dossiers individuels de formation : soumis à leurs propres habilitations, ils ne se partagent pas (AC-03)."""
+    memo = {}
     lignes = [
-        _ligne(f"qualification:{q['marin'].pk}:{q['cours']}", q["titre"], q["detail"], q["url"], portee_du_marin(q["marin"]),
+        _ligne(f"qualification:{q['marin'].pk}:{q['cours']}", q["titre"], q["detail"], q["url"], portee_du_marin(q["marin"], memo),
                "danger" if q["expiree"] else "attention", partageable=False)
         for q in qualifications_equipe(user, aujourdhui, navire)
     ]
@@ -404,6 +406,8 @@ class PassationRevocationView(LoginRequiredMixin, View):
             raise Http404("La synthèse de passation est désactivée.")
         synthese = get_object_or_404(syntheses_visibles(request.user), pk=pk)
         partage = get_object_or_404(PartagePassation, pk=partage_pk, synthese=synthese)
+        if not peut_revoquer(request.user, partage):
+            raise Http404  # l'existence d'un partage ne se devine pas
         revoquer(request.user, partage)
         messages.success(request, "Partage révoqué : le destinataire ne le voit plus.")
         return redirect(f"{reverse('passation-partage', args=[synthese.pk])}?ligne={quote(partage.cle_ligne)}")

@@ -66,10 +66,16 @@ def portee(*, ship=None, service=None, sector=None, section=None, marins=()):
     }
 
 
-def portee_du_marin(marin):
-    """Portée d'une ligne qui concerne un marin : son unité (résolue jusqu'au bâtiment) et lui-même."""
+def portee_du_marin(marin, memo=None):
+    """Portée d'une ligne qui concerne un marin : son unité (résolue jusqu'au bâtiment) et lui-même ; `memo` évite de
+    recalculer l'unité d'un même marin pour chacune de ses lignes (génération)."""
+    if memo is not None and marin.pk in memo:
+        return dict(memo[marin.pk])
     _, service, secteur, section = chaine(marin)
-    return {"service": service, "secteur": secteur, "section": section, "marins": [marin.pk]}
+    resultat = {"service": service, "secteur": secteur, "section": section, "marins": [marin.pk]}
+    if memo is not None:
+        memo[marin.pk] = resultat
+    return dict(resultat)
 
 
 def dans_la_couverture(couv, ligne_portee):

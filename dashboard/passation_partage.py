@@ -14,6 +14,7 @@ from django.utils import timezone
 from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
 from annonces.services import chaine
 from notifications.models import Notification
+from matrix.core.scopes import navire_q
 from org.models import PartagePassation, Section, Sector, Service
 
 from .passation_perimetre import ligne_de, peut_partager, peut_revoquer
@@ -22,14 +23,10 @@ TYPES = PartagePassation.Destinataire
 User = get_user_model()
 
 
-def _du_batiment(marins, navire_id):
-    return [m for m in marins if getattr(getattr(m, "profile", None), "navire_id_effectif", None) == navire_id]
-
-
 def destinataires_proposes(synthese):
     """Choix de destinataires du bâtiment de la synthèse : marins actifs, fonctions, sections, secteurs, services."""
     navire = synthese.ship
-    marins = _du_batiment(User.objects.filter(is_active=True).select_related("profile").order_by("username"), navire.pk)
+    marins = User.objects.filter(navire_q(navire.pk, "profile__"), is_active=True).order_by("username")
     fonctions = [(f"coma:{code}", f"Commandant adjoint {label}") for code, label in
                  dict(Service._meta.get_field("commandant_adjoint").choices).items() if code]
     fonctions += [(f"service:{nom}", nom) for nom in ServiceFunctionChoice.objects.filter(active=True).order_by("name").values_list("name", flat=True)]
@@ -70,7 +67,7 @@ def _membres(partage):
     """Marins actuellement désignés par un partage (pour les prévenir)."""
     if partage.type_destinataire == TYPES.MARIN:
         return [partage.marin]
-    profils = UserProfile.objects.filter(user__is_active=True).select_related("user")
+    profils = UserProfile.objects.filter(navire_q(partage.synthese.ship_id), user__is_active=True).select_related("user")
     if partage.type_destinataire == TYPES.FONCTION:
         genre, _, nom = partage.fonction.partition(":")
         profils = profils.filter(fonction_coma=nom, role="ETAT_MAJOR") if genre == "coma" else profils.filter(fonction_service=nom)
