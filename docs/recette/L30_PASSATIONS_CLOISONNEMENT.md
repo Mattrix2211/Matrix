@@ -1,6 +1,6 @@
 # L30 — Confidentialité et cloisonnement des passations
 
-Branche `claude/l30-passations-cloisonnement-v11`, créée à partir de `58691cc` (L06 clos). Décisions : ARB-01, ARB-02, ARB-06, AC-03, AC-15 (`docs/DECISIONS_PO.md`). Écarts traités : A14, NE-06, vérification V01 de L29.
+Branche `claude/l30-passations-cloisonnement-v11`, créée à partir de `58691cc` (L06 clos). Code final testé et relu : `53bffa5` (voir §10). Décisions : ARB-01, ARB-02, ARB-06, AC-03, AC-15 (`docs/DECISIONS_PO.md`). Écarts traités : A14, NE-06, vérification V01 de L29.
 
 ## 1. État initial
 
@@ -114,25 +114,28 @@ Modification de comportement attendue (documentée) : un marin du bâtiment ouvr
 
 ## 10. Résultats, relectures, archive
 
-Le code final testé et relu est **`3761fe9`** ; les commits suivants ne modifient que `docs/` et l'archive de preuves (`git diff --name-only 3761fe9..HEAD`).
+Le code final testé et relu est **`53bffa5`** (vérification terminale du PO, 27/11/2026) ; les commits suivants ne modifient que `docs/` et l'archive de preuves (`git diff --name-only 53bffa5..HEAD`). Le code du rapport précédent, accepté par le PO, était `3761fe9`.
+
+**Vérification terminale (PO)** : (1) le droit de diffusion du marin se limite à ses contributions : l'information qui le concerne sans être sa production, et celle qui lui est partagée, se consultent sans se diffuser ; les autorités hiérarchiques gardent leurs droits (AC-03) ; (2) l'équipage à terre ne reçoit **aucune exception nouvelle** : l'exception ajoutée au middleware est retirée, partage et révocation lui sont refusés (middleware existant et règle reprise dans les services), sa consultation est conservée ; (3) les marins proposés et acceptés comme destinataires suivent l'annuaire de l'émetteur. Ces trois points ont nécessité une correction de code, d'où nouvelles suites complètes et nouvelle relecture.
 
 | Exécution | Moteur | Tests | Résultat | Ignorés |
 |---|---|---|---|---|
 | Référence L06 `e94e186` | SQLite / PostgreSQL 16 | 4174 / 4174 | OK / OK | 22 / 22 |
-| Intermédiaire `0f19776` | SQLite / PostgreSQL 16 | 4212 / 4212 | 2 échecs de vocabulaire / idem | 23 / 22 |
-| **Final `3761fe9`** | SQLite / PostgreSQL 16 | **4213 / 4213** | **OK / OK** | 23 / 22 |
+| Rapport L30 accepté `3761fe9` | SQLite / PostgreSQL 16 | 4213 / 4213 | OK / OK | 23 / 22 |
+| **Final `53bffa5`** | SQLite / PostgreSQL 16 | **4218 / 4218** | **OK / OK** | 23 / 22 |
 
-+39 tests par rapport à la référence ; aucun test supprimé ni affaibli. Le scénario de concurrence du partage (`test_passation_concurrence`) ne s'exécute que sur PostgreSQL ; SQLite, réservé au développement, ne le valide pas.
++44 tests par rapport à la référence L06 (+5 depuis `3761fe9`) ; aucun test supprimé ni affaibli. Le test d'équipage à terre a été **remplacé par son contraire** conformément à la décision (« consulte sans partager ni révoquer »), et les destinataires de plusieurs tests sont passés de « marin » à « section » ou « service » parce que l'annuaire d'un chef ne montre pas les marins des autres unités. Le scénario de concurrence du partage ne s'exécute que sur PostgreSQL.
 
 | # | Code relu | Verdict | Suite donnée |
 |---|---|---|---|
-| 1 | `04b817e` | À corriger : doublons de partage sous concurrence ; marin concerné révoquant sa hiérarchie ; mineurs (oracle de comptes, N+1, historique en cascade, second émetteur) | verrou, un partage par émetteur, rang de révocation, historique restreint, message unique, génération sans requête par ligne, SET_NULL (`71c7c7d`) |
-| 2 | `71c7c7d` | À corriger : page de partage en erreur 500 si l'auteur est supprimé | gabarit robuste, message de révocation fidèle, compte sans profil, coût par marin (`0f19776`) |
-| 3 | `0f19776` | Favorable ; les suites complètes révèlent deux tests de vocabulaire | libellés « niveau de responsabilité », second clic neutre, ligne partagée sans lien mort, contenu figé non relu par partage (`3761fe9`) |
-| 4 | `3761fe9` | **Favorable, aucun bloquant, aucun important** | code final |
+| 1 | `04b817e` | À corriger : doublons de partage sous concurrence ; marin concerné révoquant sa hiérarchie ; mineurs | verrou, un partage par émetteur, rang de révocation, historique restreint (`71c7c7d`) |
+| 2 | `71c7c7d` | À corriger : erreur 500 si l'auteur d'un partage est supprimé | gabarit robuste, message fidèle, compte sans profil (`0f19776`) |
+| 3 | `0f19776` | Favorable ; deux tests de vocabulaire en échec aux suites complètes | libellés, second clic neutre, ligne partagée sans lien (`3761fe9`) |
+| 4 | `3761fe9` | Favorable, aucun bloquant ni important | rapport accepté par le PO ; vérification terminale |
+| 5 | `53bffa5` | **Favorable, aucun bloquant ni important** | code final |
 
-Migration `org.0019` rejouée sur SQLite et PostgreSQL 16 : mise à niveau, `makemigrations --check`, retour arrière à `org.0018`, restauration depuis la sauvegarde ; contenu antérieur inchangé.
+**Mineurs consignés** (ne bloquent pas la clôture ; le PO accepte les mineurs de performance et de message de révocation simultanée) : un contenu corrompu où `auteurs` n'est pas une liste donnerait une erreur 500 à un marin non autorité (la génération produit toujours une liste) ; un auteur sorti du périmètre ou supprimé peut encore partager par appel direct au service, la voie web étant fermée par la lecture de la ligne (404) : défense en profondeur possible ; le message de la page de partage d'un marin à terre ayant reçu une ligne hors de son niveau est inexact ; requêtes supplémentaires de `peut_revoquer` et de la validation d'une fonction.
 
-**Mineurs consignés** (ne bloquent pas la clôture) : la page de partage croît d'environ 0,8 requête par partage (accès au profil de l'auteur ; `select_related("partage_par__profile")` possible) ; deux clics réellement simultanés sur « Révoquer » peuvent afficher le même message de succès ; le formulaire de partage liste les marins actifs du bâtiment (annuaire déjà exposé par d'autres modules : à confirmer avec le PO) ; la portée d'une ligne est figée à la génération (un marin muté garde la lecture de ses propres lignes passées). **Hors L30** : V34 et V35/V10 (§8).
+Migration `org.0019` rejouée sur SQLite et PostgreSQL 16 : mise à niveau, `makemigrations --check`, retour arrière à `org.0018`, restauration ; contenu antérieur inchangé.
 
-Archive des preuves : `docs/recette/preuves/L30_preuves.tar.gz` (empreinte SHA-256 dans `L30_preuves.tar.gz.sha256`) : références Git, environnement, commandes, journaux complets, rejeux de migration, rapports de relecture.
+Archive des preuves : `docs/recette/preuves/L30_preuves.tar.gz` (empreinte SHA-256 dans `L30_preuves.tar.gz.sha256`).
