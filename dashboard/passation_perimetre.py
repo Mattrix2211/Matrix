@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from accounts.models import Roles
 from annonces.services import chaine
+from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from org.models import PartagePassation, Section, Sector, Service
 
@@ -148,7 +149,7 @@ def contenu_visible(user, synthese, plafond=30):
         blocs = contenu.get("blocs", [])
         resultat = {"blocs": _recalculer(blocs, plafond) if contenu.get("version") == VERSION_CONTENU else blocs,
                     "restreint": False, "ancien": False}
-        return _annoter(resultat, synthese, couv)
+        return _annoter(resultat, synthese, couv, user)
     if contenu.get("version") != VERSION_CONTENU:
         return {"blocs": [], "restreint": True, "ancien": bool(contenu.get("blocs"))}
     partagees = cles_partagees_a(user, synthese)
@@ -164,22 +165,23 @@ def contenu_visible(user, synthese, plafond=30):
                     lignes.append({**ligne, "partage_recu": (not propre) and cle in partagees})
             groupes.append({**groupe, "lignes": lignes})
         blocs.append({**bloc, "groupes": groupes, "vide": "Aucune information de ce type à votre niveau ni partagée avec vous."})
-    return _annoter({"blocs": _recalculer(blocs, plafond), "restreint": True, "ancien": False}, synthese, couv)
+    return _annoter({"blocs": _recalculer(blocs, plafond), "restreint": True, "ancien": False}, synthese, couv, user)
 
 
-def _annoter(resultat, synthese, couv):
+def _annoter(resultat, synthese, couv, user):
     """Pour chaque ligne rendue : peut-on la partager, et avec qui est-elle partagée (visible des seules autorités de la ligne)."""
     if synthese.contenu.get("version") != VERSION_CONTENU:
         return resultat
+    a_terre = equipage_a_terre_lecture_seule(user)
     par_ligne = {}
     for partage in synthese.partages.filter(revoque_le__isnull=True):
         par_ligne.setdefault(partage.cle_ligne, []).append((partage.libelle_destinataire(), partage.partage_par_id))
     for bloc in resultat["blocs"]:
         for groupe in bloc["groupes"]:
             for ligne in groupe["lignes"]:
-                propre = (not ligne.get("partage_recu")) and dans_la_couverture(couv, ligne.get("portee", {}))
                 autorite = (not ligne.get("partage_recu")) and dans_la_couverture(couv, ligne.get("portee", {}), avec_marins=False)
-                ligne["peut_partager"] = bool(propre and ligne.get("partageable", True))
+                diffuseur = (not ligne.get("partage_recu")) and peut_diffuser(couv, ligne)
+                ligne["peut_partager"] = bool(diffuseur and ligne.get("partageable", True) and not a_terre)
                 # L'autorité voit tous les partages de la ligne ; un marin seulement ceux qu'il a lui-même consentis.
                 ligne["partage_avec"] = [nom for nom, auteur in par_ligne.get(ligne.get("cle", ""), []) if autorite or auteur == couv.utilisateur_id]
     return resultat
@@ -195,14 +197,23 @@ def ligne_de(synthese, cle):
     return None
 
 
+def peut_diffuser(couv, ligne):
+    """Droit de diffusion (AC-03) : l'autorité hiérarchique dont le périmètre couvre la ligne (chef, commandant adjoint, second,
+    commandant), ou le marin pour SES contributions. Consulter une information qui nous concerne, ou qui nous est partagée, ne
+    donne aucun droit de la diffuser."""
+    return dans_la_couverture(couv, ligne.get("portee", {}), avec_marins=False) or couv.utilisateur_id in ligne.get("auteurs", ())
+
+
 def peut_partager(user, synthese, ligne):
-    """Qui peut partager : celui dont le PÉRIMÈTRE couvre la ligne (marin : ce qui le concerne ; chef : son périmètre ;
-    commandement : le bâtiment), jamais du seul fait d'un partage reçu (pas de partage transitif), ni d'un statut d'administration.
+    """Qui peut partager : l'autorité hiérarchique qui couvre la ligne, ou le marin pour ses propres contributions ; jamais du
+    seul fait d'un partage reçu (pas de partage transitif), de « ce qui me concerne », ni d'un statut d'administration.
     Une ligne marquée non partageable (dossier individuel soumis à ses propres habilitations) ne se partage pas."""
     couv = couverture(user)
     if couv is None or couv.navire_id != synthese.ship_id or ligne is None or not ligne.get("partageable", True):
         return False
-    return synthese.contenu.get("version") == VERSION_CONTENU and dans_la_couverture(couv, ligne.get("portee", {}))
+    if equipage_a_terre_lecture_seule(user):  # régime existant : l'équipage à terre consulte, il n'écrit pas
+        return False
+    return synthese.contenu.get("version") == VERSION_CONTENU and peut_diffuser(couv, ligne)
 
 
 def _autorite_sur(user, partage):
@@ -218,7 +229,7 @@ def _autorite_sur(user, partage):
 def peut_revoquer(user, partage):
     """Révocation : l'auteur du partage, ou l'autorité hiérarchique qui couvre la ligne et dont le rang n'est pas inférieur à celui
     de l'auteur (un subordonné ne défait pas le partage de son supérieur ; un auteur parti ou supprimé n'oppose aucun rang)."""
-    if partage.revoque_le is not None:
+    if partage.revoque_le is not None or equipage_a_terre_lecture_seule(user):
         return False
     if partage.partage_par_id == user.pk:
         return True

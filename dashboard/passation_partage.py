@@ -15,6 +15,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
+from matrix.core.mixins import utilisateurs_visibles_par
 from matrix.core.scopes import navire_q
 from notifications.models import Notification
 from notifications.services import creer_notifications_en_masse
@@ -27,10 +28,11 @@ User = get_user_model()
 ERREUR_DESTINATAIRE = "Destinataire introuvable dans ce bâtiment."  # message unique : aucun indice sur les comptes d'un autre bâtiment
 
 
-def destinataires_proposes(synthese):
-    """Choix de destinataires du bâtiment de la synthèse : marins actifs, fonctions, sections, secteurs, services."""
+def destinataires_proposes(synthese, user):
+    """Choix de destinataires du bâtiment de la synthèse : marins que l'annuaire de `user` lui montre (jamais plus), fonctions,
+    sections, secteurs, services."""
     navire = synthese.ship
-    marins = User.objects.filter(navire_q(navire.pk, "profile__"), is_active=True).order_by("username")
+    marins = utilisateurs_visibles_par(user).filter(navire_q(navire.pk, "profile__"), is_active=True).order_by("username")
     fonctions = [(f"coma:{code}", f"Commandant adjoint {label}") for code, label in
                  dict(Service._meta.get_field("commandant_adjoint").choices).items() if code]
     fonctions += [(f"service:{nom}", nom) for nom in ServiceFunctionChoice.objects.filter(active=True).order_by("name").values_list("name", flat=True)]
@@ -43,13 +45,13 @@ def destinataires_proposes(synthese):
     }
 
 
-def _cible(synthese, type_destinataire, valeur):
+def _cible(synthese, user, type_destinataire, valeur):
     """(champs du modèle, libellé figé) du destinataire demandé, ou ValidationError au message unique (hors du bâtiment, inconnu,
     fonction inexistante : rien ne distingue ces cas)."""
     navire = synthese.ship
     try:
         if type_destinataire == TYPES.MARIN:
-            marin = User.objects.select_related("profile").get(pk=int(valeur), is_active=True)
+            marin = utilisateurs_visibles_par(user).select_related("profile").get(pk=int(valeur), is_active=True)
             if marin.profile.navire_id_effectif != navire.pk:
                 raise ValidationError(ERREUR_DESTINATAIRE)
             return {"marin": marin}, marin.get_full_name() or marin.get_username()
@@ -63,7 +65,7 @@ def _cible(synthese, type_destinataire, valeur):
             section = Section.objects.select_related("sector__service").get(pk=int(valeur), sector__service__ship=navire)
             return {"section": section}, f"section {section}"
         if type_destinataire == TYPES.FONCTION:
-            noms = dict(destinataires_proposes(synthese)["fonctions"])
+            noms = dict(destinataires_proposes(synthese, user)["fonctions"])
             if valeur not in noms:
                 raise ValidationError(ERREUR_DESTINATAIRE)
             return {"fonction": valeur}, noms[valeur]
@@ -98,7 +100,7 @@ def partager(user, synthese, cle, type_destinataire, valeur):
     ligne = ligne_de(synthese, cle)
     if not peut_partager(user, synthese, ligne):
         raise PermissionDenied
-    cible, libelle_cible = _cible(synthese, type_destinataire, valeur)
+    cible, libelle_cible = _cible(synthese, user, type_destinataire, valeur)
     with transaction.atomic():
         SynthesePassation.objects.select_for_update().get(pk=synthese.pk)
         existant = PartagePassation.objects.filter(

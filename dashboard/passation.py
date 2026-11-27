@@ -33,7 +33,7 @@ from dashboard.passation_perimetre import (
 from demandes.models import Demande
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, STATUTS_TICKET_OUVERTS, Anomalie, CorrectiveTicket, StockPiece
 from maintenance.models import MaintenanceOccurrence
-from matrix.core.equipage import equipage_a_bord
+from matrix.core.equipage import equipage_a_bord, equipage_a_terre_lecture_seule
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from matrix.core.scopes import navire_q
 from notifications.models import Notification
@@ -70,8 +70,10 @@ def syntheses_visibles(user):
     return SynthesePassation.objects.filter(ship_id=couv.navire_id)
 
 
-def _ligne(cle, titre, detail, url, ligne_portee, etat="", partageable=True):
-    return {"cle": cle, "titre": titre, "detail": detail, "url": url, "etat": etat, "portee": ligne_portee, "partageable": partageable}
+def _ligne(cle, titre, detail, url, ligne_portee, etat="", partageable=True, auteurs=()):
+    """`auteurs` : les marins qui ont produit l'information (leurs contributions) ; « concerné » n'est pas « auteur »."""
+    return {"cle": cle, "titre": titre, "detail": detail, "url": url, "etat": etat, "portee": ligne_portee, "partageable": partageable,
+            "auteurs": sorted({a for a in auteurs if a})}
 
 
 def _groupe(titre, lignes):
@@ -109,6 +111,7 @@ def _taches(navire, aujourdhui, h):
                 f"{_nom(t.assigne)} · échéance {_date(t.echeance)}" + (f" · {t.motif_blocage}" if t.motif_blocage else ""),
                 reverse("tache-detail", args=[t.pk]), portee_du_marin(t.assigne, h),
                 "danger" if t.en_retard_au(aujourdhui) else ("attention" if statut == Tache.STATUT_BLOQUEE else ""),
+                auteurs=[t.created_by_id],
             )
             for t in ouvertes if t.statut == statut
         ]
@@ -148,7 +151,7 @@ def _tickets(tickets, h):
         lignes = [
             _ligne(f"ticket:{o.pk}", str(o), o.description[:120], reverse("ticket-detail", args=[o.pk]),
                    {**_portee_du_materiel(h, o.asset or o.installation), "marins": sorted(a.pk for a in o.assignees.all())},
-                   "attention" if o.severity >= 4 else "")
+                   "attention" if o.severity >= 4 else "", auteurs=[o.created_by_id])
             for o in ouverts if o.status == statut
         ]
         if lignes:
@@ -162,7 +165,8 @@ def _anomalies(navire, h):
         _ligne(f"anomalie:{a.pk}", a.titre,
                f"Gravité {a.gravite} · {a.get_statut_display()}" + (f" · {a.localisation}" if a.localisation else ""),
                reverse("anomalie-detail", args=[a.pk]),
-               h.portee(service_id=a.service_id, sector_id=a.sector_id, section_id=a.section_id, marins=[a.created_by_id]), "attention")
+               h.portee(service_id=a.service_id, sector_id=a.sector_id, section_id=a.section_id, marins=[a.created_by_id]), "attention",
+               auteurs=[a.created_by_id])
         for a in ouvertes
     ]
     return _bloc("anomalies", "Anomalies ouvertes", [_groupe("Ouvertes", lignes)], "Aucune anomalie ouverte.")
@@ -208,6 +212,7 @@ def _listes_a_venir(navire, h):
                     f"au {timezone.localtime(creneaux[-1].debut):%d/%m %H:%M}",
                     reverse(route, args=[liste.pk]),
                     h.portee(service_id=liste.service_id, sector_id=liste.sector_id, section_id=liste.section_id),
+                    auteurs=[liste.created_by_id],
                 ))
         groupes.append(_groupe(titre, lignes))
     return _bloc("listes", f"Quarts et services à venir ({JOURS_A_VENIR} jours)", groupes,
@@ -228,7 +233,8 @@ def _annonces_sans_accuse(navire, aujourdhui, h):
                 f"annonce:{annonce.pk}", annonce.titre,
                 f"{len(manquants)} accusé(s) manquant(s) sur {len(concernes)} destinataire(s)",
                 reverse("annonce-detail", args=[annonce.pk]),
-                h.portee(service_id=annonce.service_id, sector_id=annonce.sector_id, section_id=annonce.section_id), "attention"))
+                h.portee(service_id=annonce.service_id, sector_id=annonce.sector_id, section_id=annonce.section_id), "attention",
+                auteurs=[annonce.auteur_id]))
     return _bloc("annonces", "Annonces actives sans accusé complet", [_groupe("Accusés manquants", lignes)],
                  "Toutes les annonces à accusé sont acquittées.")
 
@@ -240,7 +246,7 @@ def _demandes(navire, h):
         _ligne(f"demande:{d.pk}", d.titre, f"{d.get_etat_display()} · responsable {_nom(d.responsable)}",
                reverse("demande-detail", args=[d.pk]),
                h.portee(service_id=d.service_id, sector_id=d.sector_id, section_id=d.section_id, marins=[d.declarant_id, d.responsable_id]),
-               "attention" if d.priorite == Demande.PRIORITE_URGENTE else "")
+               "attention" if d.priorite == Demande.PRIORITE_URGENTE else "", auteurs=[d.declarant_id])
         for d in en_cours
     ]
     return _bloc("demandes", "Difficultés signalées en cours", [_groupe("En cours", lignes)], "Aucune demande en cours.")
@@ -375,8 +381,8 @@ class PassationPartageView(LoginRequiredMixin, View):
         partages = [(p, peut_revoquer(request.user, p)) for p in partages_de_ligne(synthese, cle) if peut_voir_partage(request.user, p)]
         contexte = {
             "synthese": synthese, "ligne": ligne, "partages": partages, "erreurs": list(erreurs),
-            "choix": destinataires_proposes(synthese) if ligne.get("peut_partager") else None,
-            "types": PartagePassation.Destinataire.choices,
+            "choix": destinataires_proposes(synthese, request.user) if ligne.get("peut_partager") else None,
+            "types": PartagePassation.Destinataire.choices, "a_terre": equipage_a_terre_lecture_seule(request.user),
         }
         return render(request, self.template_name, contexte, status=statut)
 

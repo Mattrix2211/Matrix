@@ -5,9 +5,11 @@
 <section class="mx-surface mb-3">
   <p class="mb-1"><strong>{{ ligne.titre }}</strong>{% if ligne.detail %} — <span class="text-muted">{{ ligne.detail }}</span>{% endif %}</p>
   <p class="small text-muted mb-0">
-    {% if ligne.partage_recu %}Cette information vous a été partagée en lecture seule : vous ne pouvez ni la modifier ni la partager à votre tour.
+    {% if a_terre %}Équipage à terre : vous consultez cette information dans votre niveau de responsabilité ; le partage et la révocation sont réservés à l'équipage à bord.
+    {% elif ligne.partage_recu %}Cette information vous a été partagée en lecture seule : vous ne pouvez ni la modifier ni la partager à votre tour.
     {% elif ligne.peut_partager %}Elle relève de votre niveau de responsabilité : vous pouvez la partager, en lecture seule, avec un marin, une fonction, une section, un secteur ou un service. Le destinataire ne voit que cette information, jamais la passation entière.
-    {% else %}Elle relève de votre niveau de responsabilité mais ne se partage pas (dossier individuel soumis à ses propres habilitations).{% endif %}
+    {% elif not ligne.partageable %}Elle relève de votre niveau de responsabilité mais ne se partage pas (dossier individuel soumis à ses propres habilitations).
+    {% else %}Vous la consultez parce qu'elle vous concerne : elle n'est pas votre contribution, vous ne pouvez pas la diffuser.{% endif %}
   </p>
 </section>
 {% for e in erreurs %}<div class="alert alert-danger">{{ e }}</div>{% endfor %}

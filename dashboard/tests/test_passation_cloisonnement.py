@@ -29,7 +29,8 @@ T_A1A, T_A1B, T_B1A = "TACHE-A1A", "TACHE-A1B", "TACHE-B1A"
 ANOM_SERVICE_A, ANOM_NAVIRE, STOCK_A1 = "ANOM-SERVICE-A", "ANOM-NAVIRE", "STOCK-A1"
 QUALIF = "QUALIF-EQ-A1A"
 T_A2A = "TACHE-A2A"
-MARQUEURS = (T_A1A, T_A1B, T_A2A, T_B1A, ANOM_SERVICE_A, ANOM_NAVIRE, STOCK_A1, QUALIF)
+T_PROPRE = "TACHE-PROPRE-A1A"  # produite par le marin lui-même : sa contribution
+MARQUEURS = (T_A1A, T_A1B, T_A2A, T_PROPRE, T_B1A, ANOM_SERVICE_A, ANOM_NAVIRE, STOCK_A1, QUALIF)
 
 
 def titres(contenu):
@@ -98,6 +99,7 @@ class Monde(TestCase):
     def peupler(self):
         for titre, assigne in ((T_A1A, self.eq_a1a), (T_A1B, self.eq_a1b), (T_A2A, self.eq_a2a), (T_B1A, self.eq_b1a)):
             Tache.objects.create(titre=titre, assigne=assigne, created_by=self.cdt, statut="A_FAIRE")
+        Tache.objects.create(titre=T_PROPRE, assigne=self.eq_a1a, created_by=self.eq_a1a, statut="A_FAIRE")
         Anomalie.objects.create(titre=ANOM_SERVICE_A, description="x", created_by=self.cdt, ship=self.navire, service=self.sa)
         Anomalie.objects.create(titre=ANOM_NAVIRE, description="x", created_by=self.cdt, ship=self.navire)
         StockPiece.objects.create(reference=STOCK_A1, designation="Filtre", quantite=0, quantite_minimale=2, ship=self.navire,
@@ -122,18 +124,18 @@ class MatriceDesEchelonsTests(Monde):
     """T-L30-1 : échelon × contenu, positif et négatif."""
 
     ATTENDU = {
-        "eq_a1a": {T_A1A, QUALIF},
+        "eq_a1a": {T_A1A, T_PROPRE, QUALIF},
         "eq_a1b": {T_A1B},
-        "chef_section_a1a": {T_A1A, QUALIF},
+        "chef_section_a1a": {T_A1A, T_PROPRE, QUALIF},
         "chef_section_a1b": {T_A1B},
         "chef_section_b1a": {T_B1A},
-        "chef_secteur_a1": {T_A1A, T_A1B, QUALIF, STOCK_A1},
+        "chef_secteur_a1": {T_A1A, T_A1B, T_PROPRE, QUALIF, STOCK_A1},
         "chef_secteur_a2": {T_A2A},
         "eq_a2a": {T_A2A},
         "chef_secteur_b1": {T_B1A},
-        "chef_service_a": {T_A1A, T_A1B, T_A2A, QUALIF, STOCK_A1, ANOM_SERVICE_A},
+        "chef_service_a": {T_A1A, T_A1B, T_A2A, T_PROPRE, QUALIF, STOCK_A1, ANOM_SERVICE_A},
         "chef_service_b": {T_B1A},
-        "comaeq": {T_A1A, T_A1B, T_A2A, QUALIF, STOCK_A1, ANOM_SERVICE_A},
+        "comaeq": {T_A1A, T_A1B, T_A2A, T_PROPRE, QUALIF, STOCK_A1, ANOM_SERVICE_A},
         "comops": {T_B1A},
         "second": set(MARQUEURS),
         "cdt": set(MARQUEURS),
@@ -162,7 +164,7 @@ class MatriceDesEchelonsTests(Monde):
     def test_les_totaux_et_compteurs_ne_comptent_que_le_visible(self):
         contenu = contenu_visible(self.chef_section_a1a, self.synthese)
         totaux = {b["cle"]: b["total"] for b in contenu["blocs"]}
-        self.assertEqual((totaux["taches"], totaux["qualifications"], totaux["anomalies"], totaux["stock"]), (1, 1, 0, 0))
+        self.assertEqual((totaux["taches"], totaux["qualifications"], totaux["anomalies"], totaux["stock"]), (2, 1, 0, 0))
         for bloc in contenu["blocs"]:
             self.assertEqual(bloc["total"], sum(len(g["lignes"]) + g["plus"] for g in bloc["groupes"]), bloc["cle"])
         html = self.page(self.chef_section_a1a).content.decode()
@@ -183,7 +185,7 @@ class MatriceDesEchelonsTests(Monde):
         self.assertEqual(self.page(self.technique).status_code, 200)
         self.assertEqual(self.lit(self.technique), set())
         # Témoin : la même page ouvre à un marin concerné son propre contenu.
-        self.assertEqual(self.lit(self.eq_a1a), {T_A1A, QUALIF})
+        self.assertEqual(self.lit(self.eq_a1a), {T_A1A, T_PROPRE, QUALIF})
 
     def test_l_equipage_n_est_pas_un_critere_et_l_equipage_a_terre_garde_la_consultation(self):
         # chef_section_b1a et chef_service_b sont de l'équipage B (à terre) : ils lisent leur périmètre, sans limite de durée.
@@ -242,7 +244,7 @@ class MatriceDesEchelonsTests(Monde):
             self.assertContains(reponse, "avant le cloisonnement")
 
     def test_changement_d_affectation_du_lecteur_joue_immediatement(self):
-        self.assertEqual(self.lit(self.chef_section_a1a), {T_A1A, QUALIF})
+        self.assertEqual(self.lit(self.chef_section_a1a), {T_A1A, T_PROPRE, QUALIF})
         UserProfile.objects.filter(user=self.chef_section_a1a).update(section=self.a1b)
         mute = User.objects.get(pk=self.chef_section_a1a.pk)
         self.assertEqual(self.lit(mute), {T_A1B})
@@ -268,7 +270,7 @@ class PartageCibleTests(Monde):
         raise AssertionError(titre)
 
     def test_partage_a_un_marin_n_ouvre_que_la_ligne_choisie(self):
-        partager(self.chef_section_a1a, self.synthese, self.cle(T_A1A), "MARIN", self.chef_section_b1a.pk)
+        partager(self.cdt, self.synthese, self.cle(T_A1A), "MARIN", self.chef_section_b1a.pk)
         lu = self.lit(self.chef_section_b1a)
         self.assertEqual(lu, {T_B1A, T_A1A})  # sa propre ligne et la ligne partagée, rien d'autre
         reponse = self.page(self.chef_section_b1a).content.decode()
@@ -298,16 +300,16 @@ class PartageCibleTests(Monde):
         self.assertIn(T_A1B, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
 
     def test_le_beneficiaire_ne_peut_ni_modifier_ni_repartager(self):
-        partager(self.chef_section_a1a, self.synthese, self.cle(T_A1A), "MARIN", self.chef_section_b1a.pk)
+        partager(self.chef_section_a1a, self.synthese, self.cle(T_A1A), "SECTION", self.b1a.pk)
         ligne = next(l for b in contenu_visible(self.chef_section_b1a, self.synthese)["blocs"] for g in b["groupes"] for l in g["lignes"] if l["titre"] == T_A1A)
         self.assertFalse(ligne["peut_partager"])
         self.assertTrue(ligne["partage_recu"])
         with self.assertRaises(PermissionDenied):
-            partager(self.chef_section_b1a, self.synthese, self.cle(T_A1A), "MARIN", self.eq_b1a.pk)  # pas de partage transitif
+            partager(self.chef_section_b1a, self.synthese, self.cle(T_A1A), "SECTION", self.b1a.pk)  # pas de partage transitif
         client = Client()
         client.force_login(self.chef_section_b1a)
         reponse = client.post(reverse("passation-partage", args=[self.synthese.pk]),
-                              {"ligne": self.cle(T_A1A), "type_destinataire": "MARIN", "destinataire": self.eq_b1a.pk})
+                              {"ligne": self.cle(T_A1A), "type_destinataire": "SECTION", "destinataire": self.b1a.pk})
         self.assertEqual(reponse.status_code, 403)
         # Le lien du détail reste protégé par ses propres droits : la lecture de la ligne ne donne aucun droit sur la tâche.
         tache = Tache.objects.get(titre=T_A1A)
@@ -319,19 +321,21 @@ class PartageCibleTests(Monde):
     def test_partage_interdit_hors_perimetre_et_pour_un_statut_administratif(self):
         for emetteur, titre in ((self.chef_section_a1a, T_B1A), (self.eq_a1b, T_A1A), (self.technique, T_A1A), (self.chef_secteur_b1, T_A1A)):
             with self.assertRaises(PermissionDenied, msg=f"{emetteur.username} / {titre}"):
-                partager(emetteur, self.synthese, self.cle(titre), "MARIN", self.eq_b1a.pk)
+                partager(emetteur, self.synthese, self.cle(titre), "SECTION", self.b1a.pk)
         with self.assertRaises(PermissionDenied):
-            partager(self.general, self.synthese, self.cle(T_A1A), "MARIN", self.eq_b1a.pk)
+            partager(self.general, self.synthese, self.cle(T_A1A), "SECTION", self.b1a.pk)
         # Témoins positifs : l'émetteur légitime partage ; un marin partage ce qui le concerne.
-        self.assertTrue(partager(self.chef_secteur_a1, self.synthese, self.cle(T_A1A), "MARIN", self.eq_b1a.pk)[1])
-        self.assertTrue(partager(self.eq_a1a, self.synthese, self.cle(T_A1A), "MARIN", self.eq_a1b.pk)[1])
+        self.assertTrue(partager(self.chef_secteur_a1, self.synthese, self.cle(T_A1A), "SECTION", self.b1a.pk)[1])
+        self.assertTrue(partager(self.eq_a1a, self.synthese, self.cle(T_PROPRE), "SECTION", self.a1b.pk)[1])  # sa contribution
+        with self.assertRaises(PermissionDenied):  # concerné par T_A1A, non auteur
+            partager(self.eq_a1a, self.synthese, self.cle(T_A1A), "SECTION", self.a1b.pk)
         self.assertTrue(peut_partager(self.cdt, self.synthese, ligne_de(self.synthese, self.cle(T_A1A))))
 
     def test_information_confidentielle_non_partageable(self):
         cle = self.cle(QUALIF)
         for emetteur in (self.chef_section_a1a, self.chef_service_a, self.cdt, self.eq_a1a):
             with self.assertRaises(PermissionDenied, msg=emetteur.username):
-                partager(emetteur, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+                partager(emetteur, self.synthese, cle, "SECTION", self.b1a.pk)
         self.assertFalse(PartagePassation.objects.exists())
 
     def test_destinataire_hors_batiment_ou_inconnu_refuse(self):
@@ -344,18 +348,18 @@ class PartageCibleTests(Monde):
 
     def test_un_partage_est_idempotent_et_historise(self):
         cle = self.cle(T_A1A)
-        premier, cree = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
-        second, cree_bis = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        premier, cree = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
+        second, cree_bis = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
         self.assertEqual((premier.pk, cree, cree_bis), (second.pk, True, False))
         self.assertEqual(PartagePassation.objects.count(), 1)
         trace = AuditLog.objects.get(action="passation_partagee")
         self.assertEqual(trace.actor, self.chef_section_a1a)
-        self.assertIn("eq_b1a", trace.details)
+        self.assertIn(premier.libelle_destinataire(), trace.details)
         self.assertEqual((premier.partage_par, premier.libelle, premier.revoque_le), (self.chef_section_a1a, T_A1A, None))
 
     def test_revocation_par_l_auteur_ou_une_autorite_conserve_l_historique(self):
         cle = self.cle(T_A1A)
-        partage, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        partage, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
         self.assertIn(T_A1A, self.lit(self.eq_b1a))
         # Tiers sans autorité sur la ligne, et destinataire : refus.
         for intrus in (self.chef_section_b1a, self.eq_b1a, self.technique, self.general):
@@ -368,7 +372,7 @@ class PartageCibleTests(Monde):
         self.assertTrue(AuditLog.objects.filter(action="passation_partage_revoque", actor=self.chef_service_a).exists())
         self.assertEqual(PartagePassation.objects.count(), 1)  # jamais effacé
         # Un nouveau partage identique est possible après révocation ; l'auteur le révoque lui-même.
-        nouveau, cree = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        nouveau, cree = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
         self.assertTrue(cree)
         self.assertTrue(revoquer(self.chef_section_a1a, nouveau))
         with self.assertRaises(PermissionDenied):  # un partage déjà révoqué ne se révoque pas deux fois
@@ -376,7 +380,7 @@ class PartageCibleTests(Monde):
 
     def test_la_revocation_s_applique_aux_lectures_suivantes_pas_aux_exports_deja_faits(self):
         cle = self.cle(T_A1A)
-        partage, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        partage, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
         avant = self.page(self.eq_b1a).content.decode()
         revoquer(self.chef_section_a1a, partage)
         apres = self.page(User.objects.get(pk=self.eq_b1a.pk)).content.decode()
@@ -401,7 +405,7 @@ class PartageCibleTests(Monde):
         self.assertTrue(revoquer(mute, partage))
 
     def test_notification_du_destinataire_sans_fuite_du_contenu(self):
-        partager(self.chef_section_a1a, self.synthese, self.cle(T_A1A), "MARIN", self.chef_section_b1a.pk)
+        partager(self.chef_section_a1a, self.synthese, self.cle(T_A1A), "SECTION", self.b1a.pk)
         notification = Notification.objects.get(user=self.chef_section_b1a, verb__contains="a partagé")
         for marqueur in MARQUEURS:
             self.assertNotIn(marqueur, notification.verb)
@@ -418,7 +422,7 @@ class PartageCibleTests(Monde):
         formulaire = client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle})
         self.assertContains(formulaire, "Partager en lecture seule")
         self.assertEqual(client.post(reverse("passation-partage", args=[self.synthese.pk]),
-                                     {"ligne": cle, "type_destinataire": "MARIN", "destinataire": self.chef_section_b1a.pk}).status_code, 302)
+                                     {"ligne": cle, "type_destinataire": "SECTION", "destinataire": self.b1a.pk}).status_code, 302)
         page = client.get(reverse("passation", args=[self.synthese.pk])).content.decode()
         self.assertIn("Partagé (1)", page)
         suivi = client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle})
@@ -431,25 +435,50 @@ class PartageCibleTests(Monde):
         # Une ligne hors périmètre n'existe pas pour ce lecteur (404, pas 403).
         self.assertEqual(client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": self.cle(T_B1A)}).status_code, 404)
         # Le destinataire (partage actif) voit la page de la ligne en lecture seule, sans formulaire.
-        partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.chef_section_b1a.pk)
+        partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.a1b.pk)
         destinataire = Client()
-        destinataire.force_login(self.chef_section_b1a)
+        destinataire.force_login(self.chef_section_a1b)
         lecture = destinataire.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle})
         self.assertEqual(lecture.status_code, 200)
         self.assertNotContains(lecture, "Partager en lecture seule")
         self.assertContains(lecture, "lecture seule")
 
-    def test_equipage_a_terre_peut_partager_sans_modifier_les_activites_embarquees(self):
-        # chef_service_b est de l'équipage B, à terre : il partage une information de son périmètre.
+    def test_equipage_a_terre_consulte_sans_partager_ni_revoquer(self):
+        # chef_service_b est de l'équipage B, à terre : régime existant, aucune exception nouvelle pour le partage ni la révocation.
         cle = self.cle(T_B1A)
         client = Client()
         client.force_login(self.chef_service_b)
-        reponse = client.post(reverse("passation-partage", args=[self.synthese.pk]),
-                              {"ligne": cle, "type_destinataire": "MARIN", "destinataire": self.chef_section_b1a.pk})
-        self.assertEqual(reponse.status_code, 302)
-        self.assertEqual(PartagePassation.objects.get().partage_par, self.chef_service_b)
+        self.assertEqual(self.lit(self.chef_service_b), {T_B1A})  # la consultation de son niveau est conservée
+        self.assertEqual(client.post(reverse("passation-partage", args=[self.synthese.pk]),
+                                     {"ligne": cle, "type_destinataire": "SECTION", "destinataire": self.b1a.pk}).status_code, 403)
+        with self.assertRaises(PermissionDenied):
+            partager(self.chef_service_b, self.synthese, cle, "SECTION", self.b1a.pk)  # la règle vaut aussi sans middleware
+        self.assertFalse(PartagePassation.objects.exists())
+        page = client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle})
+        self.assertContains(page, "Équipage à terre")
+        self.assertNotContains(page, "Partager en lecture seule")
+        self.assertNotContains(client.get(reverse("passation", args=[self.synthese.pk])), "Partager</a>")
+        # Témoin positif : l'équipage à bord (commandant) partage la même information ; la révocation d'un partage de l'équipage à
+        # terre (consenti quand il était à bord) revient à l'autorité à bord, jamais à lui.
+        partage, _ = partager(self.cdt, self.synthese, cle, "SECTION", self.b1a.pk)
+        ancien = PartagePassation.objects.create(
+            synthese=self.synthese, cle_ligne=cle, libelle=T_B1A, partage_par=self.chef_service_b, type_destinataire="SERVICE",
+            service=self.sb, destinataire_libelle="service Opérations")
+        self.assertEqual(client.post(reverse("passation-partage-revoquer", args=[self.synthese.pk, ancien.pk])).status_code, 403)
+        with self.assertRaises(PermissionDenied):
+            revoquer(self.chef_service_b, ancien)
+        self.assertTrue(ancien.__class__.objects.get(pk=ancien.pk).actif)
+        self.assertEqual(revoquer(self.cdt, ancien), 1)
+        self.assertFalse(PartagePassation.objects.get(pk=ancien.pk).actif)
+        self.assertTrue(PartagePassation.objects.get(pk=partage.pk).actif)
+
+    def test_aucune_modification_des_activites_embarquees_par_l_equipage_a_terre(self):
+        client = Client()
+        client.force_login(self.chef_service_b)
         tache = Tache.objects.get(titre=T_B1A)
         self.assertEqual(client.post(reverse("tache-action", args=[tache.pk]), {"action": "demarrer"}).status_code, 403)
+        tache.refresh_from_db()
+        self.assertEqual(tache.statut, "A_FAIRE")
 
     def test_partage_hors_bâtiment_sur_la_synthese_d_un_autre_batiment_refuse(self):
         autre = SynthesePassation.objects.create(
@@ -472,11 +501,11 @@ class PartageRobustesseTests(Monde):
 
     def test_une_revocation_retire_les_doublons_equivalents(self):
         cle = self.cle(T_A1A)
-        premier, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        premier, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
         # Doublon actif de même cible et de même auteur (double clic simultané avant verrouillage).
         PartagePassation.objects.create(
-            synthese=self.synthese, cle_ligne=cle, libelle=T_A1A, partage_par=self.chef_section_a1a, type_destinataire="MARIN",
-            marin=self.eq_b1a, destinataire_libelle="eq_b1a")
+            synthese=self.synthese, cle_ligne=cle, libelle=T_A1A, partage_par=self.chef_section_a1a, type_destinataire="SECTION",
+            section=self.b1a, destinataire_libelle=premier.destinataire_libelle)
         self.assertEqual(PartagePassation.objects.filter(revoque_le__isnull=True).count(), 2)
         self.assertEqual(revoquer(self.chef_section_a1a, premier), 2)
         self.assertNotIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
@@ -484,8 +513,8 @@ class PartageRobustesseTests(Monde):
 
     def test_chaque_emetteur_a_son_partage_et_l_autorite_retire_tous_les_equivalents(self):
         cle = self.cle(T_A1A)
-        a, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
-        b, cree = partager(self.chef_service_a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        a, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
+        b, cree = partager(self.chef_service_a, self.synthese, cle, "SECTION", self.b1a.pk)
         self.assertTrue(cree)
         self.assertNotEqual(a.pk, b.pk)
         self.assertEqual(AuditLog.objects.filter(action="passation_partagee").count(), 2)
@@ -495,18 +524,18 @@ class PartageRobustesseTests(Monde):
         # L'autorité qui couvre la ligne retire tout ce qui reste.
         self.assertEqual(revoquer(self.chef_service_a, b), 1)
         self.assertNotIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
-        c, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
-        d, _ = partager(self.chef_service_a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        c, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
+        d, _ = partager(self.chef_service_a, self.synthese, cle, "SECTION", self.b1a.pk)
         self.assertEqual(revoquer(self.chef_section_a1a, c), 1)  # un subordonné ne défait pas le partage de son supérieur…
         with self.assertRaises(PermissionDenied):
             revoquer(self.chef_section_a1a, d)
         self.assertIn(T_A1A, self.lit(User.objects.get(pk=self.eq_b1a.pk)))
-        e, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        e, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
         self.assertEqual(revoquer(self.chef_service_a, e), 2)  # …l'autorité de rang supérieur retire tout, y compris le sien
 
     def test_un_marin_concerne_ne_revoque_ni_ne_voit_les_partages_de_sa_hierarchie(self):
         cle = self.cle(T_A1A)
-        partage, _ = partager(self.chef_service_a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        partage, _ = partager(self.chef_service_a, self.synthese, cle, "SECTION", self.b1a.pk)
         with self.assertRaises(PermissionDenied):
             revoquer(self.eq_a1a, partage)  # le marin concerné par la ligne n'est pas une autorité
         client = Client()
@@ -520,8 +549,9 @@ class PartageRobustesseTests(Monde):
         partage.refresh_from_db()
         self.assertTrue(partage.actif)
         # Témoin positif : le marin voit et révoque ce qu'il a lui-même partagé.
-        propre, _ = partager(self.eq_a1a, self.synthese, cle, "MARIN", self.eq_a1b.pk)
-        self.assertContains(client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle}), "Révoquer")
+        cle_propre = self.cle(T_PROPRE)
+        propre, _ = partager(self.eq_a1a, self.synthese, cle_propre, "SECTION", self.a1b.pk)
+        self.assertContains(client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": cle_propre}), "Révoquer")
         self.assertEqual(revoquer(self.eq_a1a, propre), 1)
 
     def test_message_unique_pour_tout_destinataire_refuse(self):
@@ -536,7 +566,7 @@ class PartageRobustesseTests(Monde):
 
     def test_la_suppression_d_un_destinataire_ou_d_une_unite_conserve_l_historique(self):
         cle = self.cle(T_A1A)
-        vers_marin, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        vers_marin, _ = partager(self.cdt, self.synthese, cle, "MARIN", self.eq_b1a.pk)
         section = Section.objects.create(sector=self.sb1, name="Éphémère")
         vers_section, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", section.pk)
         self.eq_b1a.delete()
@@ -562,11 +592,65 @@ class PartageRobustesseTests(Monde):
         self.assertLess(len(requetes), 90, "le coût de génération ne doit pas croître avec le nombre de lignes")
 
 
+class DiffusionEtAnnuaireTests(Monde):
+    """AC-03 : consulter ne donne pas le droit de diffuser ; le marin ne diffuse que ses contributions ; les marins proposés suivent l'annuaire."""
+
+    def cle(self, titre):
+        return ligne_cle(self.synthese, titre)
+
+    def test_le_marin_ne_diffuse_que_sa_contribution(self):
+        # Produite par lui : il la partage. Assignée par un chef : elle le concerne mais n'est pas sa contribution.
+        self.assertTrue(partager(self.eq_a1a, self.synthese, self.cle(T_PROPRE), "SECTION", self.a1b.pk)[1])
+        with self.assertRaises(PermissionDenied):
+            partager(self.eq_a1a, self.synthese, self.cle(T_A1A), "SECTION", self.a1b.pk)
+        self.assertIn(T_A1A, self.lit(self.eq_a1a))  # il la consulte toujours
+        # Une information qui lui a été partagée ne se rediffuse pas.
+        partager(self.chef_service_a, self.synthese, self.cle(T_A1B), "MARIN", self.eq_a1a.pk)
+        self.assertIn(T_A1B, self.lit(User.objects.get(pk=self.eq_a1a.pk)))
+        with self.assertRaises(PermissionDenied):
+            partager(self.eq_a1a, self.synthese, self.cle(T_A1B), "SECTION", self.a1b.pk)
+
+    def test_les_autorites_gardent_leur_droit_de_diffusion(self):
+        for emetteur in (self.chef_section_a1a, self.chef_secteur_a1, self.chef_service_a, self.comaeq, self.cdt):  # équipage à bord (le second est à terre : consultation seule)
+            self.assertTrue(partager(emetteur, self.synthese, self.cle(T_A1A), "SECTION", self.b1a.pk)[1], emetteur.username)
+        for intrus in (self.chef_section_a1b, self.chef_service_b, self.comops, self.technique):
+            with self.assertRaises(PermissionDenied, msg=intrus.username):
+                partager(intrus, self.synthese, self.cle(T_A1A), "SECTION", self.b1a.pk)
+
+    def test_la_page_distingue_contribution_et_information_qui_concerne(self):
+        client = Client()
+        client.force_login(self.eq_a1a)
+        propre = client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": self.cle(T_PROPRE)})
+        self.assertContains(propre, "Partager en lecture seule")
+        concerne = client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": self.cle(T_A1A)})
+        self.assertContains(concerne, "n'est pas votre contribution")
+        self.assertNotContains(concerne, "Partager en lecture seule")
+        self.assertEqual(client.post(reverse("passation-partage", args=[self.synthese.pk]),
+                                     {"ligne": self.cle(T_A1A), "type_destinataire": "SECTION", "destinataire": self.a1b.pk}).status_code, 403)
+
+    def test_les_marins_proposes_et_acceptes_suivent_l_annuaire(self):
+        client = Client()
+        client.force_login(self.chef_section_a1a)
+        page = client.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": self.cle(T_A1A)}).content.decode()
+        self.assertIn("eq_a1a", page)  # son niveau, visible dans son annuaire
+        for invisible in ("eq_b1a", "chef_service_b", "cdt_etranger", "chef_section_b1a"):
+            self.assertNotIn(invisible, page)
+        with self.assertRaises(ValidationError) as ctx:
+            partager(self.chef_section_a1a, self.synthese, self.cle(T_A1A), "MARIN", self.eq_b1a.pk)  # hors annuaire
+        self.assertEqual(ctx.exception.messages, ["Destinataire introuvable dans ce bâtiment."])
+        self.assertTrue(partager(self.chef_section_a1a, self.synthese, self.cle(T_A1A), "MARIN", self.eq_a1a.pk)[1])
+        # Témoin positif : le commandant, dont l'annuaire couvre le bâtiment, désigne n'importe quel marin du bâtiment.
+        self.assertTrue(partager(self.cdt, self.synthese, self.cle(T_A1A), "MARIN", self.eq_b1a.pk)[1])
+        commandant = Client()
+        commandant.force_login(self.cdt)
+        self.assertIn("eq_b1a", commandant.get(reverse("passation-partage", args=[self.synthese.pk]), {"ligne": self.cle(T_A1A)}).content.decode())
+
+
 class PartageAuteurSupprimeTests(Monde):
     def test_la_page_et_la_revocation_survivent_a_la_suppression_de_l_auteur(self):
         cle = ligne_cle(self.synthese, T_A1A)
         auteur = self.marin("auteur_ephemere", "CHEF_SECTION", section=self.a1a)
-        partage, _ = partager(auteur, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        partage, _ = partager(auteur, self.synthese, cle, "SECTION", self.b1a.pk)
         auteur.delete()
         client = Client()
         client.force_login(self.cdt)
@@ -580,8 +664,8 @@ class PartageAuteurSupprimeTests(Monde):
 
     def test_message_de_revocation_honnete_quand_un_partage_de_rang_superieur_subsiste(self):
         cle = ligne_cle(self.synthese, T_A1A)
-        bas, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.eq_b1a.pk)
-        partager(self.cdt, self.synthese, cle, "MARIN", self.eq_b1a.pk)
+        bas, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
+        partager(self.cdt, self.synthese, cle, "SECTION", self.b1a.pk)
         client = Client()
         client.force_login(self.chef_section_a1a)
         suivi = client.post(reverse("passation-partage-revoquer", args=[self.synthese.pk, bas.pk]), follow=True)
@@ -590,7 +674,7 @@ class PartageAuteurSupprimeTests(Monde):
 
     def test_double_clic_sur_revoquer_et_ligne_partagee_sans_lien_mort(self):
         cle = ligne_cle(self.synthese, T_A1A)
-        partage, _ = partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.chef_section_b1a.pk)
+        partage, _ = partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
         client = Client()
         client.force_login(self.chef_section_a1a)
         url = reverse("passation-partage-revoquer", args=[self.synthese.pk, partage.pk])
@@ -598,8 +682,11 @@ class PartageAuteurSupprimeTests(Monde):
         self.assertContains(client.post(url, follow=True), "déjà révoqué")  # pas de 404 au second clic de l'auteur
         intrus = Client()
         intrus.force_login(self.chef_section_b1a)
-        self.assertEqual(intrus.post(url).status_code, 404)  # un tiers ne devine pas l'existence
-        partager(self.chef_section_a1a, self.synthese, cle, "MARIN", self.chef_section_b1a.pk)
+        tiers = Client()
+        tiers.force_login(self.chef_secteur_a2)
+        self.assertEqual(tiers.post(url).status_code, 404)  # un tiers (à bord) ne devine pas l'existence
+        self.assertEqual(intrus.post(url).status_code, 403)  # l'équipage à terre est refusé en amont (régime d'écriture existant)
+        partager(self.chef_section_a1a, self.synthese, cle, "SECTION", self.b1a.pk)
         page = intrus.get(reverse("passation", args=[self.synthese.pk])).content.decode()
         self.assertIn(T_A1A, page)
         self.assertNotIn(f"/taches/{Tache.objects.get(titre=T_A1A).pk}/", page)  # la ligne partagée n'offre pas de lien mort

@@ -44,7 +44,7 @@ class PartageConcurrentTests(TransactionTestCase):
 
         def clic():
             try:
-                partager(chef, synthese, cle, "MARIN", dest.pk)
+                partager(chef, synthese, cle, "SERVICE", service.pk)
             except Exception as exc:  # noqa: BLE001
                 erreurs.append(exc)
             finally:

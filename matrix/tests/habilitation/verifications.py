@@ -242,7 +242,7 @@ VERIFICATIONS = (
         },
         # Un compte rattaché au niveau du bâtiment sans fonction (administrateur technique) lit les agrégats de tout le bâtiment :
         # le bornage suit le rattachement du profil, non la fonction. Hors passation, consigné pour un lot de lecture par périmètre.
-        ecarts_connus={"admin_navire": "acces+"}, lot_correctif="L32 (à confirmer : bornage de la lecture des tableaux, hors L30)",
+        ecarts_connus={"admin_navire": "acces+"}, lot_correctif="L32 (CA-L32-7 : agrégats des tableaux de bord)",
     ),
     Verification(
         # Pièce jointe d'une tâche partagée de la section 2 : livrée selon le droit de consulter la tâche, 404 sinon.
@@ -254,21 +254,39 @@ VERIFICATIONS = (
             "cdt_abe": "refus", "soutien_terre": "acces+",
         },
         # V10 (L29) : le droit de consulter une tâche suit le bâtiment, non le service rattaché au commandant adjoint.
-        ecarts_connus={"comaeq_b": "acces+"}, lot_correctif="L32 (V10, commandant adjoint hors de ses services)",
+        ecarts_connus={"comaeq_b": "acces+"}, lot_correctif="L32 (CA-L32-8, V10 : commandant adjoint hors de ses services)",
     ),
     Verification(
-        # Partage ciblé d'UNE ligne de la passation (AC-03) : l'émetteur doit couvrir la ligne par son propre périmètre.
+        # Partage ciblé d'UNE ligne de la passation (AC-03) : l'autorité hiérarchique qui couvre la ligne la diffuse ; le marin
+        # concerné (assigné par un chef) la consulte sans pouvoir la diffuser ; l'équipage à terre consulte sans écrire.
         "V36-partage-d-une-information-de-passation", "WEB-PASSATION", "post", lambda m: f"/dashboard/passation/{m.synthese.pk}/partage/",
         donnees=lambda m: {
             "ligne": next(l["cle"] for b in m.synthese.contenu["blocs"] for g in b["groupes"] for l in g["lignes"] if l["titre"] == MARQUEUR_S2),
-            "type_destinataire": "MARIN", "destinataire": m.equipier_sec.pk},
+            "type_destinataire": "SERVICE", "destinataire": m.service2.pk},
         effet=lambda m: __import__("org.models", fromlist=["PartagePassation"]).PartagePassation.objects.filter(
-            synthese=m.synthese, marin=m.equipier_sec).exists(),
+            synthese=m.synthese, service=m.service2).exists(),
         attendu={
-            "equipier_b2": "acces", "chef_section_b2": "acces", "chef_secteur_b": "acces", "chef_service_b": "acces", "comanav_b": "acces",
-            "cdt_b": "acces", "second_b": "acces", "cdt_admin": "acces", "equipier_b1": "refus", "chef_section_b1": "refus",
-            "chef_service_sec": "refus", "comaeq_b": "refus", "admin_navire": "refus", "bsc_admin": "refus", "master_admin": "refus",
-            "equipier_abe": "refus", "cdt_abe": "refus", "soutien_terre": "refus",
+            "chef_section_b2": "acces", "chef_secteur_b": "acces", "chef_service_b": "acces", "comanav_b": "acces",
+            "cdt_b": "acces", "second_b": "acces", "cdt_admin": "acces",
+            "equipier_b2": "refus", "equipier_b1": "refus", "chef_section_b1": "refus", "chef_service_sec": "refus", "comaeq_b": "refus",
+            "chef_secteur_a": "refus", "equipier_a": "refus", "cdt_a": "refus",
+            "admin_navire": "refus", "bsc_admin": "refus", "master_admin": "refus", "equipier_abe": "refus", "cdt_abe": "refus",
+            "soutien_terre": "refus",
+        },
+    ),
+    Verification(
+        # Contribution du marin (tâche qu'il a créée pour lui-même) : il la diffuse ; les autres marins du bâtiment non.
+        "V37-partage-d-une-contribution-du-marin", "WEB-PASSATION", "post", lambda m: f"/dashboard/passation/{m.synthese.pk}/partage/",
+        donnees=lambda m: {
+            "ligne": next(l["cle"] for b in m.synthese.contenu["blocs"] for g in b["groupes"] for l in g["lignes"]
+                          if l["titre"] == "TACHE-EQUIPIER-B1"),
+            "type_destinataire": "SERVICE", "destinataire": m.service2.pk},
+        effet=lambda m: __import__("org.models", fromlist=["PartagePassation"]).PartagePassation.objects.filter(
+            synthese=m.synthese, service=m.service2).exists(),
+        attendu={
+            "equipier_b1": "acces", "chef_section_b1": "acces", "chef_secteur_b": "acces", "chef_service_b": "acces", "cdt_b": "acces",
+            "equipier_b2": "refus", "chef_section_b2": "refus", "chef_service_sec": "refus", "comaeq_b": "refus",
+            "equipier_a": "refus", "admin_navire": "refus", "master_admin": "refus", "equipier_abe": "refus",
         },
     ),
     Verification(
